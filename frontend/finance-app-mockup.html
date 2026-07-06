@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ledger — Finance</title>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0E1116;
+    --surface:#141922;
+    --surface-2:#1B212B;
+    --border:#262C36;
+    --text:#E6E8EB;
+    --text-muted:#8B92A0;
+    --text-faint:#565E6C;
+    --jade:#4FA98A;
+    --jade-dim:rgba(79,169,138,0.14);
+    --red:#C75450;
+    --red-dim:rgba(199,84,80,0.14);
+    --gold:#C9A227;
+    --gold-dim:rgba(201,162,39,0.14);
+  }
+  *{box-sizing:border-box;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',system-ui,-apple-system,sans-serif;
+    font-size:14px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .serif{font-family:'Fraunces',Georgia,serif;}
+  .mono{font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,monospace;font-variant-numeric:tabular-nums;}
+  .text-muted-c{color:var(--text-muted)!important;}
+  .text-faint{color:var(--text-faint)!important;}
+  .eyebrow{
+    font-size:11px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color:var(--text-faint);
+    font-weight:500;
+  }
+
+  a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible{
+    outline:2px solid var(--jade);
+    outline-offset:2px;
+  }
+
+  /* Sidebar */
+  .sidebar{
+    width:220px;
+    min-height:100vh;
+    background:var(--surface);
+    border-right:1px solid var(--border);
+    position:fixed;
+    left:0; top:0; bottom:0;
+    display:flex;
+    flex-direction:column;
+    padding:24px 16px;
+  }
+  .brand{
+    font-family:'Fraunces',Georgia,serif;
+    font-size:19px;
+    font-weight:500;
+    letter-spacing:.01em;
+    padding:0 8px 28px 8px;
+    color:var(--text);
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .brand .dot{width:7px;height:7px;border-radius:50%;background:var(--jade);display:inline-block;}
+  .nav-link-custom{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:9px 10px;
+    border-radius:6px;
+    color:var(--text-muted);
+    font-size:13.5px;
+    font-weight:500;
+    text-decoration:none;
+    margin-bottom:2px;
+    transition:background .12s ease, color .12s ease;
+    border:1px solid transparent;
+  }
+  .nav-link-custom i{font-size:15px; width:16px; text-align:center;}
+  .nav-link-custom:hover{background:var(--surface-2); color:var(--text);}
+  .nav-link-custom.active{
+    background:var(--surface-2);
+    color:var(--text);
+    border-color:var(--border);
+  }
+  .sidebar-footer{
+    margin-top:auto;
+    padding:10px 10px 0 10px;
+    border-top:1px solid var(--border);
+  }
+  .sidebar-footer .acct{
+    display:flex; align-items:center; gap:10px; font-size:12.5px;
+  }
+  .avatar-sm{
+    width:28px;height:28px;border-radius:50%;
+    background:var(--surface-2); border:1px solid var(--border);
+    display:flex;align-items:center;justify-content:center;
+    font-size:11px; color:var(--text-muted); font-weight:600;
+  }
+
+  /* Main content */
+  .main{
+    margin-left:220px;
+    padding:32px 40px 60px 40px;
+    max-width:1180px;
+  }
+  .page-header{
+    display:flex; align-items:baseline; justify-content:space-between;
+    margin-bottom:28px;
+  }
+  .page-title{font-family:'Fraunces',Georgia,serif; font-size:24px; font-weight:500;}
+
+  /* Panels */
+  .panel{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:8px;
+  }
+  .panel-header{
+    padding:16px 20px;
+    border-bottom:1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .panel-title{font-size:13px; font-weight:600; color:var(--text);}
+
+  /* Hero balance */
+  .hero-balance{
+    font-family:'Fraunces',Georgia,serif;
+    font-size:52px;
+    font-weight:500;
+    line-height:1;
+    letter-spacing:-0.01em;
+  }
+  .hero-balance.md{font-size:38px;}
+  .delta-pill{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    padding:3px 8px;
+    border-radius:4px;
+    background:var(--jade-dim);
+    color:var(--jade);
+  }
+  .delta-pill.neg{background:var(--red-dim); color:var(--red);}
+
+  /* Small account cards (overview) */
+  .acct-card{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:18px 18px;
+    transition:border-color .12s ease;
+  }
+  .acct-card:hover{border-color:#39414F;}
+  .acct-kind{
+    font-size:11px; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--text-faint); font-weight:500; margin-bottom:10px;
+  }
+  .acct-balance{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:19px; font-weight:500;
+  }
+  .acct-name{font-size:13px; color:var(--text-muted); margin-top:2px;}
+
+  /* Ledger-style feed (used on Overview "recent activity") */
+  .feed-row{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:13px 20px;
+    border-bottom:1px solid var(--border);
+  }
+  .feed-row:last-child{border-bottom:none;}
+  .feed-left{display:flex; align-items:center; gap:11px; min-width:0;}
+  .feed-desc{font-size:13.5px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .feed-date{font-family:'IBM Plex Mono',monospace; color:var(--text-muted); font-size:12px; width:52px; flex-shrink:0;}
+  .cat-tick{
+    display:inline-block;
+    width:8px;height:8px;border-radius:2px;
+    flex-shrink:0;
+  }
+  .cell-amount{font-family:'IBM Plex Mono',monospace; text-align:right; font-weight:500; white-space:nowrap;}
+  .cell-amount.pos{color:var(--jade);}
+  .cell-amount.neg{color:var(--red);}
+  .tag{
+    font-size:11px;
+    padding:3px 8px;
+    border-radius:4px;
+    background:var(--surface-2);
+    border:1px solid var(--border);
+    color:var(--text-muted);
+    white-space:nowrap;
+  }
+
+  /* Spending list (overview) */
+  .spend-row{margin-bottom:16px;}
+  .spend-row:last-child{margin-bottom:0;}
+  .spend-label{display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:6px;}
+  .track{height:5px; background:var(--surface-2); border-radius:3px; overflow:hidden;}
+  .track-fill{height:100%; border-radius:3px;}
+
+  /* Transactions — card/list redesign (not a table) */
+  .day-group{margin-bottom:6px;}
+  .day-heading{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 4px 8px 4px;
+  }
+  .day-heading .eyebrow{margin:0;}
+  .day-total{font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--text-faint);}
+
+  .txn-row{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    padding:13px 16px;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:8px;
+    margin-bottom:8px;
+    transition:border-color .12s ease, background .12s ease;
+  }
+  .txn-row:hover{border-color:#39414F; background:var(--surface-2);}
+  .txn-icon{
+    width:34px; height:34px; border-radius:7px;
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0; font-size:14px;
+    border:1px solid var(--border);
+  }
+  .txn-main{flex:1; min-width:0;}
+  .txn-desc{font-size:13.5px; color:var(--text); font-weight:500;}
+  .txn-meta{font-size:12px; color:var(--text-muted); margin-top:2px; display:flex; align-items:center; gap:6px;}
+  .txn-meta .dot-sep{width:2px;height:2px;border-radius:50%;background:var(--text-faint); display:inline-block;}
+  .txn-right{text-align:right; flex-shrink:0;}
+  .txn-amount{font-family:'IBM Plex Mono',monospace; font-size:14px; font-weight:500;}
+  .txn-balance{font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--text-faint); margin-top:2px;}
+
+  /* Budgets */
+  .budget-card{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:18px 20px;
+  }
+  .budget-top{display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;}
+  .budget-name{display:flex; align-items:center; gap:9px; font-size:13.5px; font-weight:500;}
+  .budget-figures{font-family:'IBM Plex Mono',monospace; font-size:12.5px; color:var(--text-muted); margin-bottom:8px;}
+  .budget-status{font-size:11.5px; margin-top:8px; font-weight:500;}
+  .status-ok{color:var(--jade);}
+  .status-warn{color:var(--gold);}
+  .status-over{color:var(--red);}
+
+  /* Accounts */
+  .account-card-lg{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:20px;
+    height:100%;
+  }
+  .account-icon{
+    width:38px; height:38px; border-radius:8px;
+    border:1px solid var(--border);
+    display:flex; align-items:center; justify-content:center;
+    font-size:16px; margin-bottom:14px;
+  }
+  .account-mask{font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--text-faint); letter-spacing:.05em;}
+  .add-account-card{
+    background:transparent;
+    border:1px dashed var(--border);
+    border-radius:8px;
+    height:100%;
+    min-height:168px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    color:var(--text-muted);
+    cursor:pointer;
+    transition:border-color .12s ease, color .12s ease;
+  }
+  .add-account-card:hover{border-color:var(--jade); color:var(--jade);}
+
+  /* Forms / buttons */
+  .form-control-dark, .form-select-dark{
+    background:var(--surface-2);
+    border:1px solid var(--border);
+    color:var(--text);
+    font-size:13px;
+  }
+  .form-control-dark::placeholder{color:var(--text-faint);}
+  .form-control-dark:focus, .form-select-dark:focus{
+    background:var(--surface-2);
+    color:var(--text);
+    border-color:var(--jade);
+    box-shadow:0 0 0 3px var(--jade-dim);
+  }
+  .btn-jade{
+    background:var(--jade); border:1px solid var(--jade);
+    color:#0E1116; font-weight:600; font-size:13px;
+  }
+  .btn-jade:hover{background:#458f77; border-color:#458f77; color:#fff;}
+  .btn-ghost{
+    background:transparent; border:1px solid var(--border);
+    color:var(--text-muted); font-size:13px;
+  }
+  .btn-ghost:hover{background:var(--surface-2); color:var(--text); border-color:var(--border);}
+
+  .view{display:none;}
+  .view.active{display:block;}
+
+  ::selection{background:var(--jade-dim); color:var(--text);}
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="brand"><span class="dot"></span>Ledger</div>
+  <nav>
+    <a href="#" class="nav-link-custom active" data-view="overview"><i class="bi bi-grid-1x2"></i>Overview</a>
+    <a href="#" class="nav-link-custom" data-view="transactions"><i class="bi bi-list-ul"></i>Transactions</a>
+    <a href="#" class="nav-link-custom" data-view="budgets"><i class="bi bi-pie-chart"></i>Budgets</a>
+    <a href="#" class="nav-link-custom" data-view="accounts"><i class="bi bi-wallet2"></i>Accounts</a>
+    <a href="#" class="nav-link-custom" data-view="disabled"><i class="bi bi-gear"></i>Settings</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="acct">
+      <div class="avatar-sm">JM</div>
+      <div>
+        <div style="color:var(--text); font-weight:500;">Jordan M.</div>
+        <div class="text-faint" style="font-size:11.5px;">Personal workspace</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- OVERVIEW -->
+  <div class="view active" id="view-overview">
+    <div class="page-header">
+      <div>
+        <div class="eyebrow mb-1">July 2026</div>
+        <div class="page-title">Overview</div>
+      </div>
+      <button class="btn btn-ghost btn-sm"><i class="bi bi-calendar3 me-1"></i>This month</button>
+    </div>
+
+    <div class="panel p-4 mb-4">
+      <div class="eyebrow mb-2">Total balance</div>
+      <div class="d-flex align-items-end gap-3 flex-wrap">
+        <div class="hero-balance">$48,231.90</div>
+        <span class="delta-pill mb-2"><i class="bi bi-arrow-up-short"></i>2.4% this month</span>
+      </div>
+      <div class="text-muted-c mt-2" style="font-size:12.5px;">across 4 accounts · updated today at 9:12am</div>
+    </div>
+
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-md-3">
+        <div class="acct-card">
+          <div class="acct-kind">Checking</div>
+          <div class="acct-balance">$6,412.08</div>
+          <div class="acct-name">Everyday</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="acct-card">
+          <div class="acct-kind">Savings</div>
+          <div class="acct-balance">$28,900.44</div>
+          <div class="acct-name">Emergency fund</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="acct-card">
+          <div class="acct-kind">Credit card</div>
+          <div class="acct-balance" style="color:var(--red);">-$1,284.30</div>
+          <div class="acct-name">Visa Signature</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="acct-card">
+          <div class="acct-kind">Investments</div>
+          <div class="acct-balance">$14,203.68</div>
+          <div class="acct-name">Brokerage</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-3">
+      <div class="col-lg-7">
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">Recent activity</div>
+            <a href="#" class="text-muted-c text-decoration-none" style="font-size:12.5px;" onclick="showView('transactions'); return false;">View all →</a>
+          </div>
+          <div id="recent-feed"></div>
+        </div>
+      </div>
+      <div class="col-lg-5">
+        <div class="panel p-4">
+          <div class="panel-title mb-3">Spending by category</div>
+          <div id="spend-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TRANSACTIONS (card / feed style, not a table) -->
+  <div class="view" id="view-transactions">
+    <div class="page-header">
+      <div>
+        <div class="eyebrow mb-1">All accounts</div>
+        <div class="page-title">Transactions</div>
+      </div>
+      <button class="btn btn-jade btn-sm"><i class="bi bi-plus-lg me-1"></i>Add transaction</button>
+    </div>
+
+    <div class="panel p-3 mb-3">
+      <div class="row g-2 align-items-center">
+        <div class="col-md-4">
+          <input type="text" class="form-control form-control-dark form-control-sm" placeholder="Search transactions">
+        </div>
+        <div class="col-md-2">
+          <select class="form-select form-select-dark form-select-sm">
+            <option>All accounts</option>
+            <option>Checking</option>
+            <option>Savings</option>
+            <option>Credit card</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <select class="form-select form-select-dark form-select-sm">
+            <option>All categories</option>
+            <option>Groceries</option>
+            <option>Housing</option>
+            <option>Transport</option>
+            <option>Income</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <select class="form-select form-select-dark form-select-sm">
+            <option>Last 30 days</option>
+            <option>Last 90 days</option>
+            <option>This year</option>
+          </select>
+        </div>
+        <div class="col-md-2 text-md-end">
+          <button class="btn btn-ghost btn-sm w-100 w-md-auto"><i class="bi bi-download me-1"></i>Export</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="txn-feed"></div>
+
+    <div class="d-flex justify-content-between align-items-center mt-3">
+      <div class="text-faint" style="font-size:12.5px;">Showing 10 of 214 transactions</div>
+      <div class="btn-group">
+        <button class="btn btn-ghost btn-sm">Previous</button>
+        <button class="btn btn-ghost btn-sm">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BUDGETS -->
+  <div class="view" id="view-budgets">
+    <div class="page-header">
+      <div>
+        <div class="eyebrow mb-1">July 2026</div>
+        <div class="page-title">Budgets</div>
+      </div>
+      <button class="btn btn-ghost btn-sm"><i class="bi bi-pencil me-1"></i>Edit budgets</button>
+    </div>
+
+    <div class="panel p-4 mb-4">
+      <div class="row align-items-end g-3">
+        <div class="col-md-5">
+          <div class="eyebrow mb-2">Budgeted this month</div>
+          <div class="hero-balance md">$3,150.00</div>
+        </div>
+        <div class="col-md-7">
+          <div class="row g-3 text-center text-md-start">
+            <div class="col-4">
+              <div class="eyebrow mb-1">Spent</div>
+              <div class="mono" style="font-size:16px;">$2,842.10</div>
+            </div>
+            <div class="col-4">
+              <div class="eyebrow mb-1">Remaining</div>
+              <div class="mono" style="font-size:16px; color:var(--jade);">$307.90</div>
+            </div>
+            <div class="col-4">
+              <div class="eyebrow mb-1">Days left</div>
+              <div class="mono" style="font-size:16px;">12</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-3" id="budgets-grid"></div>
+  </div>
+
+  <!-- ACCOUNTS -->
+  <div class="view" id="view-accounts">
+    <div class="page-header">
+      <div>
+        <div class="eyebrow mb-1">4 linked accounts</div>
+        <div class="page-title">Accounts</div>
+      </div>
+      <button class="btn btn-jade btn-sm"><i class="bi bi-plus-lg me-1"></i>Add account</button>
+    </div>
+
+    <div class="row g-3" id="accounts-grid"></div>
+  </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+<script>
+  const categoryColors = {
+    Groceries: '#4FA98A',
+    Housing: '#C9A227',
+    Transport: '#6B8FC9',
+    Income: '#4FA98A',
+    Dining: '#C9A227',
+    Subscriptions: '#8B92A0',
+    Transfer: '#8B92A0',
+    Salary: '#4FA98A'
+  };
+  const categoryIcons = {
+    Groceries: 'bi-basket2',
+    Housing: 'bi-house',
+    Transport: 'bi-fuel-pump',
+    Income: 'bi-arrow-down-left',
+    Dining: 'bi-cup-hot',
+    Subscriptions: 'bi-repeat',
+    Transfer: 'bi-arrow-left-right',
+    Salary: 'bi-arrow-down-left'
+  };
+
+  const days = [
+    {
+      label: 'Today · Jul 4',
+      items: [
+        { desc:'Whole Foods Market', cat:'Groceries', acct:'Checking', amount:-86.42, balance:6412.08, time:'11:20am' },
+      ]
+    },
+    {
+      label: 'Yesterday · Jul 3',
+      items: [
+        { desc:'Payroll — Acme Inc.', cat:'Salary', acct:'Checking', amount:3800.00, balance:6498.50, time:'8:00am' },
+      ]
+    },
+    {
+      label: 'Jul 2',
+      items: [
+        { desc:'Rent — July', cat:'Housing', acct:'Checking', amount:-2100.00, balance:2698.50, time:'6:03am' },
+      ]
+    },
+    {
+      label: 'Jul 1',
+      items: [
+        { desc:'Spotify', cat:'Subscriptions', acct:'Credit card', amount:-11.99, balance:-1284.30, time:'12:00am' },
+      ]
+    },
+    {
+      label: 'Jun 29',
+      items: [
+        { desc:'Shell Gas Station', cat:'Transport', acct:'Credit card', amount:-42.10, balance:-1272.31, time:'5:41pm' },
+        { desc:'Transfer to Savings', cat:'Transfer', acct:'Savings', amount:1000.00, balance:28900.44, time:'9:02am' },
+      ]
+    },
+    {
+      label: 'Jun 27',
+      items: [
+        { desc:'Trader Joe\'s', cat:'Groceries', acct:'Checking', amount:-54.28, balance:4798.50, time:'4:12pm' },
+      ]
+    },
+    {
+      label: 'Jun 26',
+      items: [
+        { desc:'Blue Bottle Coffee', cat:'Dining', acct:'Credit card', amount:-6.75, balance:-1230.21, time:'8:47am' },
+      ]
+    },
+    {
+      label: 'Jun 24',
+      items: [
+        { desc:'Union Pacific Rail', cat:'Transport', acct:'Checking', amount:-124.00, balance:4852.78, time:'7:30am' },
+        { desc:'Freelance payment', cat:'Income', acct:'Checking', amount:650.00, balance:4976.78, time:'2:15pm' },
+      ]
+    },
+  ];
+
+  function fmt(amount){
+    const sign = amount < 0 ? '-' : '+';
+    const val = Math.abs(amount).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+    return sign + '$' + val;
+  }
+  function fmtBalance(amount){
+    const sign = amount < 0 ? '-' : '';
+    const val = Math.abs(amount).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+    return sign + '$' + val;
+  }
+  function iconStyle(cat){
+    const c = categoryColors[cat] || '#8B92A0';
+    return `background:rgba(255,255,255,0.02); color:${c};`;
+  }
+
+  function txnRowHtml(t){
+    const cls = t.amount < 0 ? 'neg' : 'pos';
+    const icon = categoryIcons[t.cat] || 'bi-dot';
+    return `
+      <div class="txn-row">
+        <div class="txn-icon" style="${iconStyle(t.cat)}"><i class="bi ${icon}"></i></div>
+        <div class="txn-main">
+          <div class="txn-desc">${t.desc}</div>
+          <div class="txn-meta">
+            <span>${t.cat}</span><span class="dot-sep"></span><span>${t.acct}</span><span class="dot-sep"></span><span>${t.time}</span>
+          </div>
+        </div>
+        <div class="txn-right">
+          <div class="txn-amount ${cls === 'neg' ? 'cell-amount neg' : 'cell-amount pos'}">${fmt(t.amount)}</div>
+          <div class="txn-balance">${fmtBalance(t.balance)}</div>
+        </div>
+      </div>`;
+  }
+
+  // Recent activity feed on Overview — flat, first 5
+  const flat = days.flatMap(d => d.items);
+  const recentFeed = document.getElementById('recent-feed');
+  flat.slice(0,5).forEach(t=>{
+    const cls = t.amount < 0 ? 'neg' : 'pos';
+    recentFeed.insertAdjacentHTML('beforeend', `
+      <div class="feed-row">
+        <div class="feed-left">
+          <span class="cat-tick" style="background:${categoryColors[t.cat] || '#8B92A0'}"></span>
+          <span class="feed-desc">${t.desc}</span>
+        </div>
+        <span class="cell-amount ${cls}">${fmt(t.amount)}</span>
+      </div>`);
+  });
+
+  // Transactions page — grouped card feed
+  const txnFeed = document.getElementById('txn-feed');
+  days.forEach(day=>{
+    const total = day.items.reduce((s,t)=>s+t.amount,0);
+    const totalStr = (total<0?'-':'+') + '$' + Math.abs(total).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+    let html = `
+      <div class="day-group">
+        <div class="day-heading">
+          <div class="eyebrow">${day.label}</div>
+          <div class="day-total">${totalStr}</div>
+        </div>`;
+    day.items.forEach(t=>{ html += txnRowHtml(t); });
+    html += `</div>`;
+    txnFeed.insertAdjacentHTML('beforeend', html);
+  });
+
+  // Spending by category (overview)
+  const spend = [
+    { cat:'Housing', amount:2100, pct:100 },
+    { cat:'Groceries', amount:412, pct:20 },
+    { cat:'Transport', amount:198, pct:9 },
+    { cat:'Dining', amount:86, pct:4 },
+    { cat:'Subscriptions', amount:34, pct:2 },
+  ];
+  const spendList = document.getElementById('spend-list');
+  spend.forEach(s=>{
+    const c = categoryColors[s.cat] || '#8B92A0';
+    spendList.insertAdjacentHTML('beforeend', `
+      <div class="spend-row">
+        <div class="spend-label">
+          <span>${s.cat}</span>
+          <span class="mono text-muted-c">$${s.amount.toLocaleString()}</span>
+        </div>
+        <div class="track"><div class="track-fill" style="width:${s.pct}%; background:${c};"></div></div>
+      </div>`);
+  });
+
+  // Budgets grid
+  const budgets = [
+    { cat:'Housing', spent:2100, limit:2100, status:'over-limit-ok' },
+    { cat:'Groceries', spent:412, limit:500, status:'ok' },
+    { cat:'Transport', spent:198, limit:250, status:'ok' },
+    { cat:'Dining', spent:186, limit:150, status:'over' },
+    { cat:'Subscriptions', spent:46, limit:60, status:'warn' },
+    { cat:'Savings goal', spent:1000, limit:1000, status:'ok' },
+  ];
+  function budgetStatus(spent, limit){
+    const pct = (spent/limit)*100;
+    if(pct >= 100) return { label:'Over budget', cls:'status-over', color:'var(--red)' };
+    if(pct >= 85) return { label:'Near limit', cls:'status-warn', color:'var(--gold)' };
+    return { label:'On track', cls:'status-ok', color:'var(--jade)' };
+  }
+  const budgetsGrid = document.getElementById('budgets-grid');
+  budgets.forEach(b=>{
+    const pct = Math.min((b.spent/b.limit)*100, 100);
+    const st = budgetStatus(b.spent, b.limit);
+    const c = categoryColors[b.cat] || '#8B92A0';
+    budgetsGrid.insertAdjacentHTML('beforeend', `
+      <div class="col-md-6 col-lg-4">
+        <div class="budget-card">
+          <div class="budget-top">
+            <div class="budget-name"><span class="cat-tick" style="background:${c}"></span>${b.cat}</div>
+          </div>
+          <div class="budget-figures">$${b.spent.toLocaleString()} of $${b.limit.toLocaleString()}</div>
+          <div class="track"><div class="track-fill" style="width:${pct}%; background:${st.color};"></div></div>
+          <div class="budget-status ${st.cls}">${st.label}</div>
+        </div>
+      </div>`);
+  });
+
+  // Accounts grid
+  const accounts = [
+    { kind:'Checking', name:'Everyday', mask:'•••• 2043', balance:6412.08, synced:'Synced 2 min ago', icon:'bi-wallet2' },
+    { kind:'Savings', name:'Emergency fund', mask:'•••• 7710', balance:28900.44, synced:'Synced 2 min ago', icon:'bi-piggy-bank' },
+    { kind:'Credit card', name:'Visa Signature', mask:'•••• 4821', balance:-1284.30, synced:'Synced 12 min ago', icon:'bi-credit-card' },
+    { kind:'Investments', name:'Brokerage', mask:'•••• 9042', balance:14203.68, synced:'Synced this morning', icon:'bi-graph-up-arrow' },
+  ];
+  const accountsGrid = document.getElementById('accounts-grid');
+  accounts.forEach(a=>{
+    const negClass = a.balance < 0 ? 'style="color:var(--red);"' : '';
+    accountsGrid.insertAdjacentHTML('beforeend', `
+      <div class="col-md-6 col-lg-3">
+        <div class="account-card-lg">
+          <div class="account-icon"><i class="bi ${a.icon} text-muted-c"></i></div>
+          <div class="acct-kind">${a.kind}</div>
+          <div class="acct-balance" ${negClass}>${a.balance < 0 ? '-$' + Math.abs(a.balance).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) : '$' + a.balance.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+          <div class="acct-name mb-3">${a.name}</div>
+          <div class="account-mask mb-2">${a.mask}</div>
+          <div class="text-faint" style="font-size:11.5px;">${a.synced}</div>
+        </div>
+      </div>`);
+  });
+  accountsGrid.insertAdjacentHTML('beforeend', `
+    <div class="col-md-6 col-lg-3">
+      <div class="add-account-card">
+        <i class="bi bi-plus-lg mb-2" style="font-size:18px;"></i>
+        <div style="font-size:13px; font-weight:500;">Add account</div>
+      </div>
+    </div>`);
+
+  // View switching
+  function showView(name){
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    document.getElementById('view-' + name).classList.add('active');
+    document.querySelectorAll('.nav-link-custom').forEach(n=>n.classList.remove('active'));
+    document.querySelector(`.nav-link-custom[data-view="${name}"]`).classList.add('active');
+  }
+  document.querySelectorAll('.nav-link-custom').forEach(link=>{
+    link.addEventListener('click', e=>{
+      e.preventDefault();
+      const v = link.getAttribute('data-view');
+      if(v === 'disabled') return;
+      showView(v);
+    });
+  });
+</script>
+
+</body>
+</html>
