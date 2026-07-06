@@ -1,5 +1,38 @@
 # Ledger — Outstanding Work
 
+## Status as of end of session (2026-07-06, evening)
+
+**Done and committed:** §1–§4 (Categories page, Add-transaction form,
+Add/edit-budget form + Overview budget panel, Transactions filters + Export,
+Overview date-range dropdown) are all implemented and committed as 5
+separate commits (`319c023` through `c7af925`, one per chunk). Local branch
+is 2 commits ahead of `origin/main` — not pushed yet, no push has been
+requested.
+
+**Uncommitted:** only this file (`TODO.md`) — the §7 edit/delete tracking
+section added below was written after the last commit and hasn't been
+committed.
+
+**Not started:** §7 (edit/delete for Transactions/Budgets/Accounts/
+Categories + a User profile page) — tracked below, nothing built yet.
+Suggested order there: Account + Category edit/delete first, then Budget
+delete, then User profile, then Transaction edit/delete last (trickiest,
+touches running-balance recomputation).
+
+**Environment reminders for next session** (see [[project-dev-environment]]
+in memory for more):
+- Local dev runs via `docker compose` — containers `ledger-backend` (8080),
+  `ledger-frontend` (5173), `ledger-db` (5432) — check `docker ps` before
+  assuming anything needs starting.
+- The real logged-in user is `ricardompcampos@hotmail.com`, not the seeded
+  `demo@ledger.app` account.
+- **Demo login is still broken** (`seed-data.sql`'s bcrypt hash uses an
+  incompatible `$2b$` prefix) — not fixed, see §5.
+- **Editing any file under `backend/src/main/java` while `quarkus:dev` is
+  running wipes the local database** (Hibernate `drop-and-create` on live
+  reload) — expect this, not a bug. User has said to just proceed without
+  pausing for confirmation each time, since local data is disposable.
+
 Snapshot from a full frontend + backend audit (2026-07-06). The backend is
 further along than it looks from the UI — Transactions, Budgets, and
 Categories all have working create endpoints that are simply never called.
@@ -142,4 +175,61 @@ All five UI-wiring chunks from this audit are implemented. What's left is
 Transaction/Budget delete) and the outstanding bcrypt-prefix bug in
 §5 (demo login) — none of these block normal use of the app with a real
 account, they're follow-ups for later.
+
+## 7. Edit/delete + profile management (requested 2026-07-06, not yet built)
+
+Every entity currently only supports create + list. There is no edit or
+delete UI anywhere, and the only delete endpoint that exists server-side
+(`DELETE /accounts/{id}`) isn't even called from the frontend. None of this
+is built yet — tracked here for a future round of chunks.
+
+1. **Transactions** — no edit, no delete, anywhere.
+   - Backend: no `PUT`/`DELETE /transactions/{id}` at all
+     (`backend/src/main/java/com/ledger/transaction/TransactionResource.java`
+     only has `GET`/`POST`). A delete needs to reverse the transaction's
+     effect on `account.balance` and re-derive `runningBalance` for later
+     transactions on that account — not a trivial delete, needs thought.
+   - Frontend: no edit/delete affordance on any `txn-row` in
+     `Transactions.jsx`.
+
+2. **Budgets** — edit already works implicitly (re-submitting the same
+   category+month via `POST /budgets` upserts the limit), but there's no
+   delete and no explicit per-card edit affordance.
+   - Backend: no `DELETE /budgets/{id}`.
+   - Frontend: no delete button on `budget-card`; editing means reopening
+     the top form and re-picking the same category rather than clicking
+     "edit" on the card itself.
+
+3. **Accounts** — backend already has `DELETE /accounts/{id}` and
+   `AccountsApi.remove()` exists in `ledger.js`, but nothing in
+   `Accounts.jsx` calls it — no delete button on `account-card-lg` at all.
+   No edit (`PUT`) exists on either side — can't change name/institution/
+   kind after creation.
+   - Backend: needs `PUT /accounts/{id}`.
+   - Frontend: needs a delete affordance (with a confirm step — deleting an
+     account presumably should be blocked or cascade-handled if it still
+     has transactions, similar to the FK constraint hit during testing of
+     chunk 2) and an edit form.
+
+4. **Categories** — no edit, no delete, on either side (same gap noted in
+   §1). Deleting a category needs a decision on what happens to existing
+   transactions/budgets referencing it (null out `category_id`? block?).
+   - Backend: needs `PUT`/`DELETE /categories/{id}`.
+   - Frontend: needs edit/delete affordance on `Categories.jsx`'s list rows.
+
+5. **User profile** (email, password, display name) — nothing exists at
+   all: no backend endpoint, no frontend page/route/sidebar link.
+   - Backend: no `UserResource`/profile endpoint anywhere — only
+     `POST /auth/signup` and `POST /auth/login`. Changing a password
+     should go through `BcryptUtil` (same as signup) and probably require
+     the current password as confirmation. Changing email likely needs a
+     uniqueness check (same constraint signup already enforces).
+   - Frontend: needs a Settings/Profile page, route, and sidebar entry —
+     none exist today.
+
+**Suggested build order:** Account edit/delete and Category edit/delete
+first (simplest, most requested day-to-day), then Budget delete, then User
+profile (self-contained, new page), then Transaction edit/delete last since
+it's the trickiest (running-balance recomputation on delete/edit affects
+every later transaction on that account).
 </content>
