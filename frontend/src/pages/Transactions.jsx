@@ -42,6 +42,44 @@ function money(amount, { signed = false } = {}) {
   return `${sign}$${value}`;
 }
 
+function rangeCutoff(range) {
+  const now = new Date();
+  if (range === '90') {
+    now.setDate(now.getDate() - 90);
+    return now;
+  }
+  if (range === 'year') {
+    return new Date(now.getFullYear(), 0, 1);
+  }
+  now.setDate(now.getDate() - 30);
+  return now;
+}
+
+function toCsv(rows) {
+  const header = ['Date', 'Description', 'Category', 'Account', 'Amount', 'Running balance'];
+  const lines = rows.map((t) => [
+    t.occurredOn,
+    t.description,
+    t.category?.name || 'Uncategorized',
+    t.account?.name || '',
+    t.amount,
+    t.runningBalance,
+  ]);
+  return [header, ...lines]
+    .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    .join('\n');
+}
+
+function downloadCsv(csv, filename) {
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 function dayLabel(dateStr) {
   const date = new Date(dateStr);
   const today = new Date();
@@ -57,6 +95,9 @@ function dayLabel(dateStr) {
 export default function Transactions() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
+  const [filterAccountId, setFilterAccountId] = useState('');
+  const [filterCategoryId, setFilterCategoryId] = useState('');
+  const [filterRange, setFilterRange] = useState('30');
   const accountsQuery = useQuery({ queryKey: ['accounts'], queryFn: AccountsApi.list });
   const accounts = accountsQuery.data || [];
   const categoriesQuery = useQuery({ queryKey: ['categories'], queryFn: CategoriesApi.list });
@@ -104,20 +145,30 @@ export default function Transactions() {
 
   const accountById = useMemo(() => Object.fromEntries(accounts.map((a) => [a.id, a])), [accounts]);
 
-  const grouped = useMemo(() => {
-    const flat = txnQueries
+  const filteredFlat = useMemo(() => {
+    const cutoff = rangeCutoff(filterRange);
+    return txnQueries
       .flatMap((q) => q.data || [])
       .filter((t) => t.description.toLowerCase().includes(search.toLowerCase()))
+      .filter((t) => !filterAccountId || String(t.account?.id) === filterAccountId)
+      .filter((t) => !filterCategoryId || String(t.category?.id) === filterCategoryId)
+      .filter((t) => new Date(t.occurredOn) >= cutoff)
       .sort((a, b) => new Date(b.occurredOn) - new Date(a.occurredOn));
+  }, [txnQueries, search, filterAccountId, filterCategoryId, filterRange]);
 
+  const grouped = useMemo(() => {
     const map = new Map();
-    for (const t of flat) {
+    for (const t of filteredFlat) {
       const label = dayLabel(t.occurredOn);
       if (!map.has(label)) map.set(label, []);
       map.get(label).push(t);
     }
     return Array.from(map.entries());
-  }, [txnQueries, search]);
+  }, [filteredFlat]);
+
+  const handleExport = () => {
+    downloadCsv(toCsv(filteredFlat), `transactions-${todayIso()}.csv`);
+  };
 
   const isLoading = accountsQuery.isLoading || txnQueries.some((q) => q.isLoading);
 
@@ -224,30 +275,46 @@ export default function Transactions() {
             />
           </div>
           <div className="col-md-2">
-            <select className="form-select form-select-sm">
-              <option>All accounts</option>
+            <select
+              className="form-select form-select-sm"
+              value={filterAccountId}
+              onChange={(e) => setFilterAccountId(e.target.value)}
+            >
+              <option value="">All accounts</option>
               {accounts.map((a) => (
-                <option key={a.id}>{a.name}</option>
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
               ))}
             </select>
           </div>
           <div className="col-md-2">
-            <select className="form-select form-select-sm">
-              <option>All categories</option>
-              {Object.keys(categoryColors).map((c) => (
-                <option key={c}>{c}</option>
+            <select
+              className="form-select form-select-sm"
+              value={filterCategoryId}
+              onChange={(e) => setFilterCategoryId(e.target.value)}
+            >
+              <option value="">All categories</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
               ))}
             </select>
           </div>
           <div className="col-md-2">
-            <select className="form-select form-select-sm">
-              <option>Last 30 days</option>
-              <option>Last 90 days</option>
-              <option>This year</option>
+            <select
+              className="form-select form-select-sm"
+              value={filterRange}
+              onChange={(e) => setFilterRange(e.target.value)}
+            >
+              <option value="30">Last 30 days</option>
+              <option value="90">Last 90 days</option>
+              <option value="year">This year</option>
             </select>
           </div>
           <div className="col-md-2 text-md-end">
-            <button className="btn btn-ghost btn-sm w-100 w-md-auto">
+            <button className="btn btn-ghost btn-sm w-100 w-md-auto" onClick={handleExport}>
               <i className="bi bi-download me-1" />
               Export
             </button>
@@ -274,7 +341,7 @@ export default function Transactions() {
             {items.map((t) => {
               const catName = t.category?.name;
               const icon = categoryIcons[catName] || 'bi-dot';
-              const color = categoryColors[catName] || '#8B92A0';
+              const color = t.category?.colorHex || categoryColors[catName] || '#8B92A0';
               return (
                 <div className="txn-row" key={t.id}>
                   <div className="txn-icon" style={{ color }}>

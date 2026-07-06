@@ -45,16 +45,16 @@ Frontend `TransactionsApi.create` already exists in `ledger.js:22`.
       populated from `CategoriesApi.list()`, description, amount, date).
 - [x] Wire it to `TransactionsApi.create` + invalidate the relevant queries
       (account list for balance, transactions list).
-- [ ] Wire the account filter select (`Transactions.jsx:104-109`) — currently
+- [x] Wire the account filter select (`Transactions.jsx:104-109`) — currently
       renders options but has no `onChange`/state.
-- [ ] Wire the category filter select (`Transactions.jsx:112-117`) — same
-      issue, also depends on item 1.
-- [ ] Wire the date-range select ("Last 30 days" / "Last 90 days" / "This
-      year", `Transactions.jsx:120-124`) — no `onChange`/state; currently the
-      page just fetches *all* transactions per account and filters/sorts in
-      JS. Needs backend support too (see §5).
-- [ ] Wire or remove the "Export" button (`Transactions.jsx:127-130`) — no
-      handler exists at all.
+- [x] Wire the category filter select (`Transactions.jsx:112-117`) — same
+      issue, also depends on item 1. Now populated from `CategoriesApi.list()`.
+- [x] Wire the date-range select ("Last 30 days" / "Last 90 days" / "This
+      year", `Transactions.jsx:120-124`) — filtering is still done client-side
+      over all fetched transactions (no backend date-range params yet, see
+      §6), but the control now actually filters the visible list.
+- [x] Wire or remove the "Export" button (`Transactions.jsx:127-130`) —
+      exports the currently filtered transactions as a CSV download.
 
 ## 3. Budgets page — no way to create or edit a budget
 
