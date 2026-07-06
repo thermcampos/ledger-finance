@@ -1,0 +1,84 @@
+---
+
+services:
+  ledger_db:
+    image: postgres:16
+    container_name: ledger-db
+    environment:
+      POSTGRES_USER: ledger
+      POSTGRES_PASSWORD: ledger
+      POSTGRES_DB: ledger
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ledger"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ledger-network
+
+  ledger_backend:
+    container_name: ledger-backend
+    depends_on:
+      ledger_db:
+        condition: service_started
+    environment:
+      POSTGRES_DB: ledger
+      POSTGRES_HOST: ledger_db
+      POSTGRES_USER: ledger
+      POSTGRES_PASSWORD: ledger
+      POSTGRES_PORT: 5432
+      CORS_ALLOWED_ORIGINS: http://localhost:5173
+      HOME: /tmp
+    user: "${UID:-1000}:${GID:-1000}"
+    ports:
+      - "8080:8080"
+      - "5005:5005"
+    image: maven:3.9.12-eclipse-temurin-21
+    entrypoint: 'mvn -Dmaven.repo.local=/mvn-repo/repository quarkus:dev -Dquarkus.http.host=0.0.0.0'
+    working_dir: /app
+    volumes:
+      - "./backend:/app"
+      - "${HOME}/.m2:/mvn-repo"
+    healthcheck:
+      test: curl -f http://localhost:8080/q/health
+      interval: 1m30s
+      timeout: 15s
+      retries: 3
+      start_period: 10s
+    networks:
+      - ledger-network
+
+  ledger_frontend:
+    image: node:22.14-bookworm-slim
+    build:
+      context: ./frontend
+      args:
+        VITE_BACKEND_SERVER: "/api/.."
+        VITE_BUILD_NUMBER: snapshot
+    volumes: 
+      - "./app:/app"
+    working_dir: /app
+    container_name: ledger-frontend
+    ports:
+      - "5173:80"
+    entrypoint: sh -c "npm i --no-update-notifier && npm run dev -- --host"
+    depends_on:
+      - ledger_backend
+    healthcheck:
+      test: timeout 10s bash -c 'true > /dev/tcp/127.0.0.1/5173' || exit 1
+      interval: 1m30s
+      timeout: 15s
+      retries: 3
+      start_period: 10s
+    networks:
+      - ledger-network
+
+volumes:
+  pgdata:
+networks:
+  ledger-network:
+    external: true

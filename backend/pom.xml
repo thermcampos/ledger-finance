@@ -64,6 +64,17 @@
       <artifactId>quarkus-elytron-security-common</artifactId>
     </dependency>
 
+    <!-- Misc -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-smallrye-openapi</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-smallrye-health</artifactId>
+    </dependency>
+
+
     <!-- CORS is part of quarkus-rest-jackson / vertx-http, configured in application.properties -->
 
     <!-- Test -->
