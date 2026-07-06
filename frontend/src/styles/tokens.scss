@@ -1,0 +1,27 @@
+:root {
+  --bg: #0e1116;
+  --surface: #141922;
+  --surface-2: #1b212b;
+  --border: #262c36;
+  --text: #e6e8eb;
+  --text-muted: #8b92a0;
+  --text-faint: #565e6c;
+  --jade: #4fa98a;
+  --jade-dim: rgba(79, 169, 138, 0.14);
+  --red: #c75450;
+  --red-dim: rgba(199, 84, 80, 0.14);
+  --gold: #c9a227;
+  --gold-dim: rgba(201, 162, 39, 0.14);
+}
+
+// Bootstrap Sass variable overrides — keep in sync with the tokens above.
+$body-bg: #0e1116;
+$body-color: #e6e8eb;
+$border-color: #262c36;
+$primary: #4fa98a;
+$danger: #c75450;
+$warning: #c9a227;
+$border-radius: 8px;
+$border-radius-sm: 6px;
+$font-family-sans-serif: 'Inter', system-ui, -apple-system, sans-serif;
+$font-family-monospace: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;

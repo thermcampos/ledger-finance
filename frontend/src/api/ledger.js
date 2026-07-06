@@ -1,0 +1,31 @@
+import client from './client';
+
+export const AuthApi = {
+  signup: (payload) => client.post('/auth/signup', payload).then((r) => r.data),
+  login: (payload) => client.post('/auth/login', payload).then((r) => r.data),
+};
+
+export const AccountsApi = {
+  list: () => client.get('/accounts').then((r) => r.data),
+  create: (payload) => client.post('/accounts', payload).then((r) => r.data),
+  remove: (id) => client.delete(`/accounts/${id}`),
+};
+
+export const CategoriesApi = {
+  list: () => client.get('/categories').then((r) => r.data),
+  create: (payload) => client.post('/categories', payload).then((r) => r.data),
+};
+
+export const TransactionsApi = {
+  listByAccount: (accountId) =>
+    client.get(`/transactions/account/${accountId}`).then((r) => r.data),
+  create: (payload) => client.post('/transactions', payload).then((r) => r.data),
+};
+
+export const BudgetsApi = {
+  listForMonth: (yearMonth) =>
+    client.get(`/budgets/month/${yearMonth}`).then((r) => r.data),
+  spendForMonth: (yearMonth) =>
+    client.get(`/budgets/month/${yearMonth}/spend`).then((r) => r.data),
+  upsert: (payload) => client.post('/budgets', payload).then((r) => r.data),
+};
