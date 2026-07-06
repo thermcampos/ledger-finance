@@ -1,6 +1,16 @@
 import { useMemo, useState } from 'react';
-import { useQueries, useQuery } from '@tanstack/react-query';
-import { AccountsApi, TransactionsApi } from '../api/ledger';
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { AccountsApi, CategoriesApi, TransactionsApi } from '../api/ledger';
+
+function todayIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function parseSignedAmount(raw) {
+  const trimmed = raw.trim();
+  const value = Math.abs(Number(trimmed.startsWith('+') ? trimmed.slice(1) : trimmed));
+  return trimmed.startsWith('+') ? value : -value;
+}
 
 const categoryColors = {
   Groceries: '#4FA98A',
@@ -45,9 +55,44 @@ function dayLabel(dateStr) {
 }
 
 export default function Transactions() {
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const accountsQuery = useQuery({ queryKey: ['accounts'], queryFn: AccountsApi.list });
   const accounts = accountsQuery.data || [];
+  const categoriesQuery = useQuery({ queryKey: ['categories'], queryFn: CategoriesApi.list });
+  const categories = categoriesQuery.data || [];
+
+  const [showForm, setShowForm] = useState(false);
+  const [accountId, setAccountId] = useState('');
+  const [categoryId, setCategoryId] = useState('');
+  const [description, setDescription] = useState('');
+  const [amount, setAmount] = useState('');
+  const [occurredOn, setOccurredOn] = useState(todayIso());
+
+  const createMutation = useMutation({
+    mutationFn: TransactionsApi.create,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      setShowForm(false);
+      setAccountId('');
+      setCategoryId('');
+      setDescription('');
+      setAmount('');
+      setOccurredOn(todayIso());
+    },
+  });
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    createMutation.mutate({
+      accountId: Number(accountId),
+      categoryId: categoryId ? Number(categoryId) : null,
+      description,
+      amount: parseSignedAmount(amount),
+      occurredOn,
+    });
+  };
 
   const txnQueries = useQueries({
     queries: accounts.map((a) => ({
@@ -83,11 +128,89 @@ export default function Transactions() {
           <div className="eyebrow mb-1">All accounts</div>
           <div className="page-title">Transactions</div>
         </div>
-        <button className="btn btn-jade btn-sm">
+        <button className="btn btn-jade btn-sm" onClick={() => setShowForm((s) => !s)}>
           <i className="bi bi-plus-lg me-1" />
           Add transaction
         </button>
       </div>
+
+      {showForm && (
+        <div className="panel p-4 mb-4">
+          <form onSubmit={handleSubmit}>
+            <div className="row g-3 align-items-end">
+              <div className="col-md-2">
+                <label className="eyebrow d-block mb-2">Account</label>
+                <select
+                  className="form-select form-select-sm"
+                  value={accountId}
+                  onChange={(e) => setAccountId(e.target.value)}
+                  required
+                >
+                  <option value="" disabled>
+                    Select…
+                  </option>
+                  {accounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="col-md-2">
+                <label className="eyebrow d-block mb-2">Category</label>
+                <select
+                  className="form-select form-select-sm"
+                  value={categoryId}
+                  onChange={(e) => setCategoryId(e.target.value)}
+                >
+                  <option value="">Uncategorized</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="col-md-3">
+                <label className="eyebrow d-block mb-2">Description</label>
+                <input
+                  className="form-control form-control-sm"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="col-md-2">
+                <label className="eyebrow d-block mb-2">Amount (+ for income)</label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  className="form-control form-control-sm"
+                  placeholder="12.50 or +12.50"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="col-md-2">
+                <label className="eyebrow d-block mb-2">Date</label>
+                <input
+                  type="date"
+                  className="form-control form-control-sm"
+                  value={occurredOn}
+                  onChange={(e) => setOccurredOn(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="col-md-1">
+                <button type="submit" className="btn btn-jade btn-sm w-100" disabled={createMutation.isPending}>
+                  {createMutation.isPending ? '…' : 'Add'}
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      )}
 
       <div className="panel p-3 mb-3">
         <div className="row g-2 align-items-center">

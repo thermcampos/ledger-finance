@@ -20,10 +20,10 @@ Backend is fully ready: `Category` entity, `GET /categories`, `POST
 Frontend `CategoriesApi.list()` / `.create()` already exist in
 `frontend/src/api/ledger.js:14-17` but are never imported anywhere.
 
-- [ ] Add a Categories page (`frontend/src/pages/Categories.jsx`) with list +
+- [x] Add a Categories page (`frontend/src/pages/Categories.jsx`) with list +
       create form (name, color), using the Accounts.jsx pattern.
-- [ ] Add `/categories` route in `App.jsx`.
-- [ ] Add "Categories" link to `Sidebar.jsx` (`links` array, currently only
+- [x] Add `/categories` route in `App.jsx`.
+- [x] Add "Categories" link to `Sidebar.jsx` (`links` array, currently only
       Overview/Transactions/Budgets/Accounts).
 - [ ] Backend: add `PUT /categories/{id}` and `DELETE /categories/{id}` —
       currently create/list only, no edit or delete.
@@ -41,9 +41,9 @@ required fields: `accountId`, `description`, `amount`; optional:
 account's running balance server-side as a side effect.
 Frontend `TransactionsApi.create` already exists in `ledger.js:22`.
 
-- [ ] Build the add-transaction form/panel (account select, category select
+- [x] Build the add-transaction form/panel (account select, category select
       populated from `CategoriesApi.list()`, description, amount, date).
-- [ ] Wire it to `TransactionsApi.create` + invalidate the relevant queries
+- [x] Wire it to `TransactionsApi.create` + invalidate the relevant queries
       (account list for balance, transactions list).
 - [ ] Wire the account filter select (`Transactions.jsx:104-109`) — currently
       renders options but has no `onChange`/state.
