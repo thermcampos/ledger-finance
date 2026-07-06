@@ -37,6 +37,6 @@ public class Transaction extends PanacheEntityBase {
     public BigDecimal runningBalance;
 
     public static List<Transaction> findByAccount(Long accountId) {
-        return list("account.id", accountId, io.quarkus.panache.common.Sort.descending("occurredOn"));
+        return list("account.id", io.quarkus.panache.common.Sort.descending("occurredOn"), accountId);
     }
 }

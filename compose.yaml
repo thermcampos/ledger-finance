@@ -54,18 +54,16 @@ services:
 
   ledger_frontend:
     image: node:22.14-bookworm-slim
-    build:
-      context: ./frontend
-      args:
-        VITE_BACKEND_SERVER: "/api/.."
-        VITE_BUILD_NUMBER: snapshot
     volumes: 
-      - "./app:/app"
+      - "./frontend:/app"
     working_dir: /app
     container_name: ledger-frontend
+    user: "${UID:-1000}:${GID:-1000}"
     ports:
-      - "5173:80"
-    entrypoint: sh -c "npm i --no-update-notifier && npm run dev -- --host"
+      - "5173:5173"
+    environment:
+      BACKEND_HOST: ledger_backend
+    entrypoint: sh -c "npm i --no-update-notifier && NGROK=1 npm run dev -- --host"
     depends_on:
       - ledger_backend
     healthcheck:
