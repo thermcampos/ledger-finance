@@ -1,5 +1,6 @@
 package com.ledger.user;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -19,6 +20,7 @@ public class User extends PanacheEntityBase {
     @Column(nullable = false, unique = true)
     public String email;
 
+    @JsonIgnore
     @Column(name = "password_hash", nullable = false)
     public String passwordHash;
 

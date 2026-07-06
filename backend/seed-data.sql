@@ -53,7 +53,6 @@ INSERT INTO transactions (account_id, category_id, description, amount, occurred
 SELECT a.id, cat.id, t.description, t.amount, t.occurred_on::date, t.running_balance
 FROM accounts a
 JOIN users u ON u.id = a.user_id AND u.email = 'demo@ledger.app'
-JOIN categories cat ON cat.user_id = u.id AND cat.name = t.category_name
 CROSS JOIN LATERAL (VALUES
     ('Whole Foods Market',      -86.42,  '2026-07-04', 6412.08, 'Groceries'),
     ('Payroll — Acme Inc.',    3800.00,  '2026-07-03', 6498.50, 'Salary'),
@@ -62,6 +61,7 @@ CROSS JOIN LATERAL (VALUES
     ('Union Pacific Rail',     -124.00, '2026-06-24', 4852.78, 'Transport'),
     ('Freelance payment',       650.00, '2026-06-22', 4976.78, 'Salary')
 ) AS t(description, amount, occurred_on, running_balance, category_name)
+JOIN categories cat ON cat.user_id = u.id AND cat.name = t.category_name
 WHERE a.name = 'Everyday';
 
 -- Savings account
@@ -69,10 +69,10 @@ INSERT INTO transactions (account_id, category_id, description, amount, occurred
 SELECT a.id, cat.id, t.description, t.amount, t.occurred_on::date, t.running_balance
 FROM accounts a
 JOIN users u ON u.id = a.user_id AND u.email = 'demo@ledger.app'
-JOIN categories cat ON cat.user_id = u.id AND cat.name = t.category_name
 CROSS JOIN LATERAL (VALUES
     ('Transfer from Checking', 1000.00, '2026-06-29', 28900.44, 'Transfer')
 ) AS t(description, amount, occurred_on, running_balance, category_name)
+JOIN categories cat ON cat.user_id = u.id AND cat.name = t.category_name
 WHERE a.name = 'Emergency fund';
 
 -- Credit card
@@ -80,12 +80,12 @@ INSERT INTO transactions (account_id, category_id, description, amount, occurred
 SELECT a.id, cat.id, t.description, t.amount, t.occurred_on::date, t.running_balance
 FROM accounts a
 JOIN users u ON u.id = a.user_id AND u.email = 'demo@ledger.app'
-JOIN categories cat ON cat.user_id = u.id AND cat.name = t.category_name
 CROSS JOIN LATERAL (VALUES
     ('Spotify',              -11.99, '2026-07-01', -1284.30, 'Subscriptions'),
     ('Shell Gas Station',    -42.10, '2026-06-29', -1272.31, 'Transport'),
     ('Blue Bottle Coffee',    -6.75, '2026-06-26', -1230.21, 'Dining')
 ) AS t(description, amount, occurred_on, running_balance, category_name)
+JOIN categories cat ON cat.user_id = u.id AND cat.name = t.category_name
 WHERE a.name = 'Visa Signature';
 
 -- --- Budgets (July 2026) -------------------------------------------------
