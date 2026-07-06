@@ -81,12 +81,14 @@ exists in `ledger.js:30`.
 `Overview.jsx:51-54` — static button, no `onClick`, no dropdown markup, no
 date-range state anywhere on the page.
 
-- [ ] Build the dropdown (This week / Last week / This month / custom range)
-      — this is the first dropdown component in the app, worth extracting as
-      a shared component since Transactions' date-range select needs the
-      same pattern.
-- [ ] Wire selection to whatever date-filtered data source backs it (see §5
-      — backend doesn't support arbitrary ranges yet, only whole months).
+- [x] Build the dropdown (This week / Last week / This month / Last 30 days /
+      This year) — added as a reusable `frontend/src/components/Dropdown.jsx`
+      (generic trigger + menu, click-outside-to-close), styled to match
+      `.btn-ghost` and the hairline-border/no-shadow language.
+- [x] Wire selection to the "Recent activity" list — filtered client-side
+      over the already-fetched per-account transactions (same approach as
+      the Transactions date-range filter in §2/§4; no backend date-range
+      endpoint needed at current data volumes, see §6).
 
 ## 5. Security / data fixes found and applied during implementation
 
@@ -126,12 +128,18 @@ bug to fix, just something to expect until real migrations exist.
       update via upsert, so this is lower priority than Category's missing
       edit/delete).
 
-## Suggested order
+## Suggested order (all done as of 2026-07-06)
 
-1. Categories page (unblocks category pickers everywhere else).
-2. Add-transaction form.
-3. Add/edit-budget form + wire the Overview budget-spend panel (data already
-   exists server-side, purely a frontend job).
-4. Transactions filters (account/category/date) + Export.
-5. Overview "This month" dropdown + backend date-range support.
+1. [x] Categories page (unblocks category pickers everywhere else).
+2. [x] Add-transaction form.
+3. [x] Add/edit-budget form + wire the Overview budget-spend panel (data
+   already exists server-side, purely a frontend job).
+4. [x] Transactions filters (account/category/date) + Export.
+5. [x] Overview "This month" dropdown (client-side range filter).
+
+All five UI-wiring chunks from this audit are implemented. What's left is
+§6's backend gaps (date-range/pagination endpoint, Category edit/delete,
+Transaction/Budget delete) and the outstanding bcrypt-prefix bug in
+§5 (demo login) — none of these block normal use of the app with a real
+account, they're follow-ups for later.
 </content>

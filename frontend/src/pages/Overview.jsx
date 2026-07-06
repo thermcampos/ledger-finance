@@ -1,5 +1,44 @@
+import { useState } from 'react';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { AccountsApi, BudgetsApi, TransactionsApi } from '../api/ledger';
+import Dropdown from '../components/Dropdown';
+
+const rangeOptions = [
+  { value: 'week', label: 'This week' },
+  { value: 'lastWeek', label: 'Last week' },
+  { value: 'month', label: 'This month' },
+  { value: 'last30', label: 'Last 30 days' },
+  { value: 'year', label: 'This year' },
+];
+
+function startOfWeek(date) {
+  const start = new Date(date);
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() - start.getDay());
+  return start;
+}
+
+function rangeBounds(range) {
+  const now = new Date();
+  const end = new Date(now);
+  end.setHours(23, 59, 59, 999);
+
+  if (range === 'week') return { start: startOfWeek(now), end };
+  if (range === 'lastWeek') {
+    const start = startOfWeek(now);
+    start.setDate(start.getDate() - 7);
+    const lastWeekEnd = startOfWeek(now);
+    lastWeekEnd.setMilliseconds(-1);
+    return { start, end: lastWeekEnd };
+  }
+  if (range === 'last30') {
+    const start = new Date(now);
+    start.setDate(start.getDate() - 30);
+    return { start, end };
+  }
+  if (range === 'year') return { start: new Date(now.getFullYear(), 0, 1), end };
+  return { start: new Date(now.getFullYear(), now.getMonth(), 1), end };
+}
 
 function statusColor(spent, limit) {
   const pct = limit > 0 ? (spent / limit) * 100 : 0;
@@ -29,6 +68,7 @@ function money(amount, { signed = false } = {}) {
 }
 
 export default function Overview() {
+  const [range, setRange] = useState('month');
   const accountsQuery = useQuery({ queryKey: ['accounts'], queryFn: AccountsApi.list });
   const accounts = accountsQuery.data || [];
 
@@ -55,8 +95,13 @@ export default function Overview() {
   });
 
   const totalBalance = accounts.reduce((sum, a) => sum + Number(a.balance), 0);
+  const { start, end } = rangeBounds(range);
   const recent = txnQueries
     .flatMap((q) => q.data || [])
+    .filter((t) => {
+      const occurred = new Date(t.occurredOn);
+      return occurred >= start && occurred <= end;
+    })
     .sort((a, b) => new Date(b.occurredOn) - new Date(a.occurredOn))
     .slice(0, 5);
 
@@ -69,10 +114,7 @@ export default function Overview() {
           </div>
           <div className="page-title">Overview</div>
         </div>
-        <button className="btn btn-ghost btn-sm">
-          <i className="bi bi-calendar3 me-1" />
-          This month
-        </button>
+        <Dropdown icon="bi-calendar3" options={rangeOptions} value={range} onChange={setRange} />
       </div>
 
       <div className="panel p-4 mb-4">
@@ -116,7 +158,7 @@ export default function Overview() {
             </div>
             {recent.length === 0 ? (
               <div className="p-4 text-muted-c" style={{ fontSize: 13 }}>
-                No transactions yet.
+                No transactions in this range.
               </div>
             ) : (
               recent.map((t) => (
