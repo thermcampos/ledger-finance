@@ -65,12 +65,12 @@ upsert-by-category-and-month
 `categoryId`, `month`, `limitAmount`. Frontend `BudgetsApi.upsert` already
 exists in `ledger.js:30`.
 
-- [ ] Build a set/edit-limit form (category select, month, limit amount),
+- [x] Build a set/edit-limit form (category select, month, limit amount),
       reusing the Accounts.jsx pattern, calling `BudgetsApi.upsert`.
-- [ ] `Budgets.jsx:24` hardcodes `yearMonth` to the current month
+- [x] `Budgets.jsx:24` hardcodes `yearMonth` to the current month
       (`new Date().toISOString().slice(0, 7)`) — no way to view or set a
       budget for any other month. Add month navigation.
-- [ ] `Overview.jsx:118-124` has a placeholder panel ("Category breakdowns
+- [x] `Overview.jsx:118-124` has a placeholder panel ("Category breakdowns
       will live here once budgets have real spend data behind them") even
       though `GET /budgets/month/{yearMonth}/spend` already returns exactly
       that data — just needs to be fetched and rendered (as cards/progress

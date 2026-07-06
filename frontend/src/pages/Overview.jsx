@@ -1,5 +1,12 @@
 import { useQueries, useQuery } from '@tanstack/react-query';
-import { AccountsApi, TransactionsApi } from '../api/ledger';
+import { AccountsApi, BudgetsApi, TransactionsApi } from '../api/ledger';
+
+function statusColor(spent, limit) {
+  const pct = limit > 0 ? (spent / limit) * 100 : 0;
+  if (pct >= 100) return { label: 'Over budget', color: 'var(--red)' };
+  if (pct >= 85) return { label: 'Near limit', color: 'var(--gold)' };
+  return { label: 'On track', color: 'var(--jade)' };
+}
 
 const categoryColors = {
   Groceries: '#4FA98A',
@@ -24,6 +31,20 @@ function money(amount, { signed = false } = {}) {
 export default function Overview() {
   const accountsQuery = useQuery({ queryKey: ['accounts'], queryFn: AccountsApi.list });
   const accounts = accountsQuery.data || [];
+
+  const yearMonth = new Date().toISOString().slice(0, 7);
+  const budgetsQuery = useQuery({
+    queryKey: ['budgets', yearMonth],
+    queryFn: () => BudgetsApi.listForMonth(yearMonth),
+  });
+  const spendQuery = useQuery({
+    queryKey: ['budgets-spend', yearMonth],
+    queryFn: () => BudgetsApi.spendForMonth(yearMonth),
+  });
+  const budgets = budgetsQuery.data || [];
+  const spendByCategory = Object.fromEntries(
+    (spendQuery.data || []).map((s) => [s.categoryId, Number(s.spent)])
+  );
 
   const txnQueries = useQueries({
     queries: accounts.map((a) => ({
@@ -117,10 +138,39 @@ export default function Overview() {
         </div>
         <div className="col-lg-5">
           <div className="panel p-4">
-            <div className="panel-title mb-3">Accounts at a glance</div>
-            <div className="text-muted-c" style={{ fontSize: 13 }}>
-              Category breakdowns will live here once budgets have real spend data behind them.
-            </div>
+            <div className="panel-title mb-3">Budgets this month</div>
+            {budgetsQuery.isLoading ? (
+              <div className="text-muted-c" style={{ fontSize: 13 }}>
+                Loading…
+              </div>
+            ) : budgets.length === 0 ? (
+              <div className="text-muted-c" style={{ fontSize: 13 }}>
+                No budgets set for this month yet.
+              </div>
+            ) : (
+              budgets.map((b) => {
+                const spent = spendByCategory[b.category?.id] || 0;
+                const limit = Number(b.limitAmount);
+                const st = statusColor(spent, limit);
+                const pct = Math.min((spent / limit) * 100, 100);
+                return (
+                  <div key={b.id} className="mb-3">
+                    <div className="d-flex justify-content-between align-items-center mb-1" style={{ fontSize: 12.5 }}>
+                      <span className="d-flex align-items-center gap-2">
+                        <span className="cat-tick" style={{ background: b.category?.colorHex || '#8B92A0' }} />
+                        {b.category?.name}
+                      </span>
+                      <span className="mono text-muted-c" style={{ fontSize: 12 }}>
+                        {money(spent)} / {money(limit)}
+                      </span>
+                    </div>
+                    <div className="track">
+                      <div className="track-fill" style={{ width: `${pct}%`, background: st.color }} />
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       </div>

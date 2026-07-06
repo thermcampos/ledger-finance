@@ -1,5 +1,12 @@
-import { useQuery } from '@tanstack/react-query';
-import { BudgetsApi } from '../api/ledger';
+import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { BudgetsApi, CategoriesApi } from '../api/ledger';
+
+function shiftMonth(yearMonth, delta) {
+  const [year, month] = yearMonth.split('-').map(Number);
+  const date = new Date(year, month - 1 + delta, 1);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
 
 const categoryColors = {
   Groceries: '#4FA98A',
@@ -21,7 +28,8 @@ function money(amount) {
 }
 
 export default function Budgets() {
-  const yearMonth = new Date().toISOString().slice(0, 7);
+  const queryClient = useQueryClient();
+  const [yearMonth, setYearMonth] = useState(new Date().toISOString().slice(0, 7));
   const budgetsQuery = useQuery({
     queryKey: ['budgets', yearMonth],
     queryFn: () => BudgetsApi.listForMonth(yearMonth),
@@ -30,6 +38,8 @@ export default function Budgets() {
     queryKey: ['budgets-spend', yearMonth],
     queryFn: () => BudgetsApi.spendForMonth(yearMonth),
   });
+  const categoriesQuery = useQuery({ queryKey: ['categories'], queryFn: CategoriesApi.list });
+  const categories = categoriesQuery.data || [];
 
   const budgets = budgetsQuery.data || [];
   const spendByCategory = Object.fromEntries(
@@ -39,20 +49,109 @@ export default function Budgets() {
   const totalBudgeted = budgets.reduce((s, b) => s + Number(b.limitAmount), 0);
   const totalSpent = Object.values(spendByCategory).reduce((s, v) => s + v, 0);
 
+  const [showForm, setShowForm] = useState(false);
+  const [categoryId, setCategoryId] = useState('');
+  const [limitAmount, setLimitAmount] = useState('');
+
+  const upsertMutation = useMutation({
+    mutationFn: BudgetsApi.upsert,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['budgets', yearMonth] });
+      queryClient.invalidateQueries({ queryKey: ['budgets-spend', yearMonth] });
+      setShowForm(false);
+      setCategoryId('');
+      setLimitAmount('');
+    },
+  });
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    upsertMutation.mutate({
+      categoryId: Number(categoryId),
+      month: `${yearMonth}-01`,
+      limitAmount: Number(limitAmount),
+    });
+  };
+
+  const monthLabel = new Date(`${yearMonth}-01T00:00:00`).toLocaleDateString('en-US', {
+    month: 'long',
+    year: 'numeric',
+  });
+
   return (
     <div>
       <div className="page-header">
         <div>
-          <div className="eyebrow mb-1">
-            {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+          <div className="eyebrow mb-1 d-flex align-items-center gap-2">
+            <button
+              className="btn btn-ghost btn-sm"
+              style={{ padding: '2px 8px' }}
+              onClick={() => setYearMonth((m) => shiftMonth(m, -1))}
+              aria-label="Previous month"
+            >
+              <i className="bi bi-chevron-left" />
+            </button>
+            {monthLabel}
+            <button
+              className="btn btn-ghost btn-sm"
+              style={{ padding: '2px 8px' }}
+              onClick={() => setYearMonth((m) => shiftMonth(m, 1))}
+              aria-label="Next month"
+            >
+              <i className="bi bi-chevron-right" />
+            </button>
           </div>
           <div className="page-title">Budgets</div>
         </div>
-        <button className="btn btn-ghost btn-sm">
-          <i className="bi bi-pencil me-1" />
-          Edit budgets
+        <button className="btn btn-jade btn-sm" onClick={() => setShowForm((s) => !s)}>
+          <i className="bi bi-plus-lg me-1" />
+          Set budget
         </button>
       </div>
+
+      {showForm && (
+        <div className="panel p-4 mb-4">
+          <form onSubmit={handleSubmit}>
+            <div className="row g-3 align-items-end">
+              <div className="col-md-4">
+                <label className="eyebrow d-block mb-2">Category</label>
+                <select
+                  className="form-select form-select-sm"
+                  value={categoryId}
+                  onChange={(e) => setCategoryId(e.target.value)}
+                  required
+                >
+                  <option value="" disabled>
+                    Select…
+                  </option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="col-md-3">
+                <label className="eyebrow d-block mb-2">Monthly limit</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  className="form-control form-control-sm"
+                  value={limitAmount}
+                  onChange={(e) => setLimitAmount(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="col-md-2">
+                <button type="submit" className="btn btn-jade btn-sm w-100" disabled={upsertMutation.isPending}>
+                  {upsertMutation.isPending ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      )}
 
       <div className="panel p-4 mb-4">
         <div className="row align-items-end g-3">
@@ -77,11 +176,10 @@ export default function Budgets() {
               <div className="col-4">
                 <div className="eyebrow mb-1">Days left</div>
                 <div className="mono" style={{ fontSize: 16 }}>
-                  {new Date(
-                    new Date().getFullYear(),
-                    new Date().getMonth() + 1,
-                    0
-                  ).getDate() - new Date().getDate()}
+                  {yearMonth === new Date().toISOString().slice(0, 7)
+                    ? new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate() -
+                      new Date().getDate()
+                    : '—'}
                 </div>
               </div>
             </div>
@@ -102,7 +200,7 @@ export default function Budgets() {
           const spent = spendByCategory[b.category?.id] || 0;
           const st = statusFor(spent, Number(b.limitAmount));
           const pct = Math.min((spent / Number(b.limitAmount)) * 100, 100);
-          const color = categoryColors[b.category?.name] || '#8B92A0';
+          const color = b.category?.colorHex || categoryColors[b.category?.name] || '#8B92A0';
           return (
             <div className="col-md-6 col-lg-4" key={b.id}>
               <div className="budget-card">
