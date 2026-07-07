@@ -304,7 +304,7 @@ export default function Accounts() {
                 </form>
               ) : confirmingId === a.id ? (
                 <div>
-                  <div className="acct-name mb-2">Delete "{a.name}"?</div>
+                  <div className="acct-name mb-2">Delete &ldquo;{a.name}&rdquo;?</div>
                   <div className="text-faint mb-3" style={{ fontSize: 12.5 }}>
                     This cannot be undone.
                   </div>

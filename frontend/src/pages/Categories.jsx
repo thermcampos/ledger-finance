@@ -270,7 +270,7 @@ export default function Categories() {
               </form>
             ) : confirmingId === c.id ? (
               <>
-                <span style={{ fontWeight: 500 }}>Delete "{c.name}"?</span>
+                <span style={{ fontWeight: 500 }}>Delete &ldquo;{c.name}&rdquo;?</span>
                 <span className="text-faint" style={{ fontSize: 12.5 }}>
                   This cannot be undone.
                 </span>

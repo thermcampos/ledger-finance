@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AccountsApi, CategoriesApi, TransactionsApi } from '../api/ledger';
@@ -132,11 +132,10 @@ export default function Transactions() {
       setFilterStartDate('');
       setFilterEndDate('');
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
   const accountsQuery = useQuery({ queryKey: ['accounts'], queryFn: AccountsApi.list });
-  const accounts = accountsQuery.data || [];
+  const accounts = useMemo(() => accountsQuery.data || [], [accountsQuery.data]);
   const categoriesQuery = useQuery({ queryKey: ['categories'], queryFn: CategoriesApi.list });
   const categories = categoriesQuery.data || [];
 
@@ -307,11 +306,14 @@ export default function Transactions() {
   // individual rows instead, same as any other account.
   const aggregateCreditCards = !filterAccountId;
 
-  const isAggregatedCreditCardTxn = (t) => {
-    if (!aggregateCreditCards) return false;
-    const acct = accountById[t.account?.id];
-    return !!acct && acct.kind === 'CREDIT_CARD' && acct.dueDayOfMonth != null;
-  };
+  const isAggregatedCreditCardTxn = useCallback(
+    (t) => {
+      if (!aggregateCreditCards) return false;
+      const acct = accountById[t.account?.id];
+      return !!acct && acct.kind === 'CREDIT_CARD' && acct.dueDayOfMonth != null;
+    },
+    [aggregateCreditCards, accountById]
+  );
 
   const creditCardBillGroups = useMemo(() => {
     if (!aggregateCreditCards) return [];
@@ -325,7 +327,7 @@ export default function Transactions() {
       groups.get(key).total += Number(t.amount);
     }
     return Array.from(groups.values()).sort((a, b) => a.dueDate - b.dueDate);
-  }, [aggregateCreditCards, filteredFlat, accountById]);
+  }, [aggregateCreditCards, filteredFlat, accountById, isAggregatedCreditCardTxn]);
 
   const grouped = useMemo(() => {
     const map = new Map();
@@ -336,7 +338,7 @@ export default function Transactions() {
       map.get(label).push(t);
     }
     return Array.from(map.entries());
-  }, [filteredFlat, aggregateCreditCards, accountById]);
+  }, [filteredFlat, isAggregatedCreditCardTxn]);
 
   const filteredCategoryTotal = filteredFlat.reduce((sum, t) => sum + Number(t.amount), 0);
 
@@ -483,7 +485,7 @@ export default function Transactions() {
                   value={repeat}
                   onChange={(e) => setRepeat(e.target.value)}
                 >
-                  <option value="NONE">Doesn't repeat</option>
+                  <option value="NONE">Doesn&rsquo;t repeat</option>
                   <option value="WEEKLY">Weekly</option>
                   <option value="MONTHLY">Monthly</option>
                   <option value="YEARLY">Yearly</option>

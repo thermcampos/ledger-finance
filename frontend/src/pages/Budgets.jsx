@@ -229,7 +229,7 @@ export default function Budgets() {
               <div className="budget-card">
                 {confirmingId === b.id ? (
                   <div>
-                    <div className="budget-name mb-2">Delete budget for "{b.category?.name}"?</div>
+                    <div className="budget-name mb-2">Delete budget for &ldquo;{b.category?.name}&rdquo;?</div>
                     <div className="text-faint mb-3" style={{ fontSize: 12.5 }}>
                       This cannot be undone.
                     </div>

@@ -1,7 +1,6 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { AuthApi } from '../api/ledger';
-
-const AuthContext = createContext(null);
+import { AuthContext } from './authContext';
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
@@ -47,10 +46,4 @@ export function AuthProvider({ children }) {
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
-  return ctx;
 }

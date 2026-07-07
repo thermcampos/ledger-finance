@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { UsersApi } from '../api/ledger';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 
 function describeHistoryEntry(entry) {
   switch (entry.field) {
@@ -159,7 +159,7 @@ export default function Profile() {
           </div>
           {passwordMismatch && (
             <div className="mt-2" style={{ fontSize: 11.5, color: 'var(--red)' }}>
-              New password and confirmation don't match.
+              New password and confirmation don&rsquo;t match.
             </div>
           )}
           {passwordMutation.isError && (
