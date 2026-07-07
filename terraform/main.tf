@@ -38,6 +38,16 @@ variable "db_name" {
   sensitive = true
 }
 
+variable "jwt_private_key" {
+  type      = string
+  sensitive = true
+}
+
+variable "jwt_public_key" {
+  type      = string
+  sensitive = true
+}
+
 variable "r2_access_key" {
   type      = string
   sensitive = true
@@ -84,6 +94,8 @@ resource "kubernetes_secret_v1" "ledger_finance_secrets" {
     postgres_user       = var.db_user
     postgres_password   = var.db_password
     postgres_db         = var.db_name
+    jwt_private_key     = var.jwt_private_key
+    jwt_public_key      = var.jwt_public_key
   }
 }
 
@@ -216,9 +228,36 @@ resource "kubernetes_deployment_v1" "ledger_finance_backend" {
               }
             }
           }
+          env {
+            name  = "SMALLRYE_JWT_SIGN_KEY_LOCATION"
+            value = "/run/secrets/jwt/privateKey.pem"
+          }
+          env {
+            name  = "MP_JWT_VERIFY_PUBLICKEY_LOCATION"
+            value = "/run/secrets/jwt/publicKey.pem"
+          }
+          volume_mount {
+            name       = "jwt-keys"
+            mount_path = "/run/secrets/jwt"
+            read_only  = true
+          }
           resources {
             limits   = { memory = "256Mi", cpu = "500m" }
             requests = { memory = "256Mi", cpu = "250m" }
+          }
+        }
+        volume {
+          name = "jwt-keys"
+          secret {
+            secret_name = kubernetes_secret_v1.ledger_finance_secrets.metadata[0].name
+            items {
+              key  = "jwt_private_key"
+              path = "privateKey.pem"
+            }
+            items {
+              key  = "jwt_public_key"
+              path = "publicKey.pem"
+            }
           }
         }
       }

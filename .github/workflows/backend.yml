@@ -1,4 +1,4 @@
-name: Build and Push Backend
+name: Backend CI
 
 on:
   workflow_dispatch:
