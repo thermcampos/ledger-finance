@@ -14,7 +14,7 @@ ENV VITE_BUILD_NUMBER=$VITE_BUILD_NUMBER
 # Copy package files
 COPY *.html *.json *.ts *.js ./
 COPY ./src ./src
-COPY ./public ./public
+#COPY ./public ./public
 
 # Install dependencies
 RUN npm i --ignore-scripts --no-update-notifier --omit=dev && \
