@@ -5,7 +5,11 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'frontend/**'
+      - 'frontend/src/**'
+      - 'frontend/*.js'
+      - 'frontend/*.json'
+      - 'frontend/index.html'
+      - 'frontend/Dockerfile'
       - '.github/workflows/frontend.yml'
 
 env:
@@ -61,7 +65,7 @@ jobs:
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          username: "rmcampos"
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Extract metadata for Docker
@@ -80,8 +84,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=rmcampos/polpa-gestao-app:buildcache
-          cache-to: type=registry,ref=rmcampos/polpa-gestao-app:buildcache,mode=max
+          cache-from: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache,mode=max
           build-args: |
             VITE_BACKEND_SERVER=${{ vars.BACKEND_SERVER_URL }}
             VITE_BUILD_NUMBER=${{ steps.version.outputs.build_number }}
