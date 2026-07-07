@@ -1,5 +1,40 @@
 # Ledger — Outstanding Work
 
+## Status as of end of session (2026-07-07, later)
+
+**Done, not yet committed: Credit cards feature** (requested 2026-07-07,
+planned via plan mode, plan saved at
+`/home/ricardo/.claude/plans/luminous-painting-pillow.md`).
+- Backend: `Account` gained `creditLimit` (nullable BigDecimal) and
+  `dueDayOfMonth` (nullable Integer, 1-31, a simple recurring day — no
+  statement-cycle/billing-period model, decided explicitly). Both editable
+  via `CreateAccountRequest`/`UpdateAccountRequest`, validated in
+  `AccountResource#validateCreditCardFields` (400 on negative limit or
+  out-of-range day). Both optional — a credit card account can exist
+  without them.
+- Frontend: `Accounts.jsx`'s add/edit forms conditionally show "Credit
+  limit"/"Due day of month" fields when Kind = Credit Card (gated on kind
+  *at submit time*, so switching kind away before saving discards stray
+  values). New page `frontend/src/pages/CreditCards.jsx` (route
+  `/credit-cards`, sidebar link after Accounts) — a glance dashboard: total
+  owed/limit/available-credit summary panel, per-card utilization progress
+  bar + status word ("Good standing"/"Near limit"/"Over limit", same
+  85%/100% thresholds as Budgets.jsx) reusing existing `.track`/
+  `.budget-status` CSS (no new styles needed), and a due-date line
+  ("Due {date} · in N days") computed by rolling `dueDayOfMonth` forward to
+  its next occurrence (clamped for short months). Gracefully omits the bar/
+  due-date line when those fields are null.
+- Also fixed: on `Transactions.jsx`, filtering to a single credit-card
+  account now shows its balance as a positive "Amount owed" (label + sign +
+  color all flip), consistently across the headline stat, each day-group
+  total, and each row's running-balance figure — the underlying balance
+  math (`recomputeAccountBalance`, `openingBalance`) is untouched, this is
+  display-only. The "All accounts" net total (assets minus card debt) is
+  intentionally left as a real negative-inclusive sum, unaffected.
+- Not done / explicitly deferred: no bulk/statement-history tracking, no
+  "pay down" flow — this is glance/visibility only, same spirit as §8's
+  deferred recurring-series tracking.
+
 ## Status as of end of session (2026-07-07)
 
 **Done and committed:** §1–§6 UI-wiring chunks (Categories page,

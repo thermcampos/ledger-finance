@@ -27,11 +27,15 @@ export default function Accounts() {
   const [institution, setInstitution] = useState('');
   const [kind, setKind] = useState('CHECKING');
   const [balance, setBalance] = useState('');
+  const [creditLimit, setCreditLimit] = useState('');
+  const [dueDayOfMonth, setDueDayOfMonth] = useState('');
 
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState('');
   const [editInstitution, setEditInstitution] = useState('');
   const [editKind, setEditKind] = useState('CHECKING');
+  const [editCreditLimit, setEditCreditLimit] = useState('');
+  const [editDueDayOfMonth, setEditDueDayOfMonth] = useState('');
 
   const createMutation = useMutation({
     mutationFn: AccountsApi.create,
@@ -41,6 +45,8 @@ export default function Accounts() {
       setName('');
       setInstitution('');
       setBalance('');
+      setCreditLimit('');
+      setDueDayOfMonth('');
     },
   });
 
@@ -81,7 +87,14 @@ export default function Accounts() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    createMutation.mutate({ name, institution, kind, balance: Number(balance) || 0 });
+    createMutation.mutate({
+      name,
+      institution,
+      kind,
+      balance: Number(balance) || 0,
+      creditLimit: kind === 'CREDIT_CARD' && creditLimit !== '' ? Number(creditLimit) : null,
+      dueDayOfMonth: kind === 'CREDIT_CARD' && dueDayOfMonth !== '' ? Number(dueDayOfMonth) : null,
+    });
   };
 
   const startEdit = (a) => {
@@ -91,11 +104,22 @@ export default function Accounts() {
     setEditName(a.name || '');
     setEditInstitution(a.institution || '');
     setEditKind(a.kind || 'CHECKING');
+    setEditCreditLimit(a.creditLimit != null ? String(a.creditLimit) : '');
+    setEditDueDayOfMonth(a.dueDayOfMonth != null ? String(a.dueDayOfMonth) : '');
   };
 
   const handleEditSubmit = (e, id) => {
     e.preventDefault();
-    updateMutation.mutate({ id, payload: { name: editName, institution: editInstitution, kind: editKind } });
+    updateMutation.mutate({
+      id,
+      payload: {
+        name: editName,
+        institution: editInstitution,
+        kind: editKind,
+        creditLimit: editKind === 'CREDIT_CARD' && editCreditLimit !== '' ? Number(editCreditLimit) : null,
+        dueDayOfMonth: editKind === 'CREDIT_CARD' && editDueDayOfMonth !== '' ? Number(editDueDayOfMonth) : null,
+      },
+    });
   };
 
   const handleDeleteClick = (a) => {
@@ -174,6 +198,34 @@ export default function Accounts() {
                 </button>
               </div>
             </div>
+            {kind === 'CREDIT_CARD' && (
+              <div className="row g-3 align-items-end mt-1">
+                <div className="col-md-3">
+                  <label className="eyebrow d-block mb-2">Credit limit</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="form-control form-control-sm"
+                    placeholder="Optional"
+                    value={creditLimit}
+                    onChange={(e) => setCreditLimit(e.target.value)}
+                  />
+                </div>
+                <div className="col-md-3">
+                  <label className="eyebrow d-block mb-2">Due day of month</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="31"
+                    className="form-control form-control-sm"
+                    placeholder="Optional, e.g. 15"
+                    value={dueDayOfMonth}
+                    onChange={(e) => setDueDayOfMonth(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
           </form>
         </div>
       )}
@@ -208,6 +260,30 @@ export default function Accounts() {
                     <option value="CREDIT_CARD">Credit card</option>
                     <option value="INVESTMENT">Investment</option>
                   </select>
+                  {editKind === 'CREDIT_CARD' && (
+                    <>
+                      <label className="eyebrow d-block mb-2">Credit limit</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        className="form-control form-control-sm mb-2"
+                        placeholder="Optional"
+                        value={editCreditLimit}
+                        onChange={(e) => setEditCreditLimit(e.target.value)}
+                      />
+                      <label className="eyebrow d-block mb-2">Due day of month</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="31"
+                        className="form-control form-control-sm mb-3"
+                        placeholder="Optional, e.g. 15"
+                        value={editDueDayOfMonth}
+                        onChange={(e) => setEditDueDayOfMonth(e.target.value)}
+                      />
+                    </>
+                  )}
                   <div className="d-flex gap-2">
                     <button type="submit" className="btn btn-jade btn-sm flex-grow-1" disabled={updateMutation.isPending}>
                       {updateMutation.isPending ? 'Saving…' : 'Save'}

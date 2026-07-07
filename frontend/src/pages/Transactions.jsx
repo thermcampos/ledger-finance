@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AccountsApi, CategoriesApi, TransactionsApi } from '../api/ledger';
-import { parseLocalDate } from '../utils/date';
+import { parseLocalDate, nextDueDate, dueLabel } from '../utils/date';
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -102,10 +103,25 @@ function dayLabel(dateStr) {
 
 export default function Transactions() {
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
   const [search, setSearch] = useState('');
   const [filterAccountId, setFilterAccountId] = useState('');
   const [filterCategoryId, setFilterCategoryId] = useState('');
   const [filterRange, setFilterRange] = useState('30');
+
+  // Arriving via a "View transactions" link (e.g. from the Credit Cards
+  // page) with ?account=<id> jumps straight to that account's full list.
+  useEffect(() => {
+    const accountParam = searchParams.get('account');
+    if (accountParam) {
+      setFilterAccountId(accountParam);
+      setFilterCategoryId('');
+      setSearch('');
+      setFilterRange('year');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   const accountsQuery = useQuery({ queryKey: ['accounts'], queryFn: AccountsApi.list });
   const accounts = accountsQuery.data || [];
   const categoriesQuery = useQuery({ queryKey: ['categories'], queryFn: CategoriesApi.list });
@@ -249,6 +265,16 @@ export default function Transactions() {
     ? Number(accountById[filterAccountId]?.balance || 0)
     : accounts.reduce((sum, a) => sum + Number(a.balance), 0);
 
+  // A credit card's balance is stored negative (debt), but reads more
+  // naturally as a positive "amount owed" — flip the sign/label only when a
+  // single credit-card account is the active filter. The "All accounts" net
+  // total is a different, valid concept (assets minus card debt) and is
+  // left untouched.
+  const filterAccount = accountById[filterAccountId];
+  const isCreditCardFilter = filterAccount?.kind === 'CREDIT_CARD';
+  const displayBalanceTotal = isCreditCardFilter ? -currentBalanceTotal : currentBalanceTotal;
+  const isOwing = isCreditCardFilter ? displayBalanceTotal > 0 : displayBalanceTotal < 0;
+
   const filteredCategoryName = categories.find((c) => String(c.id) === filterCategoryId)?.name;
 
   const filteredFlat = useMemo(() => {
@@ -262,17 +288,50 @@ export default function Transactions() {
       .sort((a, b) => parseLocalDate(b.occurredOn) - parseLocalDate(a.occurredOn));
   }, [txnQueries, search, filterAccountId, filterCategoryId, filterRange]);
 
+  // Only when viewing "All accounts" — a credit card explicitly filtered to
+  // (the "View all" drill-down below, or picked directly) shows its normal
+  // individual rows instead, same as any other account.
+  const aggregateCreditCards = !filterAccountId;
+
+  const isAggregatedCreditCardTxn = (t) => {
+    if (!aggregateCreditCards) return false;
+    const acct = accountById[t.account?.id];
+    return !!acct && acct.kind === 'CREDIT_CARD' && acct.dueDayOfMonth != null;
+  };
+
+  const creditCardBillGroups = useMemo(() => {
+    if (!aggregateCreditCards) return [];
+    const groups = new Map();
+    for (const t of filteredFlat) {
+      if (!isAggregatedCreditCardTxn(t)) continue;
+      const acct = accountById[t.account.id];
+      const dueDate = nextDueDate(acct.dueDayOfMonth, parseLocalDate(t.occurredOn));
+      const key = `${acct.id}__${dueDate.getTime()}`;
+      if (!groups.has(key)) groups.set(key, { account: acct, dueDate, total: 0 });
+      groups.get(key).total += Number(t.amount);
+    }
+    return Array.from(groups.values()).sort((a, b) => a.dueDate - b.dueDate);
+  }, [aggregateCreditCards, filteredFlat, accountById]);
+
   const grouped = useMemo(() => {
     const map = new Map();
     for (const t of filteredFlat) {
+      if (isAggregatedCreditCardTxn(t)) continue;
       const label = dayLabel(t.occurredOn);
       if (!map.has(label)) map.set(label, []);
       map.get(label).push(t);
     }
     return Array.from(map.entries());
-  }, [filteredFlat]);
+  }, [filteredFlat, aggregateCreditCards, accountById]);
 
   const filteredCategoryTotal = filteredFlat.reduce((sum, t) => sum + Number(t.amount), 0);
+
+  const viewAccountTransactions = (accountId) => {
+    setFilterAccountId(String(accountId));
+    setFilterCategoryId('');
+    setSearch('');
+    setFilterRange('year');
+  };
 
   const handleExport = () => {
     downloadCsv(toCsv(filteredFlat), `transactions-${todayIso()}.csv`);
@@ -297,10 +356,11 @@ export default function Transactions() {
         <div className="row g-3">
           <div className={filterCategoryId ? 'col-md-7' : 'col-md-12'}>
             <div className="eyebrow mb-2">
-              Current balance{filterAccountId ? ` — ${accountById[filterAccountId]?.name}` : ''}
+              {isCreditCardFilter ? 'Amount owed' : 'Current balance'}
+              {filterAccountId ? ` — ${filterAccount?.name}` : ''}
             </div>
-            <div className="hero-balance md" style={{ color: currentBalanceTotal < 0 ? 'var(--red)' : undefined }}>
-              {money(currentBalanceTotal)}
+            <div className="hero-balance md" style={{ color: isOwing ? 'var(--red)' : undefined }}>
+              {money(displayBalanceTotal)}
             </div>
             {(filterCategoryId || search) && (
               <div className="text-faint mt-1" style={{ fontSize: 11.5 }}>
@@ -503,19 +563,54 @@ export default function Transactions() {
 
       {isLoading && <div className="text-muted-c">Loading…</div>}
 
-      {!isLoading && grouped.length === 0 && (
+      {!isLoading && creditCardBillGroups.length > 0 && (
+        <div className="mb-3">
+          <div className="eyebrow mb-2">Credit card bills</div>
+          {creditCardBillGroups.map((g) => {
+            const owed = -g.total;
+            return (
+              <div className="txn-row" key={`${g.account.id}-${g.dueDate.getTime()}`}>
+                <div className="txn-icon" style={{ color: '#8B92A0' }}>
+                  <i className="bi bi-credit-card" />
+                </div>
+                <div className="txn-main">
+                  <div className="txn-desc">{g.account.name}</div>
+                  <div className="txn-meta">
+                    <span>{dueLabel(g.dueDate)}</span>
+                  </div>
+                </div>
+                <div className="txn-right">
+                  <div className="cell-amount" style={{ color: owed > 0 ? 'var(--red)' : undefined }}>
+                    {money(owed)}
+                  </div>
+                </div>
+                <button
+                  className="btn btn-ghost btn-sm ms-2"
+                  onClick={() => viewAccountTransactions(g.account.id)}
+                >
+                  View all
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {!isLoading && grouped.length === 0 && creditCardBillGroups.length === 0 && (
         <div className="panel p-4 text-muted-c" style={{ fontSize: 13 }}>
           No transactions yet.
         </div>
       )}
 
       {grouped.map(([label, items]) => {
-        const dayBalance = balanceAsOfDay(parseLocalDate(items[0].occurredOn));
+        const rawDayBalance = balanceAsOfDay(parseLocalDate(items[0].occurredOn));
+        const dayBalance = isCreditCardFilter ? -rawDayBalance : rawDayBalance;
+        const dayOwing = isCreditCardFilter ? dayBalance > 0 : dayBalance < 0;
         return (
           <div key={label} className="mb-1">
             <div className="day-heading">
               <div className="eyebrow">{label}</div>
-              <div className="day-total" style={{ color: dayBalance < 0 ? 'var(--red)' : undefined }}>
+              <div className="day-total" style={{ color: dayOwing ? 'var(--red)' : undefined }}>
                 {money(dayBalance)}
               </div>
             </div>
@@ -629,7 +724,9 @@ export default function Transactions() {
                         <div className={`cell-amount ${t.amount < 0 ? 'neg' : 'pos'}`}>
                           {money(Number(t.amount), { signed: true })}
                         </div>
-                        <div className="txn-balance">{money(Number(t.runningBalance))}</div>
+                        <div className="txn-balance">
+                          {money(isCreditCardFilter ? -Number(t.runningBalance) : Number(t.runningBalance))}
+                        </div>
                       </div>
                       <div className="d-flex gap-1 ms-2">
                         <button className="icon-btn" title="Edit transaction" onClick={() => startEdit(t)}>

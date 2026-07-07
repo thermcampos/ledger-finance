@@ -6,6 +6,7 @@ const links = [
   { to: '/transactions', label: 'Transactions', icon: 'bi-list-ul' },
   { to: '/budgets', label: 'Budgets', icon: 'bi-pie-chart' },
   { to: '/accounts', label: 'Accounts', icon: 'bi-wallet2' },
+  { to: '/credit-cards', label: 'Credit Cards', icon: 'bi-credit-card' },
   { to: '/categories', label: 'Categories', icon: 'bi-tags' },
   { to: '/profile', label: 'Profile', icon: 'bi-person' },
 ];

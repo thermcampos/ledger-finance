@@ -7,6 +7,7 @@ import Overview from './pages/Overview';
 import Transactions from './pages/Transactions';
 import Budgets from './pages/Budgets';
 import Accounts from './pages/Accounts';
+import CreditCards from './pages/CreditCards';
 import Categories from './pages/Categories';
 import Profile from './pages/Profile';
 
@@ -56,6 +57,14 @@ export default function App() {
         element={
           <ProtectedLayout>
             <Accounts />
+          </ProtectedLayout>
+        }
+      />
+      <Route
+        path="/credit-cards"
+        element={
+          <ProtectedLayout>
+            <CreditCards />
           </ProtectedLayout>
         }
       />

@@ -42,6 +42,14 @@ public class Account extends PanacheEntityBase {
     @Column(name = "last_synced_at")
     public Instant lastSyncedAt;
 
+    /** Only meaningful for CREDIT_CARD accounts; null otherwise. */
+    @Column(name = "credit_limit", precision = 14, scale = 2)
+    public BigDecimal creditLimit;
+
+    /** Recurring day-of-month payment is due, e.g. 15. Only meaningful for CREDIT_CARD accounts; null otherwise. */
+    @Column(name = "due_day_of_month")
+    public Integer dueDayOfMonth;
+
     public static List<Account> findByUser(Long userId) {
         return list("user.id", userId);
     }

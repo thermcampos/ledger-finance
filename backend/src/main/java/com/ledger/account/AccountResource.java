@@ -35,6 +35,7 @@ public class AccountResource {
     @Transactional
     public Account create(@Valid CreateAccountRequest request) {
         User user = currentUser.require();
+        validateCreditCardFields(request.creditLimit, request.dueDayOfMonth);
 
         Account account = new Account();
         account.user = user;
@@ -44,6 +45,8 @@ public class AccountResource {
         account.balance = request.balance != null ? request.balance : BigDecimal.ZERO;
         account.openingBalance = account.balance;
         account.lastSyncedAt = Instant.now();
+        account.creditLimit = request.creditLimit;
+        account.dueDayOfMonth = request.dueDayOfMonth;
         account.persist();
         return account;
     }
@@ -57,10 +60,22 @@ public class AccountResource {
         if (account == null || !account.user.id.equals(user.id)) {
             throw new NotFoundException();
         }
+        validateCreditCardFields(request.creditLimit, request.dueDayOfMonth);
         account.name = request.name;
         account.institution = request.institution;
         account.kind = request.kind;
+        account.creditLimit = request.creditLimit;
+        account.dueDayOfMonth = request.dueDayOfMonth;
         return account;
+    }
+
+    private void validateCreditCardFields(BigDecimal creditLimit, Integer dueDayOfMonth) {
+        if (creditLimit != null && creditLimit.signum() < 0) {
+            throw new WebApplicationException("Credit limit cannot be negative", 400);
+        }
+        if (dueDayOfMonth != null && (dueDayOfMonth < 1 || dueDayOfMonth > 31)) {
+            throw new WebApplicationException("Due day must be between 1 and 31", 400);
+        }
     }
 
     @DELETE
@@ -86,6 +101,8 @@ public class AccountResource {
         public String institution;
         public AccountKind kind;
         public BigDecimal balance;
+        public BigDecimal creditLimit;
+        public Integer dueDayOfMonth;
     }
 
     public static class UpdateAccountRequest {
@@ -93,5 +110,7 @@ public class AccountResource {
         public String name;
         public String institution;
         public AccountKind kind;
+        public BigDecimal creditLimit;
+        public Integer dueDayOfMonth;
     }
 }
