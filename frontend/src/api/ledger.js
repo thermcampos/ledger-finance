@@ -5,6 +5,12 @@ export const AuthApi = {
   login: (payload) => client.post('/auth/login', payload).then((r) => r.data),
 };
 
+export const UsersApi = {
+  updateProfile: (payload) => client.put('/users/me', payload).then((r) => r.data),
+  changePassword: (payload) => client.put('/users/me/password', payload).then((r) => r.data),
+  history: () => client.get('/users/me/history').then((r) => r.data),
+};
+
 export const AccountsApi = {
   list: () => client.get('/accounts').then((r) => r.data),
   create: (payload) => client.post('/accounts', payload).then((r) => r.data),

@@ -8,6 +8,7 @@ import Transactions from './pages/Transactions';
 import Budgets from './pages/Budgets';
 import Accounts from './pages/Accounts';
 import Categories from './pages/Categories';
+import Profile from './pages/Profile';
 
 function ProtectedLayout({ children }) {
   const { isAuthenticated } = useAuth();
@@ -63,6 +64,15 @@ export default function App() {
         element={
           <ProtectedLayout>
             <Categories />
+          </ProtectedLayout>
+        }
+      />
+
+      <Route
+        path="/profile"
+        element={
+          <ProtectedLayout>
+            <Profile />
           </ProtectedLayout>
         }
       />

@@ -8,7 +8,7 @@ Transactions filters + Export, Overview date-range dropdown) — 5 commits,
 `319c023` through `c7af925`. §7 **Account edit/delete** is also done and
 committed (`d5aacaa`).
 
-**Done, not yet committed:** §7 **Category edit/delete** (backend
+**Also done and committed:** §7 **Category edit/delete** (backend
 `PUT`/`DELETE /categories/{id}` + `GET /categories/{id}/usage`, frontend
 edit/delete rows in `Categories.jsx`, plus a follow-up: category color
 picker now auto-picks a random non-repeating color from a 10-color palette
@@ -16,8 +16,24 @@ on "Add category" instead of showing 5 fixed presets, with a "Choose color"
 toggle to override manually) and §7 **Budget delete** (backend
 `DELETE /budgets/{id}` — no usage-check needed, nothing references a Budget
 row; frontend edit/delete icons on `budget-card`, pencil reopens the
-existing "Set budget" form pre-filled). User reviewing in-browser before
-committing.
+existing "Set budget" form pre-filled).
+
+**Done, not yet committed:** §7 **User profile** page — see §7 item 5 below
+for full detail — plus two bug fixes found along the way:
+1. `client.js`'s global 401 interceptor was catching failed-login 401s (bad
+   credentials) as if they were expired-session 401s, forcing a hard
+   `window.location.href = '/login'` reload instead of letting `Login.jsx`
+   show its inline error. Fixed by excluding `/auth/*` requests from that
+   handler.
+2. The new `PUT /users/me/password`'s "wrong current password" case
+   originally returned 401, which would have tripped that same interceptor
+   for an already-logged-in user. Changed to 400 (the user IS
+   authenticated; this is a request-validation failure, not a session
+   issue).
+
+Also added an `account_history` table + "Account history" card on the
+Profile page: every display-name/email change is logged old→new, password
+changes log only the date (never a value). See §7 item 5.
 
 **Reference pattern for delete UIs** (see `[[project-accounts-pattern]]` in
 memory): in-card/in-row swap to a "Delete X? This cannot be undone."
@@ -27,8 +43,8 @@ style, and a pre-validation check before showing the confirm step at all
 showing an error after — skip the pre-check only when nothing could
 possibly reference the row (Budget's case).
 
-**Not started:** §7 remaining — User profile page, Transaction edit/delete
-(trickiest, touches running-balance recomputation).
+**Not started:** §7 remaining — Transaction edit/delete (trickiest, touches
+running-balance recomputation).
 
 **Environment reminders for next session** (see [[project-dev-environment]]
 in memory for more):
@@ -228,19 +244,25 @@ is built yet — tracked here for a future round of chunks.
    - Frontend: edit/delete rows in `Categories.jsx`, same in-row swap
      pattern as Accounts, pre-validates via the new `/usage` endpoint.
 
-5. **User profile** (email, password, display name) — nothing exists at
-   all: no backend endpoint, no frontend page/route/sidebar link.
-   - Backend: no `UserResource`/profile endpoint anywhere — only
-     `POST /auth/signup` and `POST /auth/login`. Changing a password
-     should go through `BcryptUtil` (same as signup) and probably require
-     the current password as confirmation. Changing email likely needs a
-     uniqueness check (same constraint signup already enforces).
-   - Frontend: needs a Settings/Profile page, route, and sidebar entry —
-     none exist today.
+5. **User profile** (email, password, display name) — [x] done, awaiting
+   user review/commit.
+   - Backend: new `UserResource` — `PUT /users/me` (display name + email,
+     uniqueness-checked like signup, re-issues the JWT since the token's
+     `upn` is the email), `PUT /users/me/password` (requires current
+     password via `BcryptUtil.matches`, 400 not 401 on mismatch). Extracted
+     the duplicated JWT-issuing code out of `AuthResource` into
+     `security/TokenService` since a second call site needed it.
+   - Frontend: new `/profile` page + sidebar link, two panels (profile
+     info, change password), same form pattern as everywhere else.
+     `AuthContext` got `applySession()` to refresh the cached token/user
+     after a profile save.
+   - Bonus: `account_history` table + "Account history" card logging
+     display-name/email changes (old→new) and password changes (date
+     only) — see note above.
 
-**Suggested build order:** Account edit/delete, Category edit/delete, and
-Budget delete — [x] all three done, see above — then User profile
-(self-contained, new page), then Transaction edit/delete last since it's
-the trickiest (running-balance recomputation on delete/edit affects every
-later transaction on that account).
+**Suggested build order:** Account edit/delete, Category edit/delete,
+Budget delete, and User profile — [x] all four done, see above — leaving
+only Transaction edit/delete, the trickiest one (running-balance
+recomputation on delete/edit affects every later transaction on that
+account).
 </content>

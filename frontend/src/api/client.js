@@ -15,7 +15,10 @@ client.interceptors.request.use((config) => {
 client.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    // /auth/* requests return 401 for bad credentials, not an expired
+    // session — those should surface to the caller, not force a reload.
+    const isAuthRequest = error.config?.url?.startsWith('/auth/');
+    if (error.response?.status === 401 && !isAuthRequest) {
       localStorage.removeItem('ledger_token');
       localStorage.removeItem('ledger_user');
       window.location.href = '/login';

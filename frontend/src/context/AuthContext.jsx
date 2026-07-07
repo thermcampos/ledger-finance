@@ -34,8 +34,16 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
+  // Called after a profile update, which returns a fresh AuthResponse
+  // (same shape as login/signup) since a changed email re-issues the token.
+  const applySession = useCallback((response) => {
+    persist(response);
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, login, signup, logout, isAuthenticated: !!user }}>
+    <AuthContext.Provider
+      value={{ user, login, signup, logout, applySession, isAuthenticated: !!user }}
+    >
       {children}
     </AuthContext.Provider>
   );
