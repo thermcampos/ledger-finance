@@ -1,0 +1,90 @@
+name: Build and Push Backend
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'backend/**/*.java'
+      - 'backend/**/*.xml'
+      - 'backend/**/*.properties'
+      - 'backend/Dockerfile'
+      - '.github/workflows/backend.yml'
+
+env:
+  DOCKER_IMAGE: "rmcampos/ledger-backend"
+
+jobs:
+  build-and-push:
+    runs-on: graalvm-25
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/backend/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven
+
+      - name: Run build
+        working-directory: ./backend
+        run: ./mvnw --no-transfer-progress clean compile -DskipTests
+
+      - name: Generate version tag
+        id: version
+        run: |
+          DATE=$(date +'%Y.%m.%d')
+          TAG="v${DATE}.${{ github.run_number }}"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "Generated tag: ${TAG}"
+
+      - name: Set up Docker Buildx
+        run: docker buildx inspect --bootstrap
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKER_IMAGE }}
+          tags: |
+            type=raw,value=${{ steps.version.outputs.tag }}
+            type=raw,value=backend-latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD=${{ steps.version.outputs.tag }}
+
+      - name: Output Docker image URLs
+        run: |
+          echo ""
+          echo "=========================================="
+          echo "🚀 Docker Images Published Successfully!"
+          echo "=========================================="
+          echo ""
+          echo "App Image:"
+          echo "  ${{ env.DOCKER_IMAGE }}:${{ steps.version.outputs.tag }}"
+          echo "  ${{ env.DOCKER_IMAGE }}:latest"
+          echo ""
+          echo "=========================================="

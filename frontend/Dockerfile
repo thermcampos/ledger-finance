@@ -1,0 +1,49 @@
+# Build stage
+FROM node:22-alpine AS build
+
+WORKDIR /app
+
+# Accept build arguments
+ARG VITE_BACKEND_SERVER
+ARG VITE_BUILD_NUMBER
+
+# Set as environment variables for the build
+ENV VITE_BACKEND_SERVER=$VITE_BACKEND_SERVER
+ENV VITE_BUILD_NUMBER=$VITE_BUILD_NUMBER
+
+# Copy package files
+COPY *.html *.json *.ts *.js ./
+COPY ./src ./src
+COPY ./public ./public
+
+# Install dependencies
+RUN npm i --ignore-scripts --no-update-notifier --omit=dev && \
+  npm run build && \
+  rm -rf node_modules
+
+# Production stage
+FROM nginx:alpine
+
+# Copy custom nginx config (optional - creates a basic one if not exists)
+RUN echo 'server { \
+    listen 80; \
+    server_name localhost; \
+    root /usr/share/nginx/html; \
+    index index.html; \
+    location / { \
+        try_files $uri $uri/ /index.html; \
+    } \
+    # Security headers \
+    add_header X-Frame-Options "SAMEORIGIN" always; \
+    add_header X-Content-Type-Options "nosniff" always; \
+    add_header X-XSS-Protection "1; mode=block" always; \
+}' > /etc/nginx/conf.d/default.conf
+
+# Copy built assets from build stage
+COPY --from=build /app/dist /usr/share/nginx/html
+
+# Expose port 80
+EXPOSE 80
+
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"]
