@@ -87,6 +87,18 @@ public class BudgetResource {
         return budget;
     }
 
+    @DELETE
+    @Path("/{id}")
+    @Transactional
+    public void delete(@PathParam("id") Long id) {
+        User user = currentUser.require();
+        Budget budget = Budget.findById(id);
+        if (budget == null || !budget.user.id.equals(user.id)) {
+            throw new NotFoundException();
+        }
+        budget.delete();
+    }
+
     public static class UpsertBudgetRequest {
         @NotNull
         public Long categoryId;

@@ -32,4 +32,5 @@ export const BudgetsApi = {
   spendForMonth: (yearMonth) =>
     client.get(`/budgets/month/${yearMonth}/spend`).then((r) => r.data),
   upsert: (payload) => client.post('/budgets', payload).then((r) => r.data),
+  remove: (id) => client.delete(`/budgets/${id}`),
 };

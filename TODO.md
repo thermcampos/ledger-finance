@@ -8,21 +8,27 @@ Transactions filters + Export, Overview date-range dropdown) — 5 commits,
 `319c023` through `c7af925`. §7 **Account edit/delete** is also done and
 committed (`d5aacaa`).
 
-**Done, not yet committed:** §7 **Category edit/delete** — backend
+**Done, not yet committed:** §7 **Category edit/delete** (backend
 `PUT`/`DELETE /categories/{id}` + `GET /categories/{id}/usage`, frontend
-edit/delete rows in `Categories.jsx`. User reviewing in-browser before
+edit/delete rows in `Categories.jsx`, plus a follow-up: category color
+picker now auto-picks a random non-repeating color from a 10-color palette
+on "Add category" instead of showing 5 fixed presets, with a "Choose color"
+toggle to override manually) and §7 **Budget delete** (backend
+`DELETE /budgets/{id}` — no usage-check needed, nothing references a Budget
+row; frontend edit/delete icons on `budget-card`, pencil reopens the
+existing "Set budget" form pre-filled). User reviewing in-browser before
 committing.
 
 **Reference pattern for delete UIs** (see `[[project-accounts-pattern]]` in
 memory): in-card/in-row swap to a "Delete X? This cannot be undone."
-confirm panel (no `window.confirm`, no app-wide modal) using the new
-`.btn-red` style, and a pre-validation check before showing the confirm step
-at all (e.g. `GET /categories/{id}/usage`) rather than attempting the delete
-and showing an error after. Reuse this for Budget delete and Transaction
-delete below.
+confirm panel (no `window.confirm`, no app-wide modal) using the `.btn-red`
+style, and a pre-validation check before showing the confirm step at all
+(e.g. `GET /categories/{id}/usage`) rather than attempting the delete and
+showing an error after — skip the pre-check only when nothing could
+possibly reference the row (Budget's case).
 
-**Not started:** §7 remaining — Budget delete, User profile page,
-Transaction edit/delete (trickiest, touches running-balance recomputation).
+**Not started:** §7 remaining — User profile page, Transaction edit/delete
+(trickiest, touches running-balance recomputation).
 
 **Environment reminders for next session** (see [[project-dev-environment]]
 in memory for more):
@@ -197,13 +203,11 @@ is built yet — tracked here for a future round of chunks.
    - Frontend: no edit/delete affordance on any `txn-row` in
      `Transactions.jsx`.
 
-2. **Budgets** — edit already works implicitly (re-submitting the same
-   category+month via `POST /budgets` upserts the limit), but there's no
-   delete and no explicit per-card edit affordance.
-   - Backend: no `DELETE /budgets/{id}`.
-   - Frontend: no delete button on `budget-card`; editing means reopening
-     the top form and re-picking the same category rather than clicking
-     "edit" on the card itself.
+2. **Budgets** — [x] done, awaiting user review/commit.
+   - Backend: added `DELETE /budgets/{id}`.
+   - Frontend: edit/delete icons on `budget-card` — pencil reopens the top
+     "Set budget" form pre-filled with that category+limit (still upserts
+     via the same endpoint), trash swaps to the in-card confirm panel.
 
 3. **Accounts** — [x] done, committed (`d5aacaa`).
    - Backend: added `PUT /accounts/{id}` (name/institution/kind only —
@@ -234,10 +238,9 @@ is built yet — tracked here for a future round of chunks.
    - Frontend: needs a Settings/Profile page, route, and sidebar entry —
      none exist today.
 
-**Suggested build order:** Account edit/delete and Category edit/delete
-first (simplest, most requested day-to-day) — [x] both done, see above —
-then Budget delete, then User profile (self-contained, new page), then
-Transaction edit/delete last since it's the trickiest (running-balance
-recomputation on delete/edit affects every later transaction on that
-account).
+**Suggested build order:** Account edit/delete, Category edit/delete, and
+Budget delete — [x] all three done, see above — then User profile
+(self-contained, new page), then Transaction edit/delete last since it's
+the trickiest (running-balance recomputation on delete/edit affects every
+later transaction on that account).
 </content>

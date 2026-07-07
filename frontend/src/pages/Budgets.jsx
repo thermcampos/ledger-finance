@@ -73,6 +73,29 @@ export default function Budgets() {
     });
   };
 
+  const startEdit = (b) => {
+    setConfirmingId(null);
+    setCategoryId(String(b.category?.id ?? ''));
+    setLimitAmount(String(b.limitAmount));
+    setShowForm(true);
+  };
+
+  const [confirmingId, setConfirmingId] = useState(null);
+
+  const deleteMutation = useMutation({
+    mutationFn: BudgetsApi.remove,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['budgets', yearMonth] });
+      queryClient.invalidateQueries({ queryKey: ['budgets-spend', yearMonth] });
+      setConfirmingId(null);
+    },
+  });
+
+  const cancelDelete = () => {
+    setConfirmingId(null);
+    deleteMutation.reset();
+  };
+
   const monthLabel = new Date(`${yearMonth}-01T00:00:00`).toLocaleDateString('en-US', {
     month: 'long',
     year: 'numeric',
@@ -204,17 +227,59 @@ export default function Budgets() {
           return (
             <div className="col-md-6 col-lg-4" key={b.id}>
               <div className="budget-card">
-                <div className="budget-name">
-                  <span className="cat-tick" style={{ background: color }} />
-                  {b.category?.name}
-                </div>
-                <div className="budget-figures">
-                  {money(spent)} of {money(Number(b.limitAmount))}
-                </div>
-                <div className="track">
-                  <div className="track-fill" style={{ width: `${pct}%`, background: st.color }} />
-                </div>
-                <div className={`budget-status ${st.cls}`}>{st.label}</div>
+                {confirmingId === b.id ? (
+                  <div>
+                    <div className="budget-name mb-2">Delete budget for "{b.category?.name}"?</div>
+                    <div className="text-faint mb-3" style={{ fontSize: 12.5 }}>
+                      This cannot be undone.
+                    </div>
+                    <div className="d-flex gap-2">
+                      <button
+                        className="btn btn-red btn-sm flex-grow-1"
+                        disabled={deleteMutation.isPending}
+                        onClick={() => deleteMutation.mutate(b.id)}
+                      >
+                        {deleteMutation.isPending ? 'Deleting…' : 'Delete'}
+                      </button>
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={cancelDelete}>
+                        Cancel
+                      </button>
+                    </div>
+                    {deleteMutation.isError && (
+                      <div className="mt-2" style={{ fontSize: 11.5, color: 'var(--red)' }}>
+                        Could not delete this budget.
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <div className="d-flex justify-content-between align-items-start">
+                      <div className="budget-name">
+                        <span className="cat-tick" style={{ background: color }} />
+                        {b.category?.name}
+                      </div>
+                      <div className="d-flex gap-1">
+                        <button className="icon-btn" title="Edit budget" onClick={() => startEdit(b)}>
+                          <i className="bi bi-pencil" />
+                        </button>
+                        <button
+                          className="icon-btn"
+                          title="Delete budget"
+                          onClick={() => setConfirmingId(b.id)}
+                        >
+                          <i className="bi bi-trash" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="budget-figures">
+                      {money(spent)} of {money(Number(b.limitAmount))}
+                    </div>
+                    <div className="track">
+                      <div className="track-fill" style={{ width: `${pct}%`, background: st.color }} />
+                    </div>
+                    <div className={`budget-status ${st.cls}`}>{st.label}</div>
+                  </>
+                )}
               </div>
             </div>
           );
