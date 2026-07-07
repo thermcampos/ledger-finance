@@ -51,17 +51,25 @@ function money(amount, { signed = false } = {}) {
   return `${sign}$${value}`;
 }
 
-function rangeCutoff(range) {
+function monthBounds(monthOffset) {
   const now = new Date();
-  if (range === '90') {
-    now.setDate(now.getDate() - 90);
-    return now;
+  const start = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + monthOffset + 1, 0);
+  return { start, end };
+}
+
+// Custom range with a blank start/end means "unbounded" in that direction —
+// used to show a full account history when drilling in from elsewhere.
+function rangeBounds(range, customStart, customEnd) {
+  if (range === 'past-month') return monthBounds(-1);
+  if (range === 'next-month') return monthBounds(1);
+  if (range === 'custom') {
+    return {
+      start: customStart ? parseLocalDate(customStart) : null,
+      end: customEnd ? parseLocalDate(customEnd) : null,
+    };
   }
-  if (range === 'year') {
-    return new Date(now.getFullYear(), 0, 1);
-  }
-  now.setDate(now.getDate() - 30);
-  return now;
+  return monthBounds(0);
 }
 
 function toCsv(rows) {
@@ -107,17 +115,22 @@ export default function Transactions() {
   const [search, setSearch] = useState('');
   const [filterAccountId, setFilterAccountId] = useState('');
   const [filterCategoryId, setFilterCategoryId] = useState('');
-  const [filterRange, setFilterRange] = useState('30');
+  const [filterRange, setFilterRange] = useState('this-month');
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
 
   // Arriving via a "View transactions" link (e.g. from the Credit Cards
-  // page) with ?account=<id> jumps straight to that account's full list.
+  // page) with ?account=<id> jumps straight to that account's full list —
+  // an unbounded custom range shows the complete history.
   useEffect(() => {
     const accountParam = searchParams.get('account');
     if (accountParam) {
       setFilterAccountId(accountParam);
       setFilterCategoryId('');
       setSearch('');
-      setFilterRange('year');
+      setFilterRange('custom');
+      setFilterStartDate('');
+      setFilterEndDate('');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
@@ -278,15 +291,16 @@ export default function Transactions() {
   const filteredCategoryName = categories.find((c) => String(c.id) === filterCategoryId)?.name;
 
   const filteredFlat = useMemo(() => {
-    const cutoff = rangeCutoff(filterRange);
+    const { start, end } = rangeBounds(filterRange, filterStartDate, filterEndDate);
     return txnQueries
       .flatMap((q) => q.data || [])
       .filter((t) => t.description.toLowerCase().includes(search.toLowerCase()))
       .filter((t) => !filterAccountId || String(t.account?.id) === filterAccountId)
       .filter((t) => !filterCategoryId || String(t.category?.id) === filterCategoryId)
-      .filter((t) => parseLocalDate(t.occurredOn) >= cutoff)
+      .filter((t) => !start || parseLocalDate(t.occurredOn) >= start)
+      .filter((t) => !end || parseLocalDate(t.occurredOn) <= end)
       .sort((a, b) => parseLocalDate(b.occurredOn) - parseLocalDate(a.occurredOn));
-  }, [txnQueries, search, filterAccountId, filterCategoryId, filterRange]);
+  }, [txnQueries, search, filterAccountId, filterCategoryId, filterRange, filterStartDate, filterEndDate]);
 
   // Only when viewing "All accounts" — a credit card explicitly filtered to
   // (the "View all" drill-down below, or picked directly) shows its normal
@@ -330,7 +344,9 @@ export default function Transactions() {
     setFilterAccountId(String(accountId));
     setFilterCategoryId('');
     setSearch('');
-    setFilterRange('year');
+    setFilterRange('custom');
+    setFilterStartDate('');
+    setFilterEndDate('');
   };
 
   const handleExport = () => {
@@ -547,9 +563,10 @@ export default function Transactions() {
               value={filterRange}
               onChange={(e) => setFilterRange(e.target.value)}
             >
-              <option value="30">Last 30 days</option>
-              <option value="90">Last 90 days</option>
-              <option value="year">This year</option>
+              <option value="this-month">This month</option>
+              <option value="past-month">Past month</option>
+              <option value="next-month">Next month</option>
+              <option value="custom">Custom range</option>
             </select>
           </div>
           <div className="col-md-2 text-md-end">
@@ -558,6 +575,28 @@ export default function Transactions() {
               Export
             </button>
           </div>
+          {filterRange === 'custom' && (
+            <>
+              <div className="col-md-2 offset-md-4">
+                <label className="eyebrow d-block mb-1">From</label>
+                <input
+                  type="date"
+                  className="form-control form-control-sm"
+                  value={filterStartDate}
+                  onChange={(e) => setFilterStartDate(e.target.value)}
+                />
+              </div>
+              <div className="col-md-2">
+                <label className="eyebrow d-block mb-1">To</label>
+                <input
+                  type="date"
+                  className="form-control form-control-sm"
+                  value={filterEndDate}
+                  onChange={(e) => setFilterEndDate(e.target.value)}
+                />
+              </div>
+            </>
+          )}
         </div>
       </div>
 
