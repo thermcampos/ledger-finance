@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AccountsApi } from '../api/ledger';
+import { AccountsApi, TransactionsApi } from '../api/ledger';
 
 const kindIcons = {
   CHECKING: 'bi-wallet2',
@@ -28,6 +28,11 @@ export default function Accounts() {
   const [kind, setKind] = useState('CHECKING');
   const [balance, setBalance] = useState('');
 
+  const [editingId, setEditingId] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editInstitution, setEditInstitution] = useState('');
+  const [editKind, setEditKind] = useState('CHECKING');
+
   const createMutation = useMutation({
     mutationFn: AccountsApi.create,
     onSuccess: () => {
@@ -39,9 +44,69 @@ export default function Accounts() {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: ({ id, payload }) => AccountsApi.update(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      setEditingId(null);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: AccountsApi.remove,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      setConfirmingId(null);
+    },
+  });
+
+  const [confirmingId, setConfirmingId] = useState(null);
+  const [blockedId, setBlockedId] = useState(null);
+
+  const checkDeleteMutation = useMutation({
+    mutationFn: async (a) => {
+      const txns = await TransactionsApi.listByAccount(a.id);
+      return { account: a, hasTransactions: txns.length > 0 };
+    },
+    onSuccess: ({ account, hasTransactions }) => {
+      if (hasTransactions) {
+        setBlockedId(account.id);
+        setConfirmingId(null);
+      } else {
+        setConfirmingId(account.id);
+        setBlockedId(null);
+      }
+    },
+  });
+
   const handleSubmit = (e) => {
     e.preventDefault();
     createMutation.mutate({ name, institution, kind, balance: Number(balance) || 0 });
+  };
+
+  const startEdit = (a) => {
+    setConfirmingId(null);
+    setBlockedId(null);
+    setEditingId(a.id);
+    setEditName(a.name || '');
+    setEditInstitution(a.institution || '');
+    setEditKind(a.kind || 'CHECKING');
+  };
+
+  const handleEditSubmit = (e, id) => {
+    e.preventDefault();
+    updateMutation.mutate({ id, payload: { name: editName, institution: editInstitution, kind: editKind } });
+  };
+
+  const handleDeleteClick = (a) => {
+    setBlockedId(null);
+    checkDeleteMutation.mutate(a);
+  };
+
+  const cancelDelete = () => {
+    setConfirmingId(null);
+    setBlockedId(null);
+    deleteMutation.reset();
   };
 
   return (
@@ -117,18 +182,110 @@ export default function Accounts() {
         {accounts.map((a) => (
           <div className="col-md-6 col-lg-3" key={a.id}>
             <div className="account-card-lg">
-              <div className="account-icon">
-                <i className={`bi ${kindIcons[a.kind] || 'bi-wallet2'} text-muted-c`} />
-              </div>
-              <div className="acct-kind">{a.kind?.replace('_', ' ')}</div>
-              <div className="acct-balance" style={{ color: a.balance < 0 ? 'var(--red)' : undefined }}>
-                {money(Number(a.balance))}
-              </div>
-              <div className="acct-name mb-3">{a.name}</div>
-              {a.institution && <div className="text-faint mb-2" style={{ fontSize: 11.5 }}>{a.institution}</div>}
-              <div className="text-faint" style={{ fontSize: 11.5 }}>
-                {a.lastSyncedAt ? `Synced ${new Date(a.lastSyncedAt).toLocaleString()}` : 'Not yet synced'}
-              </div>
+              {editingId === a.id ? (
+                <form onSubmit={(e) => handleEditSubmit(e, a.id)}>
+                  <label className="eyebrow d-block mb-2">Name</label>
+                  <input
+                    className="form-control form-control-sm mb-2"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    required
+                  />
+                  <label className="eyebrow d-block mb-2">Institution</label>
+                  <input
+                    className="form-control form-control-sm mb-2"
+                    value={editInstitution}
+                    onChange={(e) => setEditInstitution(e.target.value)}
+                  />
+                  <label className="eyebrow d-block mb-2">Kind</label>
+                  <select
+                    className="form-select form-select-sm mb-3"
+                    value={editKind}
+                    onChange={(e) => setEditKind(e.target.value)}
+                  >
+                    <option value="CHECKING">Checking</option>
+                    <option value="SAVINGS">Savings</option>
+                    <option value="CREDIT_CARD">Credit card</option>
+                    <option value="INVESTMENT">Investment</option>
+                  </select>
+                  <div className="d-flex gap-2">
+                    <button type="submit" className="btn btn-jade btn-sm flex-grow-1" disabled={updateMutation.isPending}>
+                      {updateMutation.isPending ? 'Saving…' : 'Save'}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => setEditingId(null)}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                  {updateMutation.isError && (
+                    <div className="mt-2" style={{ fontSize: 11.5, color: 'var(--red)' }}>
+                      Could not save changes.
+                    </div>
+                  )}
+                </form>
+              ) : confirmingId === a.id ? (
+                <div>
+                  <div className="acct-name mb-2">Delete "{a.name}"?</div>
+                  <div className="text-faint mb-3" style={{ fontSize: 12.5 }}>
+                    This cannot be undone.
+                  </div>
+                  <div className="d-flex gap-2">
+                    <button
+                      className="btn btn-red btn-sm flex-grow-1"
+                      disabled={deleteMutation.isPending}
+                      onClick={() => deleteMutation.mutate(a.id)}
+                    >
+                      {deleteMutation.isPending ? 'Deleting…' : 'Delete'}
+                    </button>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={cancelDelete}>
+                      Cancel
+                    </button>
+                  </div>
+                  {deleteMutation.isError && (
+                    <div className="mt-2" style={{ fontSize: 11.5, color: 'var(--red)' }}>
+                      Could not delete this account.
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <div className="d-flex justify-content-between align-items-start">
+                    <div className="account-icon">
+                      <i className={`bi ${kindIcons[a.kind] || 'bi-wallet2'} text-muted-c`} />
+                    </div>
+                    <div className="d-flex gap-1">
+                      <button className="icon-btn" title="Edit account" onClick={() => startEdit(a)}>
+                        <i className="bi bi-pencil" />
+                      </button>
+                      <button
+                        className="icon-btn"
+                        title="Delete account"
+                        onClick={() => handleDeleteClick(a)}
+                        disabled={checkDeleteMutation.isPending && checkDeleteMutation.variables?.id === a.id}
+                      >
+                        <i className="bi bi-trash" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="acct-kind">{a.kind?.replace('_', ' ')}</div>
+                  <div className="acct-balance" style={{ color: a.balance < 0 ? 'var(--red)' : undefined }}>
+                    {money(Number(a.balance))}
+                  </div>
+                  <div className="acct-name mb-3">{a.name}</div>
+                  {a.institution && <div className="text-faint mb-2" style={{ fontSize: 11.5 }}>{a.institution}</div>}
+                  <div className="text-faint" style={{ fontSize: 11.5 }}>
+                    {a.lastSyncedAt ? `Synced ${new Date(a.lastSyncedAt).toLocaleString()}` : 'Not yet synced'}
+                  </div>
+                  {blockedId === a.id && (
+                    <div className="mt-2" style={{ fontSize: 11.5, color: 'var(--red)' }}>
+                      Cannot delete — this account still has transactions.
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </div>
         ))}

@@ -392,6 +392,24 @@ body {
   border-color: var(--jade);
   color: var(--jade);
 }
+.icon-btn {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 0;
+  transition: border-color 0.12s ease, color 0.12s ease;
+}
+.icon-btn:hover {
+  color: var(--text);
+  border-color: var(--text-muted);
+}
 
 /* --- Auth pages --- */
 .auth-shell {
@@ -436,6 +454,18 @@ body {
 .btn-jade:hover {
   background: #458f77;
   border-color: #458f77;
+  color: #fff;
+}
+.btn-red {
+  background: var(--red);
+  border: 1px solid var(--red);
+  color: #0e1116;
+  font-weight: 600;
+  font-size: 13px;
+}
+.btn-red:hover {
+  background: #b3433f;
+  border-color: #b3433f;
   color: #fff;
 }
 .btn-ghost {

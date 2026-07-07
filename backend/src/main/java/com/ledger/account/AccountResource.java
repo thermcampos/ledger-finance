@@ -2,8 +2,10 @@ package com.ledger.account;
 
 import com.ledger.security.CurrentUserService;
 import com.ledger.user.User;
+import io.quarkus.hibernate.orm.panache.Panache;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
+import jakarta.persistence.PersistenceException;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -45,6 +47,21 @@ public class AccountResource {
         return account;
     }
 
+    @PUT
+    @Path("/{id}")
+    @Transactional
+    public Account update(@PathParam("id") Long id, @Valid UpdateAccountRequest request) {
+        User user = currentUser.require();
+        Account account = Account.findById(id);
+        if (account == null || !account.user.id.equals(user.id)) {
+            throw new NotFoundException();
+        }
+        account.name = request.name;
+        account.institution = request.institution;
+        account.kind = request.kind;
+        return account;
+    }
+
     @DELETE
     @Path("/{id}")
     @Transactional
@@ -54,7 +71,12 @@ public class AccountResource {
         if (account == null || !account.user.id.equals(user.id)) {
             throw new NotFoundException();
         }
-        account.delete();
+        try {
+            account.delete();
+            Panache.flush();
+        } catch (PersistenceException e) {
+            throw new WebApplicationException("Cannot delete an account that still has transactions", 409);
+        }
     }
 
     public static class CreateAccountRequest {
@@ -63,5 +85,12 @@ public class AccountResource {
         public String institution;
         public AccountKind kind;
         public BigDecimal balance;
+    }
+
+    public static class UpdateAccountRequest {
+        @NotBlank
+        public String name;
+        public String institution;
+        public AccountKind kind;
     }
 }

@@ -8,6 +8,7 @@ export const AuthApi = {
 export const AccountsApi = {
   list: () => client.get('/accounts').then((r) => r.data),
   create: (payload) => client.post('/accounts', payload).then((r) => r.data),
+  update: (id, payload) => client.put(`/accounts/${id}`, payload).then((r) => r.data),
   remove: (id) => client.delete(`/accounts/${id}`),
 };
 
