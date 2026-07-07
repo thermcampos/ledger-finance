@@ -91,11 +91,11 @@ resource "kubernetes_secret_v1" "ledger_finance_secrets" {
   }
 
   data = {
-    postgres_user       = var.db_user
-    postgres_password   = var.db_password
-    postgres_db         = var.db_name
-    jwt_private_key     = var.jwt_private_key
-    jwt_public_key      = var.jwt_public_key
+    postgres_user     = var.db_user
+    postgres_password = var.db_password
+    postgres_db       = var.db_name
+    jwt_private_key   = var.jwt_private_key
+    jwt_public_key    = var.jwt_public_key
   }
 }
 
@@ -211,7 +211,7 @@ resource "kubernetes_deployment_v1" "ledger_finance_backend" {
             value = "ledger-finance-db-svc"
           }
           env {
-            name  = "POSTGRES_USER"
+            name = "POSTGRES_USER"
             value_from {
               secret_key_ref {
                 name = kubernetes_secret_v1.ledger_finance_secrets.metadata[0].name
@@ -220,7 +220,7 @@ resource "kubernetes_deployment_v1" "ledger_finance_backend" {
             }
           }
           env {
-            name  = "POSTGRES_PASSWORD"
+            name = "POSTGRES_PASSWORD"
             value_from {
               secret_key_ref {
                 name = kubernetes_secret_v1.ledger_finance_secrets.metadata[0].name
