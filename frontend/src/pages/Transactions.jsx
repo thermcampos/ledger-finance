@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AccountsApi, CategoriesApi, TransactionsApi } from '../api/ledger';
+import { parseLocalDate } from '../utils/date';
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -10,6 +11,13 @@ function parseSignedAmount(raw) {
   const trimmed = raw.trim();
   const value = Math.abs(Number(trimmed.startsWith('+') ? trimmed.slice(1) : trimmed));
   return trimmed.startsWith('+') ? value : -value;
+}
+
+// Inverse of parseSignedAmount — round-trips a stored amount back into the
+// same "+income / -expense" text format the input expects.
+function formatSignedAmount(amount) {
+  const num = Number(amount);
+  return num >= 0 ? `+${num}` : `${num}`;
 }
 
 const categoryColors = {
@@ -81,7 +89,7 @@ function downloadCsv(csv, filename) {
 }
 
 function dayLabel(dateStr) {
-  const date = new Date(dateStr);
+  const date = parseLocalDate(dateStr);
   const today = new Date();
   const yesterday = new Date();
   yesterday.setDate(today.getDate() - 1);
@@ -135,6 +143,59 @@ export default function Transactions() {
     });
   };
 
+  const [editingId, setEditingId] = useState(null);
+  const [editCategoryId, setEditCategoryId] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editAmount, setEditAmount] = useState('');
+  const [editOccurredOn, setEditOccurredOn] = useState('');
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, payload }) => TransactionsApi.update(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      setEditingId(null);
+    },
+  });
+
+  const startEdit = (t) => {
+    setConfirmingId(null);
+    setEditingId(t.id);
+    setEditCategoryId(t.category?.id ? String(t.category.id) : '');
+    setEditDescription(t.description);
+    setEditAmount(formatSignedAmount(t.amount));
+    setEditOccurredOn(t.occurredOn);
+  };
+
+  const handleEditSubmit = (e, id) => {
+    e.preventDefault();
+    updateMutation.mutate({
+      id,
+      payload: {
+        categoryId: editCategoryId ? Number(editCategoryId) : null,
+        description: editDescription,
+        amount: parseSignedAmount(editAmount),
+        occurredOn: editOccurredOn,
+      },
+    });
+  };
+
+  const [confirmingId, setConfirmingId] = useState(null);
+
+  const deleteMutation = useMutation({
+    mutationFn: TransactionsApi.remove,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      setConfirmingId(null);
+    },
+  });
+
+  const cancelDelete = () => {
+    setConfirmingId(null);
+    deleteMutation.reset();
+  };
+
   const txnQueries = useQueries({
     queries: accounts.map((a) => ({
       queryKey: ['transactions', a.id],
@@ -145,6 +206,45 @@ export default function Transactions() {
 
   const accountById = useMemo(() => Object.fromEntries(accounts.map((a) => [a.id, a])), [accounts]);
 
+  // Chronologically sorted per-account transactions (unfiltered by search/category),
+  // used to look up "balance as of a given day" regardless of which rows are
+  // currently visible under the active filters.
+  const sortedTxnsByAccount = useMemo(() => {
+    const map = new Map();
+    accounts.forEach((a, i) => {
+      const raw = txnQueries[i]?.data || [];
+      const sorted = [...raw].sort((x, y) => {
+        const diff = parseLocalDate(x.occurredOn) - parseLocalDate(y.occurredOn);
+        return diff !== 0 ? diff : x.id - y.id;
+      });
+      map.set(a.id, sorted);
+    });
+    return map;
+  }, [accounts, txnQueries]);
+
+  function accountBalanceAsOf(account, cutoffDate) {
+    const sorted = sortedTxnsByAccount.get(account.id) || [];
+    let balance = Number(account.openingBalance ?? 0);
+    for (const t of sorted) {
+      if (parseLocalDate(t.occurredOn) > cutoffDate) break;
+      balance = Number(t.runningBalance);
+    }
+    return balance;
+  }
+
+  function balanceAsOfDay(cutoffDate) {
+    const relevantAccounts = filterAccountId
+      ? accounts.filter((a) => String(a.id) === filterAccountId)
+      : accounts;
+    return relevantAccounts.reduce((sum, a) => sum + accountBalanceAsOf(a, cutoffDate), 0);
+  }
+
+  const currentBalanceTotal = filterAccountId
+    ? Number(accountById[filterAccountId]?.balance || 0)
+    : accounts.reduce((sum, a) => sum + Number(a.balance), 0);
+
+  const filteredCategoryName = categories.find((c) => String(c.id) === filterCategoryId)?.name;
+
   const filteredFlat = useMemo(() => {
     const cutoff = rangeCutoff(filterRange);
     return txnQueries
@@ -152,8 +252,8 @@ export default function Transactions() {
       .filter((t) => t.description.toLowerCase().includes(search.toLowerCase()))
       .filter((t) => !filterAccountId || String(t.account?.id) === filterAccountId)
       .filter((t) => !filterCategoryId || String(t.category?.id) === filterCategoryId)
-      .filter((t) => new Date(t.occurredOn) >= cutoff)
-      .sort((a, b) => new Date(b.occurredOn) - new Date(a.occurredOn));
+      .filter((t) => parseLocalDate(t.occurredOn) >= cutoff)
+      .sort((a, b) => parseLocalDate(b.occurredOn) - parseLocalDate(a.occurredOn));
   }, [txnQueries, search, filterAccountId, filterCategoryId, filterRange]);
 
   const grouped = useMemo(() => {
@@ -165,6 +265,8 @@ export default function Transactions() {
     }
     return Array.from(map.entries());
   }, [filteredFlat]);
+
+  const filteredCategoryTotal = filteredFlat.reduce((sum, t) => sum + Number(t.amount), 0);
 
   const handleExport = () => {
     downloadCsv(toCsv(filteredFlat), `transactions-${todayIso()}.csv`);
@@ -183,6 +285,38 @@ export default function Transactions() {
           <i className="bi bi-plus-lg me-1" />
           Add transaction
         </button>
+      </div>
+
+      <div className="panel p-4 mb-4">
+        <div className="row g-3">
+          <div className={filterCategoryId ? 'col-md-7' : 'col-md-12'}>
+            <div className="eyebrow mb-2">
+              Current balance{filterAccountId ? ` — ${accountById[filterAccountId]?.name}` : ''}
+            </div>
+            <div className="hero-balance md" style={{ color: currentBalanceTotal < 0 ? 'var(--red)' : undefined }}>
+              {money(currentBalanceTotal)}
+            </div>
+            {(filterCategoryId || search) && (
+              <div className="text-faint mt-1" style={{ fontSize: 11.5 }}>
+                Your real balance — not limited to the category/search filter below.
+              </div>
+            )}
+          </div>
+          {filterCategoryId && (
+            <div className="col-md-5">
+              <div className="eyebrow mb-2">{filteredCategoryName || 'Category'} total</div>
+              <div
+                className="mono"
+                style={{ fontSize: 26, color: filteredCategoryTotal < 0 ? 'var(--red)' : 'var(--jade)' }}
+              >
+                {money(filteredCategoryTotal, { signed: true })}
+              </div>
+              <div className="text-faint mt-1" style={{ fontSize: 11.5 }}>
+                Sum of currently filtered transactions.
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {showForm && (
@@ -331,12 +465,14 @@ export default function Transactions() {
       )}
 
       {grouped.map(([label, items]) => {
-        const total = items.reduce((s, t) => s + Number(t.amount), 0);
+        const dayBalance = balanceAsOfDay(parseLocalDate(items[0].occurredOn));
         return (
           <div key={label} className="mb-1">
             <div className="day-heading">
               <div className="eyebrow">{label}</div>
-              <div className="day-total">{money(total, { signed: true })}</div>
+              <div className="day-total" style={{ color: dayBalance < 0 ? 'var(--red)' : undefined }}>
+                {money(dayBalance)}
+              </div>
             </div>
             {items.map((t) => {
               const catName = t.category?.name;
@@ -344,23 +480,115 @@ export default function Transactions() {
               const color = t.category?.colorHex || categoryColors[catName] || '#8B92A0';
               return (
                 <div className="txn-row" key={t.id}>
-                  <div className="txn-icon" style={{ color }}>
-                    <i className={`bi ${icon}`} />
-                  </div>
-                  <div className="txn-main">
-                    <div className="txn-desc">{t.description}</div>
-                    <div className="txn-meta">
-                      <span>{catName || 'Uncategorized'}</span>
-                      <span className="dot-sep" />
-                      <span>{accountById[t.account?.id]?.name || 'Account'}</span>
+                  {editingId === t.id ? (
+                    <form
+                      onSubmit={(e) => handleEditSubmit(e, t.id)}
+                      className="d-flex align-items-center gap-2 flex-wrap w-100"
+                    >
+                      <select
+                        className="form-select form-select-sm"
+                        style={{ maxWidth: 150 }}
+                        value={editCategoryId}
+                        onChange={(e) => setEditCategoryId(e.target.value)}
+                      >
+                        <option value="">Uncategorized</option>
+                        {categories.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        className="form-control form-control-sm"
+                        style={{ maxWidth: 180 }}
+                        value={editDescription}
+                        onChange={(e) => setEditDescription(e.target.value)}
+                        required
+                      />
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        className="form-control form-control-sm"
+                        style={{ maxWidth: 110 }}
+                        value={editAmount}
+                        onChange={(e) => setEditAmount(e.target.value)}
+                        required
+                      />
+                      <input
+                        type="date"
+                        className="form-control form-control-sm"
+                        style={{ maxWidth: 150 }}
+                        value={editOccurredOn}
+                        onChange={(e) => setEditOccurredOn(e.target.value)}
+                        required
+                      />
+                      <div className="d-flex gap-2 ms-auto">
+                        <button type="submit" className="btn btn-jade btn-sm" disabled={updateMutation.isPending}>
+                          {updateMutation.isPending ? 'Saving…' : 'Save'}
+                        </button>
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditingId(null)}>
+                          Cancel
+                        </button>
+                      </div>
+                      {updateMutation.isError && (
+                        <div className="w-100" style={{ fontSize: 11.5, color: 'var(--red)' }}>
+                          Could not save changes.
+                        </div>
+                      )}
+                    </form>
+                  ) : confirmingId === t.id ? (
+                    <div className="d-flex align-items-center gap-3 flex-wrap w-100">
+                      <span style={{ fontWeight: 500, fontSize: 13.5 }}>Delete this transaction?</span>
+                      <span className="text-faint" style={{ fontSize: 12.5 }}>
+                        This cannot be undone.
+                      </span>
+                      <div className="d-flex gap-2 ms-auto">
+                        <button
+                          className="btn btn-red btn-sm"
+                          disabled={deleteMutation.isPending}
+                          onClick={() => deleteMutation.mutate(t.id)}
+                        >
+                          {deleteMutation.isPending ? 'Deleting…' : 'Delete'}
+                        </button>
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={cancelDelete}>
+                          Cancel
+                        </button>
+                      </div>
+                      {deleteMutation.isError && (
+                        <div className="w-100" style={{ fontSize: 11.5, color: 'var(--red)' }}>
+                          Could not delete this transaction.
+                        </div>
+                      )}
                     </div>
-                  </div>
-                  <div className="txn-right">
-                    <div className={`cell-amount ${t.amount < 0 ? 'neg' : 'pos'}`}>
-                      {money(Number(t.amount), { signed: true })}
-                    </div>
-                    <div className="txn-balance">{money(Number(t.runningBalance))}</div>
-                  </div>
+                  ) : (
+                    <>
+                      <div className="txn-icon" style={{ color }}>
+                        <i className={`bi ${icon}`} />
+                      </div>
+                      <div className="txn-main">
+                        <div className="txn-desc">{t.description}</div>
+                        <div className="txn-meta">
+                          <span>{catName || 'Uncategorized'}</span>
+                          <span className="dot-sep" />
+                          <span>{accountById[t.account?.id]?.name || 'Account'}</span>
+                        </div>
+                      </div>
+                      <div className="txn-right">
+                        <div className={`cell-amount ${t.amount < 0 ? 'neg' : 'pos'}`}>
+                          {money(Number(t.amount), { signed: true })}
+                        </div>
+                        <div className="txn-balance">{money(Number(t.runningBalance))}</div>
+                      </div>
+                      <div className="d-flex gap-1 ms-2">
+                        <button className="icon-btn" title="Edit transaction" onClick={() => startEdit(t)}>
+                          <i className="bi bi-pencil" />
+                        </button>
+                        <button className="icon-btn" title="Delete transaction" onClick={() => setConfirmingId(t.id)}>
+                          <i className="bi bi-trash" />
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               );
             })}

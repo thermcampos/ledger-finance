@@ -30,6 +30,8 @@ export const TransactionsApi = {
   listByAccount: (accountId) =>
     client.get(`/transactions/account/${accountId}`).then((r) => r.data),
   create: (payload) => client.post('/transactions', payload).then((r) => r.data),
+  update: (id, payload) => client.put(`/transactions/${id}`, payload).then((r) => r.data),
+  remove: (id) => client.delete(`/transactions/${id}`),
 };
 
 export const BudgetsApi = {

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { AccountsApi, BudgetsApi, TransactionsApi } from '../api/ledger';
 import Dropdown from '../components/Dropdown';
+import { parseLocalDate } from '../utils/date';
 
 const rangeOptions = [
   { value: 'week', label: 'This week' },
@@ -99,10 +100,10 @@ export default function Overview() {
   const recent = txnQueries
     .flatMap((q) => q.data || [])
     .filter((t) => {
-      const occurred = new Date(t.occurredOn);
+      const occurred = parseLocalDate(t.occurredOn);
       return occurred >= start && occurred <= end;
     })
-    .sort((a, b) => new Date(b.occurredOn) - new Date(a.occurredOn))
+    .sort((a, b) => parseLocalDate(b.occurredOn) - parseLocalDate(a.occurredOn))
     .slice(0, 5);
 
   return (

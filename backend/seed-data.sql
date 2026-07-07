@@ -37,14 +37,19 @@ FROM users, (VALUES
 WHERE users.email = 'demo@ledger.app';
 
 -- --- Accounts -------------------------------------------------------
-INSERT INTO accounts (user_id, name, institution, kind, balance, last_synced_at)
-SELECT id, a.name, a.institution, a.kind, a.balance, now()
+-- opening_balance is the immutable anchor `balance` is derived from once
+-- transactions below are applied in chronological order — see
+-- TransactionResource#recomputeAccountBalance. Values below were back-solved
+-- from each account's final balance minus its seeded transactions' sum, so
+-- they land on the same balance/running_balance figures already seeded.
+INSERT INTO accounts (user_id, name, institution, kind, balance, opening_balance, last_synced_at)
+SELECT id, a.name, a.institution, a.kind, a.balance, a.opening_balance, now()
 FROM users, (VALUES
-    ('Everyday',        'First National',  'CHECKING',    6412.08),
-    ('Emergency fund',  'First National',  'SAVINGS',    28900.44),
-    ('Visa Signature',  'Chase',           'CREDIT_CARD', -1284.30),
-    ('Brokerage',       'Fidelity',        'INVESTMENT', 14203.68)
-) AS a(name, institution, kind, balance)
+    ('Everyday',        'First National',  'CHECKING',    6412.08,   4326.78),
+    ('Emergency fund',  'First National',  'SAVINGS',    28900.44,  27900.44),
+    ('Visa Signature',  'Chase',           'CREDIT_CARD', -1284.30, -1223.46),
+    ('Brokerage',       'Fidelity',        'INVESTMENT', 14203.68,  14203.68)
+) AS a(name, institution, kind, balance, opening_balance)
 WHERE users.email = 'demo@ledger.app';
 
 -- --- Transactions -------------------------------------------------------

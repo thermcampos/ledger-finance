@@ -30,6 +30,15 @@ public class Account extends PanacheEntityBase {
     @Column(precision = 14, scale = 2, nullable = false)
     public BigDecimal balance;
 
+    /**
+     * Immutable anchor set once at creation. {@code balance} and every
+     * transaction's {@code runningBalance} are fully re-derived from this in
+     * chronological (occurredOn) order whenever transactions change — see
+     * TransactionResource#recomputeAccountBalance.
+     */
+    @Column(name = "opening_balance", precision = 14, scale = 2, nullable = false)
+    public BigDecimal openingBalance;
+
     @Column(name = "last_synced_at")
     public Instant lastSyncedAt;
 

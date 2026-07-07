@@ -42,6 +42,7 @@ public class AccountResource {
         account.institution = request.institution;
         account.kind = request.kind;
         account.balance = request.balance != null ? request.balance : BigDecimal.ZERO;
+        account.openingBalance = account.balance;
         account.lastSyncedAt = Instant.now();
         account.persist();
         return account;
