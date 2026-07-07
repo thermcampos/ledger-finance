@@ -11,3 +11,7 @@ frontend/dist/
 .DS_Store
 *.log
 .env
+.idea/
+tfplan
+terraform/.terraform/providers/
+
