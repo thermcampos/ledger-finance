@@ -72,7 +72,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: rmcampos/polpa-gestao-app
+          images: ${{ env.DOCKER_IMAGE }}
           tags: |
             type=raw,value=${{ steps.version.outputs.tag }}
             type=raw,value=latest,enable={{ is_default_branch }}
@@ -98,7 +98,7 @@ jobs:
           echo "=========================================="
           echo ""
           echo "App Image:"
-          echo "  docker.io/rmcampos/polpa-gestao-app:${{ steps.version.outputs.tag }}"
-          echo "  docker.io/rmcampos/polpa-gestao-app:latest"
+          echo "  ${{ env.DOCKER_IMAGE }}:${{ steps.version.outputs.tag }}"
+          echo "  ${{ env.DOCKER_IMAGE }}:latest"
           echo ""
           echo "=========================================="
