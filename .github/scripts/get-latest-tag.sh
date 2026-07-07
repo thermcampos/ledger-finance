@@ -14,8 +14,8 @@ TOKEN=$(printf '{"username":"%s","password":"%s"}' "$DOCKERHUB_USERNAME" "$DOCKE
 
 TAG=$(curl -sf \
   -H "Authorization: JWT ${TOKEN}" \
-  "https://hub.docker.com/v2/repositories/${REPO}/tags?page_size=25&ordering=-last_updated" \
-  | jq -r '[.results[] | select(.name != "latest")] | first | .name')
+  "https://hub.docker.com/v2/repositories/${REPO}/tags?page_size=100" \
+  | jq -r '[.results[] | select(.name != "latest")] | sort_by(.last_updated) | last | .name')
 
 if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
   echo "ERROR: no tag found for ${REPO}" >&2
