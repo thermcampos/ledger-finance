@@ -1,6 +1,8 @@
 package com.ledger.category;
 
+import com.ledger.budget.Budget;
 import com.ledger.security.CurrentUserService;
+import com.ledger.transaction.Transaction;
 import com.ledger.user.User;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
@@ -37,9 +39,60 @@ public class CategoryResource {
         return category;
     }
 
+    @PUT
+    @Path("/{id}")
+    @Transactional
+    public Category update(@PathParam("id") Long id, @Valid CreateCategoryRequest request) {
+        Category category = requireOwnedCategory(id);
+        category.name = request.name;
+        category.colorHex = request.colorHex;
+        return category;
+    }
+
+    @GET
+    @Path("/{id}/usage")
+    public CategoryUsage usage(@PathParam("id") Long id) {
+        Category category = requireOwnedCategory(id);
+        long transactionCount = Transaction.count("category.id", category.id);
+        long budgetCount = Budget.count("category.id", category.id);
+        return new CategoryUsage(transactionCount, budgetCount);
+    }
+
+    @DELETE
+    @Path("/{id}")
+    @Transactional
+    public void delete(@PathParam("id") Long id) {
+        Category category = requireOwnedCategory(id);
+        boolean used = Transaction.count("category.id", category.id) > 0
+                || Budget.count("category.id", category.id) > 0;
+        if (used) {
+            throw new WebApplicationException("Cannot delete a category used by transactions or budgets", 409);
+        }
+        category.delete();
+    }
+
+    private Category requireOwnedCategory(Long id) {
+        User user = currentUser.require();
+        Category category = Category.findById(id);
+        if (category == null || !category.user.id.equals(user.id)) {
+            throw new NotFoundException();
+        }
+        return category;
+    }
+
     public static class CreateCategoryRequest {
         @NotBlank
         public String name;
         public String colorHex;
+    }
+
+    public static class CategoryUsage {
+        public long transactionCount;
+        public long budgetCount;
+
+        public CategoryUsage(long transactionCount, long budgetCount) {
+            this.transactionCount = transactionCount;
+            this.budgetCount = budgetCount;
+        }
     }
 }

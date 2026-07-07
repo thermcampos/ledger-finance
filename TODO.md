@@ -1,23 +1,28 @@
 # Ledger — Outstanding Work
 
-## Status as of end of session (2026-07-06, evening)
+## Status as of end of session (2026-07-07)
 
-**Done and committed:** §1–§4 (Categories page, Add-transaction form,
-Add/edit-budget form + Overview budget panel, Transactions filters + Export,
-Overview date-range dropdown) are all implemented and committed as 5
-separate commits (`319c023` through `c7af925`, one per chunk). Local branch
-is 2 commits ahead of `origin/main` — not pushed yet, no push has been
-requested.
+**Done and committed:** §1–§6 UI-wiring chunks (Categories page,
+Add-transaction form, Add/edit-budget form + Overview budget panel,
+Transactions filters + Export, Overview date-range dropdown) — 5 commits,
+`319c023` through `c7af925`. §7 **Account edit/delete** is also done and
+committed (`d5aacaa`).
 
-**Uncommitted:** only this file (`TODO.md`) — the §7 edit/delete tracking
-section added below was written after the last commit and hasn't been
-committed.
+**Done, not yet committed:** §7 **Category edit/delete** — backend
+`PUT`/`DELETE /categories/{id}` + `GET /categories/{id}/usage`, frontend
+edit/delete rows in `Categories.jsx`. User reviewing in-browser before
+committing.
 
-**Not started:** §7 (edit/delete for Transactions/Budgets/Accounts/
-Categories + a User profile page) — tracked below, nothing built yet.
-Suggested order there: Account + Category edit/delete first, then Budget
-delete, then User profile, then Transaction edit/delete last (trickiest,
-touches running-balance recomputation).
+**Reference pattern for delete UIs** (see `[[project-accounts-pattern]]` in
+memory): in-card/in-row swap to a "Delete X? This cannot be undone."
+confirm panel (no `window.confirm`, no app-wide modal) using the new
+`.btn-red` style, and a pre-validation check before showing the confirm step
+at all (e.g. `GET /categories/{id}/usage`) rather than attempting the delete
+and showing an error after. Reuse this for Budget delete and Transaction
+delete below.
+
+**Not started:** §7 remaining — Budget delete, User profile page,
+Transaction edit/delete (trickiest, touches running-balance recomputation).
 
 **Environment reminders for next session** (see [[project-dev-environment]]
 in memory for more):
@@ -200,22 +205,24 @@ is built yet — tracked here for a future round of chunks.
      the top form and re-picking the same category rather than clicking
      "edit" on the card itself.
 
-3. **Accounts** — backend already has `DELETE /accounts/{id}` and
-   `AccountsApi.remove()` exists in `ledger.js`, but nothing in
-   `Accounts.jsx` calls it — no delete button on `account-card-lg` at all.
-   No edit (`PUT`) exists on either side — can't change name/institution/
-   kind after creation.
-   - Backend: needs `PUT /accounts/{id}`.
-   - Frontend: needs a delete affordance (with a confirm step — deleting an
-     account presumably should be blocked or cascade-handled if it still
-     has transactions, similar to the FK constraint hit during testing of
-     chunk 2) and an edit form.
+3. **Accounts** — [x] done, committed (`d5aacaa`).
+   - Backend: added `PUT /accounts/{id}` (name/institution/kind only —
+     balance stays server-derived from transactions). `DELETE` now catches
+     the FK-constraint case and returns 409 instead of a raw 500.
+   - Frontend: edit/delete icon buttons on `account-card-lg`, in-card
+     confirm panel, pre-validates via `TransactionsApi.listByAccount` before
+     showing the confirm step (see delete-pattern note above).
 
-4. **Categories** — no edit, no delete, on either side (same gap noted in
-   §1). Deleting a category needs a decision on what happens to existing
-   transactions/budgets referencing it (null out `category_id`? block?).
-   - Backend: needs `PUT`/`DELETE /categories/{id}`.
-   - Frontend: needs edit/delete affordance on `Categories.jsx`'s list rows.
+4. **Categories** — [x] implemented, awaiting user review/commit.
+   - Backend: added `PUT /categories/{id}`, `GET /categories/{id}/usage`
+     (transaction + budget counts), `DELETE /categories/{id}` — blocks
+     (409) if used by any transaction or budget rather than nulling out
+     `category_id` on existing rows (budgets require a category —
+     `Budget.category` is `optional = false` — so nulling wasn't an option
+     there anyway, and blocking keeps both entities' delete behavior
+     consistent).
+   - Frontend: edit/delete rows in `Categories.jsx`, same in-row swap
+     pattern as Accounts, pre-validates via the new `/usage` endpoint.
 
 5. **User profile** (email, password, display name) — nothing exists at
    all: no backend endpoint, no frontend page/route/sidebar link.
@@ -228,8 +235,9 @@ is built yet — tracked here for a future round of chunks.
      none exist today.
 
 **Suggested build order:** Account edit/delete and Category edit/delete
-first (simplest, most requested day-to-day), then Budget delete, then User
-profile (self-contained, new page), then Transaction edit/delete last since
-it's the trickiest (running-balance recomputation on delete/edit affects
-every later transaction on that account).
+first (simplest, most requested day-to-day) — [x] both done, see above —
+then Budget delete, then User profile (self-contained, new page), then
+Transaction edit/delete last since it's the trickiest (running-balance
+recomputation on delete/edit affects every later transaction on that
+account).
 </content>

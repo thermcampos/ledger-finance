@@ -15,6 +15,9 @@ export const AccountsApi = {
 export const CategoriesApi = {
   list: () => client.get('/categories').then((r) => r.data),
   create: (payload) => client.post('/categories', payload).then((r) => r.data),
+  update: (id, payload) => client.put(`/categories/${id}`, payload).then((r) => r.data),
+  usage: (id) => client.get(`/categories/${id}/usage`).then((r) => r.data),
+  remove: (id) => client.delete(`/categories/${id}`),
 };
 
 export const TransactionsApi = {
