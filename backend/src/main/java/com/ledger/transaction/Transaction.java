@@ -36,6 +36,10 @@ public class Transaction extends PanacheEntityBase {
     @Column(name = "running_balance", precision = 14, scale = 2)
     public BigDecimal runningBalance;
 
+    /** Display-only tag like "3/12" for a transaction generated as part of a repeat/installment batch. Null otherwise. */
+    @Column(name = "series_info")
+    public String seriesInfo;
+
     public static List<Transaction> findByAccount(Long accountId) {
         return list("account.id", io.quarkus.panache.common.Sort.descending("occurredOn"), accountId);
     }

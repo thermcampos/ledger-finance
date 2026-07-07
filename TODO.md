@@ -35,16 +35,84 @@ Also added an `account_history` table + "Account history" card on the
 Profile page: every display-name/email change is logged old→new, password
 changes log only the date (never a value). See §7 item 5.
 
+**Also done and committed:** §7 **Transaction edit/delete** (the last item
+in §7 — all of §7 is now complete) plus three follow-up fixes/features on
+the Transactions page found via user testing. See §7 item 1 for full detail
+on all of these:
+1. Added `Account.openingBalance` (immutable, set once at creation) so
+   `account.balance` and every transaction's `runningBalance` are fully
+   re-derived in true chronological (`occurredOn`, then `id`) order on every
+   create/edit/delete, via a new `TransactionResource#recomputeAccountBalance`
+   helper — replacing the old insertion-order-based math, which was subtly
+   wrong for backdated transactions.
+2. Fixed a client-side timezone bug: `new Date("yyyy-MM-dd")` parses as UTC
+   midnight, which renders as the previous calendar day in timezones behind
+   UTC — a transaction dated "today" was showing under "Yesterday." Fixed
+   with a shared `frontend/src/utils/date.js#parseLocalDate` used everywhere
+   `occurredOn` strings are turned into `Date` objects (`Transactions.jsx`
+   and `Overview.jsx` both had the bug).
+3. Added a "Current balance" stat to the Transactions page (real account
+   balance, respects the account filter, unaffected by category/search —
+   by design, confirmed with user) and changed each day-group's figure from
+   "net sum for that day" to "balance as of that day." When a category
+   filter is active, a second "`<category>` total" stat now also appears
+   (net sum of the currently filtered rows) — this one *does* reflect
+   search/account/range filters too, since it's explicitly a filtered
+   subtotal rather than a real balance.
+
 **Reference pattern for delete UIs** (see `[[project-accounts-pattern]]` in
 memory): in-card/in-row swap to a "Delete X? This cannot be undone."
 confirm panel (no `window.confirm`, no app-wide modal) using the `.btn-red`
 style, and a pre-validation check before showing the confirm step at all
 (e.g. `GET /categories/{id}/usage`) rather than attempting the delete and
 showing an error after — skip the pre-check only when nothing could
-possibly reference the row (Budget's case).
+possibly reference the row (Budget's and Transaction's case).
 
-**Not started:** §7 remaining — Transaction edit/delete (trickiest, touches
-running-balance recomputation).
+**Not started:** §7 is fully complete, and so is the recurrence/installments
+feature below — nothing outstanding right now beyond §5's demo-login bug,
+§6's backend gaps, and the new §8 item below (neither urgent).
+
+## 8. Recurring-series tracking at the DB level (raised 2026-07-07, not started)
+
+Today a repeat/installment purchase generates N independent `Transaction`
+rows linked only by a cosmetic `seriesInfo` string (e.g. `"3/12"`) — there is
+no `series_id`/group column anywhere. Consequence, confirmed with user:
+editing or deleting one occurrence only ever touches that single row.
+Deleting one leaves a gap in the `seriesInfo` numbering (e.g.
+`1/12, 2/12, 4/12, 5/12...`) since nothing renumbers the rest, and there's
+no "edit/delete this and all future occurrences" option.
+
+If this is worth fixing later:
+- Add a real `series_id` (e.g. a generated UUID or a self-referential FK to
+  the first row) on `Transaction`, set at generation time in
+  `TransactionResource#create`, so occurrences are actually queryable as a
+  group instead of only sharing a display string.
+- Decide the desired bulk behavior once tracked: renumber remaining
+  `seriesInfo` labels after a delete, and/or add "delete this and all
+  future" / "edit all remaining" affordances on the frontend.
+- Not urgent — no one has hit this in practice yet, purely a known gap from
+  how §-recurrence was deliberately kept simple (pre-generate flat rows, no
+  scheduler, no series table — see the entry above).
+
+**Done, not yet committed: Recurrence/installments** (requested 2026-07-07).
+- Backend: `Transaction` gained `seriesInfo` (nullable String, e.g. `"3/12"`,
+  display-only — no series/group table). `POST /transactions` now returns
+  `List<Transaction>` instead of a single `Transaction` (frontend never
+  consumed the return value beyond cache invalidation, so this was safe).
+  `CreateTransactionRequest` gained `repeat` (`RepeatFrequency` enum: NONE/
+  WEEKLY/MONTHLY/YEARLY/INSTALLMENTS) and `occurrences` (2-60, validated).
+  Confirmed approach: pre-generate all occurrences upfront as real rows
+  (no background `@Scheduled` job, no new dependency — `quarkus-scheduler`
+  isn't in this project and adding it was explicitly deferred). WEEKLY/
+  MONTHLY/YEARLY repeat the same amount each occurrence; INSTALLMENTS
+  splits the total evenly (remainder cent(s) land on the last installment
+  so the parts always sum back exactly). Each generated row is a normal
+  transaction, editable/deletable with the §7 item 1 machinery already
+  built — no bulk/series management exists, by design (kept simple).
+- Frontend: "Repeat" select + conditional "Occurrences" input on the
+  add-transaction form, with inline help text explaining what will be
+  created. Each `txn-row` shows a `seriesInfo` badge (reusing the existing
+  `.tag` class) when present, e.g. "3/12".
 
 **Environment reminders for next session** (see [[project-dev-environment]]
 in memory for more):
@@ -210,14 +278,22 @@ delete UI anywhere, and the only delete endpoint that exists server-side
 (`DELETE /accounts/{id}`) isn't even called from the frontend. None of this
 is built yet — tracked here for a future round of chunks.
 
-1. **Transactions** — no edit, no delete, anywhere.
-   - Backend: no `PUT`/`DELETE /transactions/{id}` at all
-     (`backend/src/main/java/com/ledger/transaction/TransactionResource.java`
-     only has `GET`/`POST`). A delete needs to reverse the transaction's
-     effect on `account.balance` and re-derive `runningBalance` for later
-     transactions on that account — not a trivial delete, needs thought.
-   - Frontend: no edit/delete affordance on any `txn-row` in
-     `Transactions.jsx`.
+1. **Transactions** — [x] done, committed.
+   - Backend: `Account` gained an immutable `openingBalance` field (set once
+     at creation). `PUT`/`DELETE /transactions/{id}` added, both calling a
+     new `recomputeAccountBalance()` helper that re-derives `account.balance`
+     and every transaction's `runningBalance` from `openingBalance`, walking
+     transactions in chronological (`occurredOn`, then `id`) order — not
+     insertion order like the old `create()` did. `seed-data.sql` updated
+     with `opening_balance` values for the demo accounts.
+   - Frontend: pencil/trash icons on each `txn-row`, same in-row edit-form /
+     confirm-panel pattern as the rest of the app. No pre-check before
+     delete (nothing references a transaction, same as Budget's case).
+   - Follow-ups from user testing: fixed a UTC/local timezone bug in day
+     grouping (`frontend/src/utils/date.js#parseLocalDate`), added a
+     "Current balance" stat + changed day-group totals to "balance as of
+     that day" instead of a same-day net sum, and added a category-filtered
+     total stat. See the note above for full detail.
 
 2. **Budgets** — [x] done, awaiting user review/commit.
    - Backend: added `DELETE /budgets/{id}`.

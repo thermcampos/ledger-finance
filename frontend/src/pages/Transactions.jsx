@@ -117,6 +117,8 @@ export default function Transactions() {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [occurredOn, setOccurredOn] = useState(todayIso());
+  const [repeat, setRepeat] = useState('NONE');
+  const [occurrences, setOccurrences] = useState('');
 
   const createMutation = useMutation({
     mutationFn: TransactionsApi.create,
@@ -129,6 +131,8 @@ export default function Transactions() {
       setDescription('');
       setAmount('');
       setOccurredOn(todayIso());
+      setRepeat('NONE');
+      setOccurrences('');
     },
   });
 
@@ -140,6 +144,8 @@ export default function Transactions() {
       description,
       amount: parseSignedAmount(amount),
       occurredOn,
+      repeat: repeat !== 'NONE' ? repeat : null,
+      occurrences: repeat !== 'NONE' ? Number(occurrences) : null,
     });
   };
 
@@ -393,6 +399,45 @@ export default function Transactions() {
                 </button>
               </div>
             </div>
+            <div className="row g-3 align-items-end mt-1">
+              <div className="col-md-2">
+                <label className="eyebrow d-block mb-2">Repeat</label>
+                <select
+                  className="form-select form-select-sm"
+                  value={repeat}
+                  onChange={(e) => setRepeat(e.target.value)}
+                >
+                  <option value="NONE">Doesn't repeat</option>
+                  <option value="WEEKLY">Weekly</option>
+                  <option value="MONTHLY">Monthly</option>
+                  <option value="YEARLY">Yearly</option>
+                  <option value="INSTALLMENTS">Installments</option>
+                </select>
+              </div>
+              {repeat !== 'NONE' && (
+                <div className="col-md-2">
+                  <label className="eyebrow d-block mb-2">
+                    {repeat === 'INSTALLMENTS' ? 'Installments' : 'Occurrences'}
+                  </label>
+                  <input
+                    type="number"
+                    min="2"
+                    max="60"
+                    className="form-control form-control-sm"
+                    value={occurrences}
+                    onChange={(e) => setOccurrences(e.target.value)}
+                    required
+                  />
+                </div>
+              )}
+              {repeat !== 'NONE' && (
+                <div className="col-md-8 text-faint" style={{ fontSize: 11.5 }}>
+                  {repeat === 'INSTALLMENTS'
+                    ? `Splits the amount evenly into ${occurrences || 'N'} monthly transactions.`
+                    : `Creates ${occurrences || 'N'} ${repeat.toLowerCase()} transactions of the same amount, starting on the date above.`}
+                </div>
+              )}
+            </div>
           </form>
         </div>
       )}
@@ -566,7 +611,14 @@ export default function Transactions() {
                         <i className={`bi ${icon}`} />
                       </div>
                       <div className="txn-main">
-                        <div className="txn-desc">{t.description}</div>
+                        <div className="txn-desc">
+                          {t.description}
+                          {t.seriesInfo && (
+                            <span className="tag ms-2" style={{ verticalAlign: 'middle' }}>
+                              {t.seriesInfo}
+                            </span>
+                          )}
+                        </div>
                         <div className="txn-meta">
                           <span>{catName || 'Uncategorized'}</span>
                           <span className="dot-sep" />

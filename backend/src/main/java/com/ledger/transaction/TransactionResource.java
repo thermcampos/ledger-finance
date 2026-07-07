@@ -15,7 +15,10 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 @Path("/transactions")
@@ -36,22 +39,31 @@ public class TransactionResource {
 
     @POST
     @Transactional
-    public Transaction create(@Valid CreateTransactionRequest request) {
+    public List<Transaction> create(@Valid CreateTransactionRequest request) {
         Account account = requireOwnedAccount(request.accountId);
+        Category category = request.categoryId != null ? Category.findById(request.categoryId) : null;
 
-        Transaction txn = new Transaction();
-        txn.account = account;
-        txn.description = request.description;
-        txn.amount = request.amount;
-        txn.occurredOn = request.occurredOn != null ? request.occurredOn : LocalDate.now();
+        RepeatFrequency repeat = request.repeat != null ? request.repeat : RepeatFrequency.NONE;
+        int count = repeat == RepeatFrequency.NONE ? 1 : requireOccurrences(request.occurrences);
+        BigDecimal[] amounts = splitAmount(request.amount, repeat, count);
 
-        if (request.categoryId != null) {
-            txn.category = Category.findById(request.categoryId);
+        List<Transaction> created = new ArrayList<>();
+        LocalDate date = request.occurredOn != null ? request.occurredOn : LocalDate.now();
+        for (int i = 0; i < count; i++) {
+            Transaction txn = new Transaction();
+            txn.account = account;
+            txn.category = category;
+            txn.description = request.description;
+            txn.amount = amounts[i];
+            txn.occurredOn = date;
+            txn.seriesInfo = count > 1 ? (i + 1) + "/" + count : null;
+            txn.persist();
+            created.add(txn);
+            date = advance(date, repeat);
         }
 
-        txn.persist();
         recomputeAccountBalance(account);
-        return txn;
+        return created;
     }
 
     @PUT
@@ -97,6 +109,44 @@ public class TransactionResource {
         return txn;
     }
 
+    private int requireOccurrences(Integer occurrences) {
+        if (occurrences == null || occurrences < 2 || occurrences > 60) {
+            throw new WebApplicationException("Occurrences must be between 2 and 60", 400);
+        }
+        return occurrences;
+    }
+
+    private LocalDate advance(LocalDate date, RepeatFrequency repeat) {
+        return switch (repeat) {
+            case WEEKLY -> date.plusWeeks(1);
+            case YEARLY -> date.plusYears(1);
+            case MONTHLY, INSTALLMENTS -> date.plusMonths(1);
+            default -> date;
+        };
+    }
+
+    /**
+     * WEEKLY/MONTHLY/YEARLY repeat the same amount each occurrence.
+     * INSTALLMENTS splits the total evenly instead, putting any rounding
+     * remainder on the last installment so the parts always sum back to the
+     * original amount exactly.
+     */
+    private BigDecimal[] splitAmount(BigDecimal total, RepeatFrequency repeat, int count) {
+        BigDecimal[] amounts = new BigDecimal[count];
+        if (repeat != RepeatFrequency.INSTALLMENTS) {
+            Arrays.fill(amounts, total);
+            return amounts;
+        }
+        BigDecimal share = total.divide(BigDecimal.valueOf(count), 2, RoundingMode.HALF_UP);
+        BigDecimal runningSum = BigDecimal.ZERO;
+        for (int i = 0; i < count - 1; i++) {
+            amounts[i] = share;
+            runningSum = runningSum.add(share);
+        }
+        amounts[count - 1] = total.subtract(runningSum);
+        return amounts;
+    }
+
     /**
      * Re-derives account.balance and every transaction's runningBalance from
      * account.openingBalance, walking transactions in chronological
@@ -124,6 +174,10 @@ public class TransactionResource {
         @NotNull
         public BigDecimal amount;
         public LocalDate occurredOn;
+        /** NONE (or omitted) for a one-off transaction. */
+        public RepeatFrequency repeat;
+        /** Required (2-60) when repeat is not NONE. */
+        public Integer occurrences;
     }
 
     public static class UpdateTransactionRequest {
