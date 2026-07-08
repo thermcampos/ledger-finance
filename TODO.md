@@ -1,5 +1,76 @@
 # Ledger — Outstanding Work
 
+## Status as of end of session (2026-07-08, new session)
+
+**Done, not yet committed: bill navigation in Transactions.jsx.** Follow-up
+to the credit-card overhaul below, requested in a fresh session. The
+"Showing {bill} only · View full history" chip was a one-way clear button
+— once you switched to full history there was no way back to a specific
+bill, and no way to browse *other* bills (e.g. the previous month's) at
+all.
+
+Made it a real toggle, plus prev/next navigation:
+- New `groupTransactionsByBill`-derived `cardBillDates` memo — every bill
+  (ascending due date) the currently-filtered credit card has ever had a
+  transaction assigned to, drawn from its complete history (not whatever
+  date range happens to be active), so navigation can reach bills outside
+  the visible window.
+- `stepBill('prev' | 'next')` moves `filterBillDueDate` to the adjacent
+  entry in `cardBillDates`, always switching into an unbounded custom range
+  (same as "View all" already did) so the date filter never hides the
+  target bill. Chevrons disable at either end.
+- The chip itself now toggles both ways: bill-scoped shows "Showing {bill}
+  only · View full history" (click clears to full history); full-history
+  shows "Viewing full history · Show bill" (click jumps to
+  `defaultBillDueDate()` — the next upcoming bill if it's a real one,
+  otherwise the most recent past bill).
+- `billBalanceAsOf` (added in the prior session's 8th fix) already made
+  "Amount owed" and day totals follow the bill filter — this now also
+  updates correctly as you step between bills via the chevrons, not just
+  via the initial "View all" click.
+
+Verified via Playwright: a card with 3 bills (July/August/September, one
+transaction each) — chevrons correctly disable at both ends, "Amount
+owed" and the day total update at each step, full-history shows the real
+$90 total across all three, and "Show bill" correctly returns to July (the
+next upcoming bill relative to today).
+
+**Follow-up in the same session: "Back to all transactions" button.** The
+only way out of a bill/account drill-down was clearing the bill filter,
+which just leaves you on that one card's full history — still not the
+page's normal default view. Clicking "View full history" required a page
+reload to get back to browsing normally. Added `resetToDefaultView()` —
+clears every filter (account, category, search, range→'this-month',
+custom dates, bill, month offset) and the remembered-account localStorage
+entry — wired to a new "← Back to all transactions" button shown whenever
+the bill navigator is visible (i.e. whenever `cardBillDates.length > 0`),
+in both the bill-scoped and full-history states.
+
+Verified via Playwright: from a bill-scoped view, clicking it returns to
+"All accounts" / "This month" with the normal "Projected" section back,
+no reload needed.
+
+**Follow-up in the same session: flickering $0 "Projected" row.** User
+noticed the projected credit-card bill sometimes showed $0 and sometimes
+didn't appear at all. Root cause: `nextBillFor` (in `creditCard.js`)
+returns a synthetic $0 placeholder — dated via `nextDueDate(dueDayOfMonth,
+today)`, not tied to any real transaction — whenever a card has no
+activity assigned to an upcoming bill yet. `projectedBills` then filtered
+that placeholder by whether its date fell in the *currently viewed* month,
+so it flickered in and out as `today` or the viewed month changed, with no
+visible reason. Fixed by excluding non-positive amounts
+(`p.amountOwed > 0`) from `projectedBills` — the placeholder never had
+anything to actually project, so it's just dropped rather than shown as a
+misleading $0 row. `nextBillFor` itself is untouched (Overview's per-card
+tile intentionally still shows "$0, due in N days" for a card with no
+activity — that's a fixed, always-one-row-per-card display with no
+date-range filtering, so it doesn't have the same flicker problem).
+
+Verified via Playwright: a linked card with zero transactions shows no
+"Projected" row in June, July, or August (previously flickered depending
+on the viewed month); adding a real $25 charge makes it appear correctly
+with the real amount.
+
 ## Status as of end of session (2026-07-08)
 
 **Done, not yet committed: Credit card overhaul** (requested 2026-07-08 via

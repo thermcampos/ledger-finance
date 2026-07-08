@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AccountsApi, CategoriesApi, TransactionsApi } from '../api/ledger';
 import { parseLocalDate, startOfDay, nextDueDate, dueLabel } from '../utils/date';
-import { billDueDateFor, nextBillFor } from '../utils/creditCard';
+import { billDueDateFor, nextBillFor, groupTransactionsByBill } from '../utils/creditCard';
 
 function todayIso() {
   const d = new Date();
@@ -538,6 +538,13 @@ export default function Transactions() {
   // transaction dated this month but tagged (via the Bill dropdown, or a
   // natural due-day rollover) to a future month's bill would "leak" that
   // future due date into the current view.
+  //
+  // nextBillFor falls back to a synthetic $0 placeholder (dated off of
+  // *today*, not any real transaction) when a card has no activity assigned
+  // to an upcoming bill yet — excluded here (amountOwed > 0) since that
+  // placeholder's date drifts as today/the viewed month changes, which
+  // otherwise made this row flicker in and out inconsistently for no
+  // reason a user could see.
   const projectedBills = useMemo(() => {
     let cards;
     if (filterAccountId) {
@@ -550,7 +557,7 @@ export default function Transactions() {
     const { start, end } = rangeBounds(filterRange, filterStartDate, filterEndDate, monthOffset);
     return cards
       .map((c) => ({ card: c, ...nextBillFor(c, sortedTxnsByAccount.get(c.id) || [], today) }))
-      .filter((p) => p.dueDate && (!start || p.dueDate >= start) && (!end || p.dueDate <= end));
+      .filter((p) => p.dueDate && p.amountOwed > 0 && (!start || p.dueDate >= start) && (!end || p.dueDate <= end));
   }, [filterAccountId, filterAccount, accounts, sortedTxnsByAccount, today, filterRange, filterStartDate, filterEndDate, monthOffset]);
 
   const grouped = useMemo(() => {
@@ -578,6 +585,64 @@ export default function Transactions() {
     setFilterEndDate('');
     setFilterBillDueDate(billDueDate ? isoDate(billDueDate) : '');
   };
+
+  // Leaves the bill/account drill-down entirely, back to the page's normal
+  // default view — rather than just clearing the bill filter, which would
+  // still leave the account filter stuck on that one card's full history.
+  const resetToDefaultView = () => {
+    setFilterAccountId('');
+    setFilterCategoryId('');
+    setSearch('');
+    setFilterRange('this-month');
+    setFilterStartDate('');
+    setFilterEndDate('');
+    setFilterBillDueDate('');
+    setMonthOffset(0);
+    try {
+      localStorage.removeItem('ledger:lastAccountId');
+    } catch {
+      // ignore storage errors
+    }
+  };
+
+  // Every bill (ascending due date) the currently-filtered credit card has
+  // ever had a transaction assigned to — drawn from its complete history,
+  // not the currently visible/filtered rows, so prev/next can reach bills
+  // outside whatever date range happens to be active.
+  const cardBillDates = useMemo(() => {
+    if (!filterAccount || filterAccount.kind !== 'CREDIT_CARD' || filterAccount.dueDayOfMonth == null) {
+      return [];
+    }
+    return groupTransactionsByBill(filterAccount, sortedTxnsByAccount.get(filterAccount.id) || [])
+      .map((g) => isoDate(g.dueDate))
+      .sort();
+  }, [filterAccount, sortedTxnsByAccount]);
+
+  // The bill to jump to when switching from full history back into a
+  // specific bill — the next upcoming one if it's a real bill, otherwise
+  // the most recent past one.
+  function defaultBillDueDate() {
+    if (!cardBillDates.length) return '';
+    const next = nextBillFor(filterAccount, sortedTxnsByAccount.get(filterAccount.id) || [], today);
+    const nextIso = next?.dueDate ? isoDate(next.dueDate) : null;
+    return nextIso && cardBillDates.includes(nextIso) ? nextIso : cardBillDates[cardBillDates.length - 1];
+  }
+
+  // Steps to the previous/next bill in cardBillDates, entering bill-scoped
+  // mode (an unbounded custom range, so the date filter never hides the
+  // bill's transactions) regardless of what range was active before.
+  function stepBill(direction) {
+    if (!cardBillDates.length) return;
+    const idx = cardBillDates.indexOf(filterBillDueDate);
+    const nextIdx = idx === -1
+      ? (direction === 'prev' ? cardBillDates.length - 1 : 0)
+      : idx + (direction === 'prev' ? -1 : 1);
+    if (nextIdx < 0 || nextIdx >= cardBillDates.length) return;
+    setFilterBillDueDate(cardBillDates[nextIdx]);
+    setFilterRange('custom');
+    setFilterStartDate('');
+    setFilterEndDate('');
+  }
 
   const handleExport = () => {
     downloadCsv(toCsv(filteredFlat), `transactions-${todayIso()}.csv`);
@@ -607,13 +672,55 @@ export default function Transactions() {
                 {filterAccountId ? ` — ${filterAccount?.name}` : ''}
               </span>
               {filterBillDueDate && (
+                <>
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    title="Previous bill"
+                    disabled={cardBillDates.indexOf(filterBillDueDate) <= 0}
+                    onClick={() => stepBill('prev')}
+                  >
+                    <i className="bi bi-chevron-left" />
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    style={{ fontSize: 11, padding: '2px 8px' }}
+                    onClick={() => setFilterBillDueDate('')}
+                  >
+                    Showing {parseLocalDate(filterBillDueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} bill only · View full history
+                  </button>
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    title="Next bill"
+                    disabled={cardBillDates.indexOf(filterBillDueDate) === -1
+                      || cardBillDates.indexOf(filterBillDueDate) >= cardBillDates.length - 1}
+                    onClick={() => stepBill('next')}
+                  >
+                    <i className="bi bi-chevron-right" />
+                  </button>
+                </>
+              )}
+              {!filterBillDueDate && cardBillDates.length > 0 && (
                 <button
                   type="button"
                   className="btn btn-ghost btn-sm"
                   style={{ fontSize: 11, padding: '2px 8px' }}
-                  onClick={() => setFilterBillDueDate('')}
+                  onClick={() => setFilterBillDueDate(defaultBillDueDate())}
                 >
-                  Showing {parseLocalDate(filterBillDueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} bill only · View full history
+                  Viewing full history · Show bill
+                </button>
+              )}
+              {cardBillDates.length > 0 && (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  style={{ fontSize: 11, padding: '2px 8px' }}
+                  onClick={resetToDefaultView}
+                >
+                  <i className="bi bi-arrow-left me-1" />
+                  Back to all transactions
                 </button>
               )}
             </div>
