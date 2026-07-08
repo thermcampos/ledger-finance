@@ -71,6 +71,28 @@ Verified via Playwright: a linked card with zero transactions shows no
 on the viewed month); adding a real $25 charge makes it appear correctly
 with the real amount.
 
+**Follow-up in the same session: Overview's "Credit card debt" didn't
+match the per-card "next bill" tiles right below it.** User asked why the
+top total showed $0 while a card's tile showed a real upcoming amount.
+Root cause: the two figures used genuinely different logic —
+`totalCardDebt` summed real debt *as of today* while excluding anything
+dated in the future or explicitly tagged outside the current calendar
+month (from the earlier "should consider only current month" fix), while
+the per-card tiles use `nextBillFor`, which shows whichever bill is
+chronologically next regardless of month or the transaction's date.
+Confirmed with the user (their call, given the tension with the earlier
+fix): the total should just be the sum of the tiles, always consistent by
+construction. `totalCardDebt` now sums `nextBillFor(...).amountOwed` per
+card directly — same function, same result as what's rendered below.
+This does mean a transaction explicitly deferred to a future bill counts
+toward the total again when it's that card's only/next open bill (no
+longer zeroed out for not being "this month's" bill) — that's the
+accepted tradeoff for the total always matching what's on screen.
+
+Verified via Playwright: a card whose only transaction is a $80 charge
+explicitly tagged to next month's bill now shows "$80.00" in both the top
+total and its own tile (previously $0 vs $80 — the reported mismatch).
+
 ## Status as of end of session (2026-07-08)
 
 **Done, not yet committed: Credit card overhaul** (requested 2026-07-08 via

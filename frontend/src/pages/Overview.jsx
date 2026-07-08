@@ -126,26 +126,14 @@ export default function Overview() {
   const ccAccounts = accounts.filter((a) => a.kind === 'CREDIT_CARD');
   const totalBalance = liquidAccounts.reduce((sum, a) => sum + (accountBalances.get(a.id) ?? Number(a.balance)), 0);
 
-  // Real debt as of today, except a charge the user explicitly tagged (via
-  // the Bill dropdown) to a bill outside the current month is excluded —
-  // that's a deliberate "count this toward next month instead" choice, not
-  // this month's debt. A charge with no such override still counts even if
-  // its *natural* due-day rollover lands next month (e.g. the due day has
-  // already passed this cycle) — it happened today/this month and is real,
-  // current debt regardless of which statement it'll appear on.
-  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-  const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-  const totalCardDebt = ccAccounts.reduce((sum, a) => {
-    const adjustedBalance = (txnsByAccountId.get(a.id) || []).reduce((bal, t) => {
-      if (parseLocalDate(t.occurredOn) > today) return bal;
-      if (t.billDueDate) {
-        const due = parseLocalDate(t.billDueDate);
-        if (due < monthStart || due > monthEnd) return bal;
-      }
-      return bal + Number(t.amount);
-    }, Number(a.openingBalance ?? 0));
-    return sum + Math.max(-adjustedBalance, 0);
-  }, 0);
+  // Sum of each card's next open bill (same nextBillFor call the "Credit
+  // cards" tiles below use) — so the total always matches what's shown on
+  // screen, regardless of which calendar month that next bill happens to
+  // land in. A card with nothing owed yet contributes 0.
+  const totalCardDebt = ccAccounts.reduce(
+    (sum, a) => sum + Math.max(nextBillFor(a, txnsByAccountId.get(a.id) || [], today)?.amountOwed ?? 0, 0),
+    0
+  );
   const { start, end } = rangeBounds(range);
   const recent = txnQueries
     .flatMap((q) => q.data || [])
