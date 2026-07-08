@@ -36,6 +36,7 @@ public class AccountResource {
     public Account create(@Valid CreateAccountRequest request) {
         User user = currentUser.require();
         validateCreditCardFields(request.creditLimit, request.dueDayOfMonth);
+        validatePaymentAccount(user, request.kind, request.paymentAccountId, null);
 
         Account account = new Account();
         account.user = user;
@@ -47,6 +48,7 @@ public class AccountResource {
         account.lastSyncedAt = Instant.now();
         account.creditLimit = request.creditLimit;
         account.dueDayOfMonth = request.dueDayOfMonth;
+        account.paymentAccount = request.paymentAccountId != null ? Account.findById(request.paymentAccountId) : null;
         account.persist();
         return account;
     }
@@ -61,11 +63,13 @@ public class AccountResource {
             throw new NotFoundException();
         }
         validateCreditCardFields(request.creditLimit, request.dueDayOfMonth);
+        validatePaymentAccount(user, request.kind, request.paymentAccountId, id);
         account.name = request.name;
         account.institution = request.institution;
         account.kind = request.kind;
         account.creditLimit = request.creditLimit;
         account.dueDayOfMonth = request.dueDayOfMonth;
+        account.paymentAccount = request.paymentAccountId != null ? Account.findById(request.paymentAccountId) : null;
         return account;
     }
 
@@ -75,6 +79,25 @@ public class AccountResource {
         }
         if (dueDayOfMonth != null && (dueDayOfMonth < 1 || dueDayOfMonth > 31)) {
             throw new WebApplicationException("Due day must be between 1 and 31", 400);
+        }
+    }
+
+    private void validatePaymentAccount(User user, AccountKind kind, Long paymentAccountId, Long selfId) {
+        if (paymentAccountId == null) {
+            return;
+        }
+        if (kind != AccountKind.CREDIT_CARD) {
+            throw new WebApplicationException("Payment account can only be set on a credit card", 400);
+        }
+        if (paymentAccountId.equals(selfId)) {
+            throw new WebApplicationException("A card cannot be its own payment account", 400);
+        }
+        Account target = Account.findById(paymentAccountId);
+        if (target == null || !target.user.id.equals(user.id)) {
+            throw new NotFoundException("Payment account not found");
+        }
+        if (target.kind != AccountKind.CHECKING && target.kind != AccountKind.SAVINGS) {
+            throw new WebApplicationException("Payment account must be checking or savings", 400);
         }
     }
 
@@ -103,6 +126,7 @@ public class AccountResource {
         public BigDecimal balance;
         public BigDecimal creditLimit;
         public Integer dueDayOfMonth;
+        public Long paymentAccountId;
     }
 
     public static class UpdateAccountRequest {
@@ -112,5 +136,6 @@ public class AccountResource {
         public AccountKind kind;
         public BigDecimal creditLimit;
         public Integer dueDayOfMonth;
+        public Long paymentAccountId;
     }
 }

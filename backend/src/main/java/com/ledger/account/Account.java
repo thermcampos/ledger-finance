@@ -50,6 +50,15 @@ public class Account extends PanacheEntityBase {
     @Column(name = "due_day_of_month")
     public Integer dueDayOfMonth;
 
+    /**
+     * Only meaningful for CREDIT_CARD accounts — the CHECKING/SAVINGS account
+     * this card's bill is projected against in Transactions' synthetic bill
+     * row. Must belong to the same user. Null means no link (unchanged behavior).
+     */
+    @ManyToOne
+    @JoinColumn(name = "payment_account_id")
+    public Account paymentAccount;
+
     public static List<Account> findByUser(Long userId) {
         return list("user.id", userId);
     }

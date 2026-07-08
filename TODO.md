@@ -1,5 +1,218 @@
 # Ledger — Outstanding Work
 
+## Status as of end of session (2026-07-08)
+
+**Done, not yet committed: Credit card overhaul** (requested 2026-07-08 via
+`Credit-Card-Issues.md`, planned via plan mode, plan saved at
+`/home/ricardo/.claude/plans/woolly-skipping-quasar.md`). Landed as 4 chunks,
+each independently reviewable/committable:
+
+1. **`Transaction.billDueDate`** (backend) — new nullable `LocalDate` column
+   (`V2__transaction_bill_due_date.sql`), settable/clearable via
+   `CreateTransactionRequest`/`UpdateTransactionRequest`. Display/grouping tag
+   only, same spirit as `seriesInfo` — never read by
+   `recomputeAccountBalance`. For repeat/installment transactions the
+   override is only applied to the batch's semantics correctly: every
+   generated row gets `billDueDate = null` regardless of what was sent
+   (a fixed date copied onto every installment would be wrong), verified via
+   curl.
+2. **Bill dropdown + shared util** (frontend) — new
+   `frontend/src/utils/creditCard.js` (`billDueDateFor`,
+   `groupTransactionsByBill`, `nextBillFor`), the single source of truth for
+   "what bill is this transaction in" / "what's the next bill", replacing
+   the old computed-only grouping in `Transactions.jsx`. Add/edit transaction
+   forms show a "Bill" dropdown (3 upcoming due dates) when the account is a
+   credit card with `dueDayOfMonth` set — solves "a purchase made after the
+   statement effectively closes should land on next month's bill, not this
+   month's." Only shown for non-repeating transactions (matches the backend
+   scope limit). Verified end-to-end in browser: overriding to "Aug 10 bill"
+   correctly moved the "Credit card bills" aggregate from Jul 10 to Aug 10.
+3. **Overview redesign** — Total Balance now sums only CHECKING/SAVINGS
+   (excludes INVESTMENT and CREDIT_CARD, confirmed with user); a second
+   figure shows total credit-card debt. Credit card accounts get their own
+   "Credit cards" section below the regular accounts grid, showing each
+   card's **next bill** (amount + due date), not just current balance.
+4. **`Account.paymentAccount` + projected bill row** — CREDIT_CARD accounts
+   can link a CHECKING/SAVINGS "payment account"
+   (`V3__account_payment_account.sql`, validated in
+   `AccountResource#validatePaymentAccount`: must be CREDIT_CARD-only,
+   can't self-reference, target must be CHECKING/SAVINGS owned by the same
+   user). In Transactions, viewing that linked checking account (or "All
+   accounts") now shows a dashed, read-only "Projected" row — "Credit card
+   bill — {card name}" — for the card's next bill. It's not a real
+   `Transaction` (no id, no edit/delete), and only affects the *projected/
+   future* balance stat (via a new `projectedCcDeduction` applied solely to
+   `futureBalanceRaw`), never the real `currentBalanceTotal`/
+   `balanceAsOfDay`. Verified in browser: Checking's real "Current balance"
+   stayed $0 while its July-end projected balance correctly showed -$75.50
+   matching the pending card bill.
+
+Verified via curl (backend validation: 400s for non-CC `paymentAccountId`,
+CREDIT_CARD/INVESTMENT target, self-reference) and via a full Playwright
+browser smoke test (signup → create linked checking+card → add transaction
+with bill override → check Overview/Transactions render correctly), no
+console errors. No automated test suite exists in this repo, so this was the
+verification path (same as prior chunks).
+
+**Follow-up fixes found via user testing (2026-07-08, same session), both in
+`Transactions.jsx`:**
+1. **Bill leakage across months.** `creditCardBillGroups` ("Credit card
+   bills" aggregate) grouped by each transaction's assigned bill due date,
+   but never checked that due date actually fell within the currently
+   viewed month — so a transaction dated *this* month but tagged (via the
+   new Bill dropdown, or a natural due-day rollover) to *next* month's bill
+   would "leak" that future due date into the current month's view,
+   confusingly. Pre-existing behavior before this session's work, but the
+   new per-transaction Bill override made it much easier to trigger. Fixed
+   by having `isAggregatedCreditCardTxn` also check the assigned bill's due
+   date against the active date-range filter — when a transaction's bill
+   falls outside the viewed range, it now falls through to the normal
+   per-day list on its real `occurredOn` date instead of either leaking or
+   disappearing.
+2. **Double-counted projected balance in "All accounts."** The projected
+   future-balance deduction (added for the checking↔card link) was applied
+   per-account inside the "All accounts" reduce, but summing it there
+   double-counts the same debt: once as the checking account's projected
+   payment, again as the card's own real (already-negative) balance, which
+   never actually moves since no real payment transaction is recorded.
+   Fixed by only applying the deduction when a single linked checking/
+   savings account is the active filter — the "All accounts" net total no
+   longer applies it at all (a card's real balance already reflects the
+   debt; there's nothing to project there).
+
+Re-verified all scenarios via Playwright after both fixes: month-scoped
+"Credit card bills"/"Projected" sections, month navigation to the bill's due
+month, and the "All accounts" future-balance figure no longer doubling.
+
+**Third + fourth follow-up fixes (2026-07-08, same session): Overview's
+"Credit card debt" total, in two passes — the first pass introduced a
+regression the second pass had to correct.**
+
+*Pass 1:* `totalCardDebt` summed each card's real, all-time balance
+(`accountBalances`), which includes every charge ever made regardless of
+which bill it's tagged to — so a transaction dated this month but assigned
+(via the Bill dropdown) to *next* month's bill was still inflating this
+month's total. First fix: sum only the bill group (via
+`groupTransactionsByBill`) whose due date falls in the current calendar
+month.
+
+*Regression this introduced:* the "Bill" dropdown always shows *some*
+selected value (defaulting to the natural next due date) and the create/
+edit forms were submitting that value unconditionally — so even a normal
+transaction the user never touched the dropdown for got a non-null
+`billDueDate` persisted. Once the due day for a cycle has already passed
+(e.g. due day 3, transaction dated the 8th), the *natural* rollover lands
+next month — meaning ordinary, just-today expenses were silently excluded
+from "Credit card debt" too, which is what surfaced as "not considering an
+expense in today's date."
+
+*Root-cause fix (pass 2):* `Transactions.jsx`'s `handleSubmit` and
+`handleEditSubmit` now only send `billDueDate` when it actually differs
+from the freshly-computed natural default for that `occurredOn` — i.e. only
+when the user *genuinely* overrode it. Left at the default, `billDueDate`
+stays `null`, exactly like before the Bill dropdown existed.
+`Overview.jsx`'s `totalCardDebt` was correspondingly simplified: walk each
+card's transactions from `openingBalance`, excluding only (a) future-dated
+ones (`occurredOn > today`, same as the existing real-balance convention)
+and (b) ones with an *explicit* `billDueDate` outside the current month —
+natural rollover alone no longer excludes anything. The per-card figure in
+"Credit cards" is unchanged (still shows the next bill regardless of
+month).
+
+Verified via Playwright, three scenarios: (1) explicit override to next
+month → correctly excluded from the total; (2) ordinary today-dated charge
+on a card whose due day already passed this cycle (natural rollover, no
+override) → correctly included; (3) a same-month natural bill → still
+counts as before. All three consistent with no regressions.
+
+**Fifth follow-up fix (2026-07-08, same session): `Transactions.jsx`'s "All
+accounts" balance totals and per-row visibility for credit cards.** Two
+related gaps, both in the "All accounts" view:
+1. `currentBalanceTotal`/`balanceAsOfDay`/`futureBalanceRaw` summed *every*
+   account including credit cards, so a card's debt was netted directly
+   into "Current balance" — inconsistent with Overview's Total Balance,
+   which had already been scoped to checking/savings only. Fixed by
+   introducing the same `liquidAccounts` (CHECKING + SAVINGS) restriction
+   for all three "All accounts" aggregates; filtering to one specific
+   account (including a credit card directly) is unaffected.
+2. A credit card transaction whose bill fell *outside* the viewed range
+   was falling through to the normal per-day list (from the earlier
+   "bill leakage" fix) — but credit card transactions should never appear
+   as individual rows in "All accounts," only via "Credit card bills."
+   Split the old combined `isAggregatedCreditCardTxn` into `isCreditCardTxn`
+   (a plain kind check, used to unconditionally exclude CC transactions
+   from the per-day list) and kept the due-date-range check scoped to just
+   `creditCardBillGroups` — so a transaction whose bill is out of range now
+   simply doesn't appear anywhere in that view (not the day list, not the
+   bill aggregate) rather than leaking into the day list.
+
+Verified via Playwright with checking + linked credit card: "All accounts"
+Current balance now shows the checking-only total (matches Overview's Total
+Balance), the card's transaction appears only under "Credit card bills" (not
+as a day-list row), and filtering directly to the card still shows its own
+rows normally (unaffected).
+
+**Sixth follow-up fix (2026-07-08, same session): duplicate bill sections
+in `Transactions.jsx`.** The fifth fix's `creditCardBillGroups` (real, old
+"Credit card bills" section, transaction-derived) and `projectedBills` (new
+"Projected" section, `nextBillFor`-derived) had converged to show the same
+thing for any *linked* card — both scoped to bills due within the viewed
+range — so a linked card's bill rendered twice. Merged into one section:
+`creditCardBillGroups` is gone; `projectedBills` now covers every credit
+card with a due day set when viewing "All accounts" (previously only
+cards with a linked payment account), and just the card(s) linked to the
+active account when filtering to one specific checking/savings account
+(unchanged from before). Added the "View all" button (previously only on
+the old section) to the merged "Projected" rows.
+
+Verified via Playwright with one linked and one unlinked credit card: "All
+accounts" shows a single row per card (both linked and unlinked covered,
+each with "View all"), and filtering to the linked card's checking account
+narrows to just that card's bill, dropping the unrelated unlinked one.
+
+**Seventh follow-up fix (2026-07-08, same session, pre-existing bug):
+"View all" on a projected bill loaded the account's full history instead
+of just that bill.** `viewAccountTransactions` only ever set an unbounded
+custom date range — fine for the original "View transactions" link (full
+history by design), but wrong for a specific bill row, since a bill is
+defined by `billDueDateFor`, not by an `occurredOn` range (an explicitly
+overridden transaction can be dated in a totally different month than its
+assigned bill, so no date-range filter could isolate it correctly anyway).
+Added a new `filterBillDueDate` state that filters `filteredFlat` by
+`billDueDateFor(account, t)` equality rather than by date range.
+`viewAccountTransactions` now takes an optional `billDueDate` param (passed
+from the "View all" button as `p.dueDate`) that sets this alongside the
+account filter. Cleared automatically whenever account, range, month, or
+custom-date-range controls are touched directly (search/category are
+left alone — narrowing within a bill still makes sense); a small chip
+("Showing {date} bill only · View full history") shows near the balance
+stat when active, doubling as the way to clear it manually.
+
+Verified via Playwright: two charges on the same card, same date, one
+tagged to July's bill and one to August's — "View all" on the (single,
+soonest) projected row now shows only the July-tagged charge, and "View
+full history" restores both.
+
+**Eighth follow-up fix (2026-07-08, same session): the "Amount owed" stat
+(and day-heading totals) still showed the card's full real balance while
+a specific bill was selected, instead of just that bill's total.** Unlike
+the category/search filters — which deliberately leave "Current balance"/
+"Amount owed" as the real, unfiltered figure (a longstanding, confirmed
+design decision) — selecting a specific bill via "View all" is a genuine
+scope change, so the balance stat needs to follow it. Added
+`billBalanceAsOf(account, dueDateIso, cutoffDate)`, summing just that
+bill's transactions (via `billDueDateFor`) up to a cutoff date, and used it
+in place of `accountBalanceAsOf` for both `currentBalanceTotal` and
+`balanceAsOfDay` whenever `filterBillDueDate` is set. The "your real
+balance — not limited to..." disclaimer is now shown only for category/
+search (not for the bill filter, since the balance genuinely is limited to
+the bill in that case — showing the disclaimer would be misleading).
+
+Verified via Playwright: with a $20 July-bill charge and a $35
+August-tagged charge on the same card (same day, $55 real balance),
+"View all" on the July bill now shows "Amount owed: $20.00" (matching the
+filtered list and day total) instead of the card's full $55.
+
 ## Status as of end of session (2026-07-07, later)
 
 **Done, not yet committed: Credit cards feature** (requested 2026-07-07,

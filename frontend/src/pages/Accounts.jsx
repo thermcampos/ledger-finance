@@ -29,6 +29,7 @@ export default function Accounts() {
   const [balance, setBalance] = useState('');
   const [creditLimit, setCreditLimit] = useState('');
   const [dueDayOfMonth, setDueDayOfMonth] = useState('');
+  const [paymentAccountId, setPaymentAccountId] = useState('');
 
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState('');
@@ -36,6 +37,7 @@ export default function Accounts() {
   const [editKind, setEditKind] = useState('CHECKING');
   const [editCreditLimit, setEditCreditLimit] = useState('');
   const [editDueDayOfMonth, setEditDueDayOfMonth] = useState('');
+  const [editPaymentAccountId, setEditPaymentAccountId] = useState('');
 
   const createMutation = useMutation({
     mutationFn: AccountsApi.create,
@@ -47,6 +49,7 @@ export default function Accounts() {
       setBalance('');
       setCreditLimit('');
       setDueDayOfMonth('');
+      setPaymentAccountId('');
     },
   });
 
@@ -94,6 +97,7 @@ export default function Accounts() {
       balance: Number(balance) || 0,
       creditLimit: kind === 'CREDIT_CARD' && creditLimit !== '' ? Number(creditLimit) : null,
       dueDayOfMonth: kind === 'CREDIT_CARD' && dueDayOfMonth !== '' ? Number(dueDayOfMonth) : null,
+      paymentAccountId: kind === 'CREDIT_CARD' && paymentAccountId ? Number(paymentAccountId) : null,
     });
   };
 
@@ -106,6 +110,7 @@ export default function Accounts() {
     setEditKind(a.kind || 'CHECKING');
     setEditCreditLimit(a.creditLimit != null ? String(a.creditLimit) : '');
     setEditDueDayOfMonth(a.dueDayOfMonth != null ? String(a.dueDayOfMonth) : '');
+    setEditPaymentAccountId(a.paymentAccount?.id != null ? String(a.paymentAccount.id) : '');
   };
 
   const handleEditSubmit = (e, id) => {
@@ -118,6 +123,7 @@ export default function Accounts() {
         kind: editKind,
         creditLimit: editKind === 'CREDIT_CARD' && editCreditLimit !== '' ? Number(editCreditLimit) : null,
         dueDayOfMonth: editKind === 'CREDIT_CARD' && editDueDayOfMonth !== '' ? Number(editDueDayOfMonth) : null,
+        paymentAccountId: editKind === 'CREDIT_CARD' && editPaymentAccountId ? Number(editPaymentAccountId) : null,
       },
     });
   };
@@ -224,6 +230,23 @@ export default function Accounts() {
                     onChange={(e) => setDueDayOfMonth(e.target.value)}
                   />
                 </div>
+                <div className="col-md-3">
+                  <label className="eyebrow d-block mb-2">Payment account</label>
+                  <select
+                    className="form-select form-select-sm"
+                    value={paymentAccountId}
+                    onChange={(e) => setPaymentAccountId(e.target.value)}
+                  >
+                    <option value="">None</option>
+                    {accounts
+                      .filter((a) => a.kind === 'CHECKING' || a.kind === 'SAVINGS')
+                      .map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
               </div>
             )}
           </form>
@@ -282,6 +305,21 @@ export default function Accounts() {
                         value={editDueDayOfMonth}
                         onChange={(e) => setEditDueDayOfMonth(e.target.value)}
                       />
+                      <label className="eyebrow d-block mb-2">Payment account</label>
+                      <select
+                        className="form-select form-select-sm mb-3"
+                        value={editPaymentAccountId}
+                        onChange={(e) => setEditPaymentAccountId(e.target.value)}
+                      >
+                        <option value="">None</option>
+                        {accounts
+                          .filter((acct) => (acct.kind === 'CHECKING' || acct.kind === 'SAVINGS') && acct.id !== a.id)
+                          .map((acct) => (
+                            <option key={acct.id} value={acct.id}>
+                              {acct.name}
+                            </option>
+                          ))}
+                      </select>
                     </>
                   )}
                   <div className="d-flex gap-2">

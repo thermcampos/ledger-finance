@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { AccountsApi, BudgetsApi, TransactionsApi } from '../api/ledger';
 import Dropdown from '../components/Dropdown';
-import { parseLocalDate, localYearMonth, startOfDay } from '../utils/date';
+import { parseLocalDate, localYearMonth, startOfDay, dueLabel } from '../utils/date';
+import { nextBillFor } from '../utils/creditCard';
 
 const rangeOptions = [
   { value: 'week', label: 'This week' },
@@ -115,7 +116,36 @@ export default function Overview() {
     return map;
   }, [accounts, txnQueries, today]);
 
-  const totalBalance = accounts.reduce((sum, a) => sum + (accountBalances.get(a.id) ?? Number(a.balance)), 0);
+  const txnsByAccountId = useMemo(() => {
+    const map = new Map();
+    accounts.forEach((a, i) => map.set(a.id, txnQueries[i]?.data || []));
+    return map;
+  }, [accounts, txnQueries]);
+
+  const liquidAccounts = accounts.filter((a) => a.kind === 'CHECKING' || a.kind === 'SAVINGS');
+  const ccAccounts = accounts.filter((a) => a.kind === 'CREDIT_CARD');
+  const totalBalance = liquidAccounts.reduce((sum, a) => sum + (accountBalances.get(a.id) ?? Number(a.balance)), 0);
+
+  // Real debt as of today, except a charge the user explicitly tagged (via
+  // the Bill dropdown) to a bill outside the current month is excluded —
+  // that's a deliberate "count this toward next month instead" choice, not
+  // this month's debt. A charge with no such override still counts even if
+  // its *natural* due-day rollover lands next month (e.g. the due day has
+  // already passed this cycle) — it happened today/this month and is real,
+  // current debt regardless of which statement it'll appear on.
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  const totalCardDebt = ccAccounts.reduce((sum, a) => {
+    const adjustedBalance = (txnsByAccountId.get(a.id) || []).reduce((bal, t) => {
+      if (parseLocalDate(t.occurredOn) > today) return bal;
+      if (t.billDueDate) {
+        const due = parseLocalDate(t.billDueDate);
+        if (due < monthStart || due > monthEnd) return bal;
+      }
+      return bal + Number(t.amount);
+    }, Number(a.openingBalance ?? 0));
+    return sum + Math.max(-adjustedBalance, 0);
+  }, 0);
   const { start, end } = rangeBounds(range);
   const recent = txnQueries
     .flatMap((q) => q.data || [])
@@ -139,21 +169,32 @@ export default function Overview() {
       </div>
 
       <div className="panel p-4 mb-4">
-        <div className="eyebrow mb-2">Total balance</div>
         {accountsQuery.isLoading ? (
           <div className="text-muted-c">Loading…</div>
         ) : (
-          <>
-            <div className="hero-balance">{money(totalBalance)}</div>
-            <div className="text-muted-c mt-2" style={{ fontSize: 12.5 }}>
-              across {accounts.length} account{accounts.length === 1 ? '' : 's'}
+          <div className="row align-items-end g-3">
+            <div className="col-md-6">
+              <div className="eyebrow mb-2">Total balance</div>
+              <div className="hero-balance">{money(totalBalance)}</div>
+              <div className="text-muted-c mt-2" style={{ fontSize: 12.5 }}>
+                across {liquidAccounts.length} checking &amp; savings account{liquidAccounts.length === 1 ? '' : 's'}
+              </div>
             </div>
-          </>
+            <div className="col-md-6">
+              <div className="eyebrow mb-2">Credit card debt</div>
+              <div className="hero-balance md" style={{ color: totalCardDebt > 0 ? 'var(--red)' : undefined }}>
+                {money(totalCardDebt)}
+              </div>
+              <div className="text-muted-c mt-2" style={{ fontSize: 12.5 }}>
+                across {ccAccounts.length} card{ccAccounts.length === 1 ? '' : 's'}
+              </div>
+            </div>
+          </div>
         )}
       </div>
 
       <div className="row g-3 mb-4">
-        {accounts.map((a) => {
+        {accounts.filter((a) => a.kind !== 'CREDIT_CARD').map((a) => {
           const bal = accountBalances.get(a.id) ?? Number(a.balance);
           return (
             <div className="col-6 col-md-3" key={a.id}>
@@ -173,6 +214,31 @@ export default function Overview() {
           </div>
         )}
       </div>
+
+      {ccAccounts.length > 0 && (
+        <div className="mb-4">
+          <div className="eyebrow mb-2">Credit cards</div>
+          <div className="row g-3">
+            {ccAccounts.map((c) => {
+              const bill = nextBillFor(c, txnsByAccountId.get(c.id) || [], today);
+              return (
+                <div className="col-6 col-md-3" key={c.id}>
+                  <div className="acct-card">
+                    <div className="acct-kind">Credit card</div>
+                    <div className="acct-balance" style={{ color: bill?.amountOwed > 0 ? 'var(--red)' : undefined }}>
+                      {bill ? money(bill.amountOwed) : '—'}
+                    </div>
+                    <div className="acct-name">{c.name}</div>
+                    <div className="text-faint mt-1" style={{ fontSize: 11 }}>
+                      {bill ? dueLabel(bill.dueDate) : 'No due day set'}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="row g-3">
         <div className="col-lg-7">

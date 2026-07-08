@@ -57,6 +57,7 @@ public class TransactionResource {
             txn.amount = amounts[i];
             txn.occurredOn = date;
             txn.seriesInfo = count > 1 ? (i + 1) + "/" + count : null;
+            txn.billDueDate = repeat == RepeatFrequency.NONE ? request.billDueDate : null;
             txn.persist();
             created.add(txn);
             date = advance(date, repeat);
@@ -76,6 +77,7 @@ public class TransactionResource {
         txn.amount = request.amount;
         txn.occurredOn = request.occurredOn != null ? request.occurredOn : txn.occurredOn;
         txn.category = request.categoryId != null ? Category.findById(request.categoryId) : null;
+        txn.billDueDate = request.billDueDate;
 
         recomputeAccountBalance(txn.account);
         return txn;
@@ -178,6 +180,8 @@ public class TransactionResource {
         public RepeatFrequency repeat;
         /** Required (2-60) when repeat is not NONE. */
         public Integer occurrences;
+        /** Only applied when repeat is NONE — see TransactionResource#create. */
+        public LocalDate billDueDate;
     }
 
     public static class UpdateTransactionRequest {
@@ -187,5 +191,6 @@ public class TransactionResource {
         @NotNull
         public BigDecimal amount;
         public LocalDate occurredOn;
+        public LocalDate billDueDate;
     }
 }

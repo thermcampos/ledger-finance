@@ -40,6 +40,15 @@ public class Transaction extends PanacheEntityBase {
     @Column(name = "series_info")
     public String seriesInfo;
 
+    /**
+     * Only meaningful for CREDIT_CARD account transactions — the bill this
+     * charge was explicitly assigned to. Display/grouping tag only, same
+     * spirit as seriesInfo; never read by recomputeAccountBalance. Null
+     * falls back to computing nextDueDate(account.dueDayOfMonth, occurredOn).
+     */
+    @Column(name = "bill_due_date")
+    public LocalDate billDueDate;
+
     public static List<Transaction> findByAccount(Long accountId) {
         return list("account.id", io.quarkus.panache.common.Sort.descending("occurredOn"), accountId);
     }
