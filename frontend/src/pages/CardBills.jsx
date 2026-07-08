@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AccountsApi, CategoriesApi, TransactionsApi } from '../api/ledger';
@@ -187,17 +187,44 @@ export default function CardBills() {
   const defaultBillDueDate = nextBill?.dueDate ? isoDate(nextBill.dueDate) : billDates[billDates.length - 1] || '';
 
   const [selectedBillDueDate, setSelectedBillDueDate] = useState('');
+  // A "View bill" link (e.g. from a synced bill row in Transactions) passes
+  // the specific due date it represents via ?bill= — t.occurredOn already
+  // *is* that bill's due date, so no separate bill-id lookup is needed.
+  //
+  // Deliberately does NOT read `selectedBillDueDate` to decide whether to
+  // (re)apply the URL's bill, and does NOT depend on it either — only on
+  // billDates/defaultBillDueDate/searchParams. Under React.StrictMode, dev
+  // mode invokes an effect twice back-to-back reusing the *same* stale
+  // closure; a version of this that gated on "selectedBillDueDate already
+  // equals billParam" read '' both times (the first invocation's setState
+  // hadn't landed yet when the second ran), so it fell through to the
+  // fallback branch and silently reset the bill back to the default one.
+  // `setSelectedBillDueDate` is idempotent (React bails out when the value
+  // is unchanged) so it's safe to call unconditionally here.
+  const appliedBillParam = useRef(null);
+  const userSteppedAway = useRef(false);
   useEffect(() => {
-    if (billDates.length && !billDates.includes(selectedBillDueDate)) {
+    const billParam = searchParams.get('bill');
+    if (billParam !== appliedBillParam.current) {
+      appliedBillParam.current = billParam;
+      userSteppedAway.current = false;
+    }
+    if (!billDates.length) return;
+    if (billParam && !userSteppedAway.current && billDates.includes(billParam)) {
+      setSelectedBillDueDate(billParam);
+      return;
+    }
+    if (!billDates.includes(selectedBillDueDate)) {
       setSelectedBillDueDate(defaultBillDueDate);
     }
-  }, [billDates, defaultBillDueDate, selectedBillDueDate]);
+  }, [billDates, defaultBillDueDate, searchParams]);
 
   function stepBill(direction) {
     if (!billDates.length) return;
     const idx = billDates.indexOf(selectedBillDueDate);
     const nextIdx = idx === -1 ? 0 : idx + (direction === 'prev' ? -1 : 1);
     if (nextIdx < 0 || nextIdx >= billDates.length) return;
+    userSteppedAway.current = true;
     setSelectedBillDueDate(billDates[nextIdx]);
   }
 

@@ -1,5 +1,137 @@
 # Ledger — Outstanding Work
 
+## Status as of end of session (2026-07-08, latest session)
+
+**Done, not yet committed: split credit cards out of Transactions.jsx onto
+a new "Card Bills" page.** User found the Transactions page overwhelming —
+a large fraction of it was credit-card-only machinery (bill prev/next
+navigator, "Projected" section, "Amount owed" sign-flip, the Bill dropdown
+on add/edit). Landed as two chunks:
+
+1. New `frontend/src/pages/CardBills.jsx` (route `/card-bills`, its own
+   sidebar entry after "Credit Cards"). Auto-selects the user's card (or
+   shows a plain picker if they have more than one), navigates by actual
+   bill due dates via chevrons (reusing `groupTransactionsByBill`/
+   `nextBillFor` from `utils/creditCard.js`), shows that bill's total +
+   due date, and lists just that bill's transactions with full add/edit/
+   delete parity including the Bill-period override — no future-grey
+   styling, no other filters. The Credit Cards dashboard's "View
+   transactions" link now points here instead of into Transactions.
+2. Stripped `Transactions.jsx` from 1244 → 888 lines: credit card accounts
+   filtered out of `accounts` right after the query (cascades to the
+   account dropdown, `txnQueries`, every downstream calc), then deleted
+   `billOptionsFor`/`billOptionsWithCurrent`, `filterBillDueDate`,
+   `billBalanceAsOf`, `isCreditCardFilter` sign-flip, `projectedCcDeduction`,
+   `aggregateCreditCards`/`isCreditCardTxn`, `projectedBills`,
+   `cardBillDates`/`defaultBillDueDate`/`stepBill`,
+   `viewAccountTransactions`, `resetToDefaultView`, and both Bill
+   dropdowns. Small added robustness: a stale `ledger:lastAccountId`
+   pointing at a now-filtered-out credit card clears itself back to "All
+   accounts" instead of silently showing an empty list.
+
+Also fixed along the way: `utils/date.js#dueLabel` read "in -3 days" for
+an overdue bill (never triggered before, since its only callers passed
+future dates) — now "3 days ago"/"yesterday". Verified via a scratch
+Playwright driver (`playwright` installed ad hoc into the scratchpad dir,
+reusing the cached Chromium binary) — full add/edit/delete/navigate flow
+on Card Bills, the dashboard deep link, and a regression pass confirming
+normal (non-card) Transactions behavior and Overview were unaffected. No
+console errors in any pass.
+
+**Follow-up in the same session: credit card bills sync onto their linked
+payment account as real transactions.** Splitting credit cards out of
+Transactions.jsx also removed the old client-side "Projected" row, which
+was the only way a linked checking account showed its upcoming card bill.
+Rather than rebuild that (a side-channel projection that TODO.md's prior
+entries show caused repeated double-counting/month-leakage bugs), the
+user proposed materializing it: whenever a credit card's transactions
+change, maintain one real `Transaction` per open bill on the card's
+`paymentAccount`, dated on the bill's due date, holding that bill's total.
+
+- Backend: new nullable `Transaction.linkedCard` FK
+  (`V4__transaction_linked_card.sql`) marks a row as system-generated. New
+  `CreditCardBillSyncService` (`com.ledger.transaction`,
+  `@ApplicationScoped`) owns `recomputeAccountBalance` (moved out of
+  `TransactionResource`, same algorithm, now has two callers) and
+  `sync(Account card)` — the single entry point, safe to call
+  unconditionally on any account. Groups the card's own transactions by
+  effective due date (a Java port of `utils/date.js#nextDueDate` +
+  `utils/creditCard.js#billDueDateFor`/`groupTransactionsByBill`), upserts
+  one row per non-zero bill on the linked account, deletes any synced row
+  whose date no longer matches or that's sitting on the wrong account
+  (this is what makes a payment-account change self-correct with no
+  special-casing). Called from `TransactionResource`'s create/update/
+  delete and unconditionally at the end of `AccountResource#update`.
+  `TransactionResource` rejects direct `PUT`/`DELETE` on a transaction
+  with `linkedCard != null` (400).
+- Frontend: `Transactions.jsx` renders a `linkedCard` row dashed, with a
+  "Card bill" tag and a "View bill" link to Card Bills instead of edit/
+  clone/delete icons. Everything else — amount, running balance, day
+  grouping, today/future styling, CSV export, search/category filtering —
+  needed zero new code, since these are ordinary rows returned by the
+  same `GET /transactions/account/{accountId}` the page already calls.
+  `CardBills.jsx` needed no changes (synced rows live on the payment
+  account, never on the card itself).
+- One bug found and fixed during verification: `CreditCardBillSyncService
+  #sync` set `row.amount` *after* `row.persist()` for a newly-created row
+  — IDENTITY-strategy entities insert immediately on `persist()` (can't
+  defer for a generated id), so `amount` (NOT NULL) has to be set first.
+  Fixed by assigning every field before `persist()`.
+
+Verified via the same Playwright driver, fresh throwaway users each time:
+linked card + checking, add a charge → dashed synced row with correct
+amount/date and no edit/delete UI; a second charge updates the same row
+(no duplicate); overriding the Bill dropdown to a different due date moves
+the amount off the old date onto a new one; deleting the card transaction
+removes the synced row and recomputes the checking balance; editing the
+card to a different payment account moves the row (old account ends up
+empty, new one gets it); direct `curl`-equivalent `PUT`/`DELETE` against a
+synced transaction's id both return 400. No console or backend errors in
+any pass.
+
+`CLAUDE.md` updated: `Account.paymentAccount`'s Javadoc, the "Balance
+math" bullet's file reference, and a new bullet documenting the sync
+mechanism and why it replaced the client-side projection.
+
+**Follow-up in the same session: "View bill" deep link + a StrictMode race
+it exposed.** The "View bill" link on a synced row only ever opened Card
+Bills on whatever bill it defaults to (next upcoming, or most recent past)
+— clicking it from a future-dated bill row still required an extra manual
+chevron click to actually reach that bill. Fixed by passing the row's own
+`t.occurredOn` (already *is* the bill's due date — no separate bill-id
+needed) as a new `?bill=` param, read by `CardBills.jsx` alongside the
+existing `?account=`.
+
+First attempt raced: two separate effects both decided what
+`selectedBillDueDate` should be, and when the accounts/transactions
+queries were already cached (e.g. bouncing back from Transactions), both
+ran in the same pass reading the same stale empty value — whichever ran
+second (the pre-existing billDates-reconciliation effect) won, silently
+dropping the URL's bill back to the default. Merging them into one effect
+"fixed" that pass but broke under `React.StrictMode` (active in
+`main.jsx`), which double-invokes an effect in dev using the *same* stale
+closure — a ref mutated in the first invocation made the second invocation
+skip the "apply the URL bill" branch but still read the stale (pre-update)
+`selectedBillDueDate`, falling through to the same reset. Only surfaced
+with two or more real bills on the card, since with just one, "fallback"
+and "correct" happened to be the same value — not caught by initial
+Playwright verification, which always used fresh signups (nothing cached)
+and single-bill cards.
+
+Root-caused with temporary debug logging read back through the same
+Playwright driver (`page.on('console')`), reproducing the exact two-bill
+scenario. Real fix: decoupled "should the URL's bill be applied" from
+`selectedBillDueDate` entirely (removed from the effect's dependency array
+and its condition) — gated instead on a `userSteppedAway` ref that
+`stepBill()` flips, so the URL-application logic is idempotent no matter
+how many times React invokes it against stale data. Debug logging removed
+before commit.
+
+Verified: the two-real-bills repro now lands on the correct bill
+immediately; the original warm-cache scenario still does too; chevron
+stepping afterward is unaffected (doesn't fight the URL); no console
+errors in any pass.
+
 ## Status as of end of session (2026-07-08, new session)
 
 **Done, not yet committed: bill navigation in Transactions.jsx.** Follow-up

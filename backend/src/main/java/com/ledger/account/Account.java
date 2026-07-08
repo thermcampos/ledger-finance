@@ -52,8 +52,9 @@ public class Account extends PanacheEntityBase {
 
     /**
      * Only meaningful for CREDIT_CARD accounts — the CHECKING/SAVINGS account
-     * this card's bill is projected against in Transactions' synthetic bill
-     * row. Must belong to the same user. Null means no link (unchanged behavior).
+     * this card's upcoming bills are mirrored onto as real, system-generated
+     * Transaction rows (see CreditCardBillSyncService). Must belong to the
+     * same user. Null means no link (unchanged behavior).
      */
     @ManyToOne
     @JoinColumn(name = "payment_account_id")

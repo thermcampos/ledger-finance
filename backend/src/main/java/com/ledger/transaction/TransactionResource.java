@@ -1,10 +1,10 @@
 package com.ledger.transaction;
 
 import com.ledger.account.Account;
+import com.ledger.account.AccountKind;
 import com.ledger.category.Category;
 import com.ledger.security.CurrentUserService;
 import com.ledger.user.User;
-import io.quarkus.panache.common.Sort;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -29,6 +29,9 @@ public class TransactionResource {
 
     @Inject
     CurrentUserService currentUser;
+
+    @Inject
+    CreditCardBillSyncService billSync;
 
     @GET
     @Path("/account/{accountId}")
@@ -63,7 +66,10 @@ public class TransactionResource {
             date = advance(date, repeat);
         }
 
-        recomputeAccountBalance(account);
+        billSync.recomputeAccountBalance(account);
+        if (account.kind == AccountKind.CREDIT_CARD) {
+            billSync.sync(account);
+        }
         return created;
     }
 
@@ -72,6 +78,9 @@ public class TransactionResource {
     @Transactional
     public Transaction update(@PathParam("id") Long id, @Valid UpdateTransactionRequest request) {
         Transaction txn = requireOwnedTransaction(id);
+        if (txn.linkedCard != null) {
+            throw new WebApplicationException("Cannot directly edit a credit card bill transaction", 400);
+        }
 
         txn.description = request.description;
         txn.amount = request.amount;
@@ -79,7 +88,10 @@ public class TransactionResource {
         txn.category = request.categoryId != null ? Category.findById(request.categoryId) : null;
         txn.billDueDate = request.billDueDate;
 
-        recomputeAccountBalance(txn.account);
+        billSync.recomputeAccountBalance(txn.account);
+        if (txn.account.kind == AccountKind.CREDIT_CARD) {
+            billSync.sync(txn.account);
+        }
         return txn;
     }
 
@@ -88,9 +100,15 @@ public class TransactionResource {
     @Transactional
     public void delete(@PathParam("id") Long id) {
         Transaction txn = requireOwnedTransaction(id);
+        if (txn.linkedCard != null) {
+            throw new WebApplicationException("Cannot directly delete a credit card bill transaction", 400);
+        }
         Account account = txn.account;
         txn.delete();
-        recomputeAccountBalance(account);
+        billSync.recomputeAccountBalance(account);
+        if (account.kind == AccountKind.CREDIT_CARD) {
+            billSync.sync(account);
+        }
     }
 
     private Account requireOwnedAccount(Long accountId) {
@@ -147,24 +165,6 @@ public class TransactionResource {
         }
         amounts[count - 1] = total.subtract(runningSum);
         return amounts;
-    }
-
-    /**
-     * Re-derives account.balance and every transaction's runningBalance from
-     * account.openingBalance, walking transactions in chronological
-     * (occurredOn, then id) order rather than insertion order — so a
-     * backdated create, an edited amount/date, or a delete all leave a
-     * consistent ledger regardless of when each row was originally entered.
-     */
-    private void recomputeAccountBalance(Account account) {
-        List<Transaction> txns = Transaction.list(
-                "account.id", Sort.ascending("occurredOn").and("id"), account.id);
-        BigDecimal running = account.openingBalance;
-        for (Transaction t : txns) {
-            running = running.add(t.amount);
-            t.runningBalance = running;
-        }
-        account.balance = running;
     }
 
     public static class CreateTransactionRequest {

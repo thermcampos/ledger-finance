@@ -49,6 +49,17 @@ public class Transaction extends PanacheEntityBase {
     @Column(name = "bill_due_date")
     public LocalDate billDueDate;
 
+    /**
+     * Only set on a system-generated "bill total" row living on a credit
+     * card's linked payment account — the CREDIT_CARD account it represents
+     * the due-date total for. Maintained exclusively by
+     * CreditCardBillSyncService; TransactionResource rejects direct
+     * update/delete on a transaction that has this set.
+     */
+    @ManyToOne
+    @JoinColumn(name = "linked_card_id")
+    public Account linkedCard;
+
     public static List<Transaction> findByAccount(Long accountId) {
         return list("account.id", io.quarkus.panache.common.Sort.descending("occurredOn"), accountId);
     }

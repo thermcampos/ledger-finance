@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AccountsApi, CategoriesApi, TransactionsApi } from '../api/ledger';
 import { parseLocalDate, startOfDay } from '../utils/date';
@@ -755,7 +755,11 @@ export default function Transactions() {
               const color = t.category?.colorHex || categoryColors[catName] || '#8B92A0';
               const rowKind = dayLabelKind(t.occurredOn);
               return (
-                <div className={`txn-row ${rowKind}`} key={t.id}>
+                <div
+                  className={`txn-row ${rowKind}`}
+                  style={t.linkedCard ? { borderStyle: 'dashed' } : undefined}
+                  key={t.id}
+                >
                   {editingId === t.id ? (
                     <form
                       onSubmit={(e) => handleEditSubmit(e, t.id)}
@@ -849,6 +853,11 @@ export default function Transactions() {
                               {t.seriesInfo}
                             </span>
                           )}
+                          {t.linkedCard && (
+                            <span className="tag ms-2" style={{ verticalAlign: 'middle' }}>
+                              Card bill
+                            </span>
+                          )}
                         </div>
                         <div className="txn-meta">
                           <span>{catName || 'Uncategorized'}</span>
@@ -865,15 +874,26 @@ export default function Transactions() {
                         </div>
                       </div>
                       <div className="d-flex gap-1 ms-2">
-                        <button className="icon-btn" title="Edit transaction" onClick={() => startEdit(t)}>
-                          <i className="bi bi-pencil" />
-                        </button>
-                        <button className="icon-btn" title="Clone transaction" onClick={() => startClone(t)}>
-                          <i className="bi bi-copy" />
-                        </button>
-                        <button className="icon-btn" title="Delete transaction" onClick={() => setConfirmingId(t.id)}>
-                          <i className="bi bi-trash" />
-                        </button>
+                        {t.linkedCard ? (
+                          <Link
+                            to={`/card-bills?account=${t.linkedCard.id}&bill=${t.occurredOn}`}
+                            className="btn btn-ghost btn-sm"
+                          >
+                            View bill
+                          </Link>
+                        ) : (
+                          <>
+                            <button className="icon-btn" title="Edit transaction" onClick={() => startEdit(t)}>
+                              <i className="bi bi-pencil" />
+                            </button>
+                            <button className="icon-btn" title="Clone transaction" onClick={() => startClone(t)}>
+                              <i className="bi bi-copy" />
+                            </button>
+                            <button className="icon-btn" title="Delete transaction" onClick={() => setConfirmingId(t.id)}>
+                              <i className="bi bi-trash" />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </>
                   )}

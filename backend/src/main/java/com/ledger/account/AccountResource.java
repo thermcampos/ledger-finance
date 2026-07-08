@@ -1,6 +1,7 @@
 package com.ledger.account;
 
 import com.ledger.security.CurrentUserService;
+import com.ledger.transaction.CreditCardBillSyncService;
 import com.ledger.user.User;
 import io.quarkus.hibernate.orm.panache.Panache;
 import jakarta.annotation.security.RolesAllowed;
@@ -24,6 +25,9 @@ public class AccountResource {
 
     @Inject
     CurrentUserService currentUser;
+
+    @Inject
+    CreditCardBillSyncService billSync;
 
     @GET
     public List<Account> list() {
@@ -70,6 +74,10 @@ public class AccountResource {
         account.creditLimit = request.creditLimit;
         account.dueDayOfMonth = request.dueDayOfMonth;
         account.paymentAccount = request.paymentAccountId != null ? Account.findById(request.paymentAccountId) : null;
+        // Safe to call unconditionally — a no-op for a non-card account or a
+        // card with no synced-bill history. Handles a changed/cleared
+        // payment account, due day, or kind all in one place.
+        billSync.sync(account);
         return account;
     }
 
