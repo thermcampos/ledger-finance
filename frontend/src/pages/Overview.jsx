@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { AccountsApi, BudgetsApi, TransactionsApi } from '../api/ledger';
 import Dropdown from '../components/Dropdown';
-import { parseLocalDate } from '../utils/date';
+import { parseLocalDate, localYearMonth } from '../utils/date';
 
 const rangeOptions = [
   { value: 'week', label: 'This week' },
@@ -73,7 +73,7 @@ export default function Overview() {
   const accountsQuery = useQuery({ queryKey: ['accounts'], queryFn: AccountsApi.list });
   const accounts = accountsQuery.data || [];
 
-  const yearMonth = new Date().toISOString().slice(0, 7);
+  const yearMonth = localYearMonth();
   const budgetsQuery = useQuery({
     queryKey: ['budgets', yearMonth],
     queryFn: () => BudgetsApi.listForMonth(yearMonth),

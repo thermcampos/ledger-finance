@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BudgetsApi, CategoriesApi } from '../api/ledger';
+import { localYearMonth } from '../utils/date';
 
 function shiftMonth(yearMonth, delta) {
   const [year, month] = yearMonth.split('-').map(Number);
@@ -29,7 +30,7 @@ function money(amount) {
 
 export default function Budgets() {
   const queryClient = useQueryClient();
-  const [yearMonth, setYearMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [yearMonth, setYearMonth] = useState(localYearMonth);
   const budgetsQuery = useQuery({
     queryKey: ['budgets', yearMonth],
     queryFn: () => BudgetsApi.listForMonth(yearMonth),
@@ -199,7 +200,7 @@ export default function Budgets() {
               <div className="col-4">
                 <div className="eyebrow mb-1">Days left</div>
                 <div className="mono" style={{ fontSize: 16 }}>
-                  {yearMonth === new Date().toISOString().slice(0, 7)
+                  {yearMonth === localYearMonth()
                     ? new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate() -
                       new Date().getDate()
                     : '—'}

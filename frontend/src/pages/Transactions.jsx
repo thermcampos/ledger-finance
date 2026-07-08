@@ -5,7 +5,8 @@ import { AccountsApi, CategoriesApi, TransactionsApi } from '../api/ledger';
 import { parseLocalDate, startOfDay, nextDueDate, dueLabel } from '../utils/date';
 
 function todayIso() {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function parseSignedAmount(raw) {
@@ -273,10 +274,11 @@ export default function Transactions() {
     return relevantAccounts.reduce((sum, a) => sum + accountBalanceAsOf(a, cutoffDate), 0);
   }
 
-  const today = startOfDay(new Date());
+  const now = new Date();
+  const today = startOfDay(now);
   const currentBalanceTotal = filterAccountId
-    ? (accountById[filterAccountId] ? accountBalanceAsOf(accountById[filterAccountId], today) : 0)
-    : accounts.reduce((sum, a) => sum + accountBalanceAsOf(a, today), 0);
+    ? (accountById[filterAccountId] ? accountBalanceAsOf(accountById[filterAccountId], now) : 0)
+    : accounts.reduce((sum, a) => sum + accountBalanceAsOf(a, now), 0);
 
   // A credit card's balance is stored negative (debt), but reads more
   // naturally as a positive "amount owed" — flip the sign/label only when a

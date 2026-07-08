@@ -1,3 +1,7 @@
+export function localYearMonth(d = new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
 // `new Date("yyyy-MM-dd")` parses date-only strings as UTC midnight, which
 // renders as the previous calendar day in any timezone behind UTC. Backend
 // `occurredOn` values are plain LocalDate strings with no time component, so
