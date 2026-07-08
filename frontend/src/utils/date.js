@@ -43,5 +43,7 @@ export function dueLabel(dueDate, today = new Date()) {
   const dateStr = dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   if (diffDays === 0) return `Due today · ${dateStr}`;
   if (diffDays === 1) return `Due tomorrow · ${dateStr}`;
+  if (diffDays === -1) return `Due ${dateStr} · yesterday`;
+  if (diffDays < 0) return `Due ${dateStr} · ${-diffDays} days ago`;
   return `Due ${dateStr} · in ${diffDays} days`;
 }

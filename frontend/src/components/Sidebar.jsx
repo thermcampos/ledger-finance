@@ -7,6 +7,7 @@ const links = [
   { to: '/budgets', label: 'Budgets', icon: 'bi-pie-chart' },
   { to: '/accounts', label: 'Accounts', icon: 'bi-wallet2' },
   { to: '/credit-cards', label: 'Credit Cards', icon: 'bi-credit-card' },
+  { to: '/card-bills', label: 'Card Bills', icon: 'bi-receipt' },
   { to: '/categories', label: 'Categories', icon: 'bi-tags' },
   { to: '/profile', label: 'Profile', icon: 'bi-person' },
 ];

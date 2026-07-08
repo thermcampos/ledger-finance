@@ -117,7 +117,7 @@ export default function CreditCards() {
                     {dueLabel(due)}
                   </div>
                 )}
-                <Link to={`/transactions?account=${c.id}`} className="btn btn-ghost btn-sm w-100 mt-3">
+                <Link to={`/card-bills?account=${c.id}`} className="btn btn-ghost btn-sm w-100 mt-3">
                   View transactions
                 </Link>
               </div>

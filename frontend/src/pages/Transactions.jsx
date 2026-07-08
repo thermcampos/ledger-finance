@@ -1,40 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AccountsApi, CategoriesApi, TransactionsApi } from '../api/ledger';
-import { parseLocalDate, startOfDay, nextDueDate, dueLabel } from '../utils/date';
-import { billDueDateFor, nextBillFor, groupTransactionsByBill } from '../utils/creditCard';
+import { parseLocalDate, startOfDay } from '../utils/date';
 
 function todayIso() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function isoDate(d) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-// The next 3 upcoming bills relative to occurredOn, for the "Bill" dropdown —
-// lets a purchase made right before a statement closes be pinned to next
-// month's bill instead of the one occurredOn would naturally roll into.
-function billOptionsFor(account, occurredOnStr) {
-  if (!account?.dueDayOfMonth) return [];
-  const first = nextDueDate(account.dueDayOfMonth, parseLocalDate(occurredOnStr));
-  const second = nextDueDate(account.dueDayOfMonth, new Date(first.getFullYear(), first.getMonth() + 1, 1));
-  const third = nextDueDate(account.dueDayOfMonth, new Date(second.getFullYear(), second.getMonth() + 1, 1));
-  return [first, second, third];
-}
-
-// Same as billOptionsFor, but ensures the currently-assigned bill stays a
-// selectable option even if it no longer matches the 3 natural upcoming ones
-// (e.g. occurredOn was edited afterwards).
-function billOptionsWithCurrent(account, occurredOnStr, currentIso) {
-  const options = billOptionsFor(account, occurredOnStr);
-  if (currentIso && !options.some((d) => isoDate(d) === currentIso)) {
-    options.push(parseLocalDate(currentIso));
-    options.sort((a, b) => a - b);
-  }
-  return options;
 }
 
 function parseSignedAmount(raw) {
@@ -181,16 +153,11 @@ export default function Transactions() {
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
   const [monthOffset, setMonthOffset] = useState(0);
-  // Set only via "View all" on a specific projected bill row — narrows the
-  // account's full history down to just that bill's transactions. Cleared
-  // whenever any other filter control is touched directly.
-  const [filterBillDueDate, setFilterBillDueDate] = useState('');
   const [showMoreFilters, setShowMoreFilters] = useState(false);
 
-  // Arriving via a "View transactions" link (e.g. from the Credit Cards
-  // page) with ?account=<id> jumps straight to that account's full list —
-  // an unbounded custom range shows the complete history.
-  // URL param also updates the remembered account.
+  // Arriving via a "View transactions" link with ?account=<id> jumps
+  // straight to that account's full list — an unbounded custom range shows
+  // the complete history. URL param also updates the remembered account.
   useEffect(() => {
     const accountParam = searchParams.get('account');
     if (accountParam) {
@@ -200,7 +167,6 @@ export default function Transactions() {
       setFilterRange('custom');
       setFilterStartDate('');
       setFilterEndDate('');
-      setFilterBillDueDate('');
       setMonthOffset(0);
       try {
         localStorage.setItem('ledger:lastAccountId', accountParam);
@@ -211,7 +177,11 @@ export default function Transactions() {
   }, [searchParams]);
 
   const accountsQuery = useQuery({ queryKey: ['accounts'], queryFn: AccountsApi.list });
-  const accounts = useMemo(() => accountsQuery.data || [], [accountsQuery.data]);
+  // Credit cards are handled entirely on the dedicated Card Bills page.
+  const accounts = useMemo(
+    () => (accountsQuery.data || []).filter((a) => a.kind !== 'CREDIT_CARD'),
+    [accountsQuery.data]
+  );
   const categoriesQuery = useQuery({ queryKey: ['categories'], queryFn: CategoriesApi.list });
   const categories = useMemo(
     () => [...(categoriesQuery.data || [])].sort((a, b) => a.name.localeCompare(b.name)),
@@ -226,20 +196,6 @@ export default function Transactions() {
   const [occurredOn, setOccurredOn] = useState(todayIso());
   const [repeat, setRepeat] = useState('NONE');
   const [occurrences, setOccurrences] = useState('');
-  const [billDueDate, setBillDueDate] = useState('');
-
-  const selectedAccount = useMemo(
-    () => accounts.find((a) => String(a.id) === accountId),
-    [accounts, accountId]
-  );
-
-  // Recompute the default "Bill" selection whenever the account or date
-  // changes, so it always starts on the natural next bill but stays
-  // overridable without being clobbered by unrelated field edits.
-  useEffect(() => {
-    const options = billOptionsFor(selectedAccount, occurredOn);
-    setBillDueDate(options.length ? isoDate(options[0]) : '');
-  }, [selectedAccount, occurredOn]);
 
   const createMutation = useMutation({
     mutationFn: TransactionsApi.create,
@@ -254,21 +210,11 @@ export default function Transactions() {
       setOccurredOn(todayIso());
       setRepeat('NONE');
       setOccurrences('');
-      setBillDueDate('');
     },
   });
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Only persist billDueDate when it's a genuine override — i.e. it
-    // differs from what would be computed naturally for this occurredOn.
-    // The Bill select always shows *some* value (defaulting to the natural
-    // one), so submitting it unconditionally would tag every card
-    // transaction as "explicitly assigned," even ones the user never
-    // touched — which would then wrongly exclude perfectly normal, current
-    // transactions from month-scoped totals elsewhere (Overview).
-    const naturalBill = billOptionsFor(selectedAccount, occurredOn)[0];
-    const isOverride = repeat === 'NONE' && billDueDate && (!naturalBill || billDueDate !== isoDate(naturalBill));
     createMutation.mutate({
       accountId: Number(accountId),
       categoryId: categoryId ? Number(categoryId) : null,
@@ -277,7 +223,6 @@ export default function Transactions() {
       occurredOn,
       repeat: repeat !== 'NONE' ? repeat : null,
       occurrences: repeat !== 'NONE' ? Number(occurrences) : null,
-      billDueDate: isOverride ? billDueDate : null,
     });
   };
 
@@ -286,7 +231,6 @@ export default function Transactions() {
   const [editDescription, setEditDescription] = useState('');
   const [editAmount, setEditAmount] = useState('');
   const [editOccurredOn, setEditOccurredOn] = useState('');
-  const [editBillDueDate, setEditBillDueDate] = useState('');
 
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }) => TransactionsApi.update(id, payload),
@@ -318,15 +262,10 @@ export default function Transactions() {
     setEditDescription(t.description);
     setEditAmount(formatSignedAmount(t.amount));
     setEditOccurredOn(t.occurredOn);
-    const acct = accountById[t.account?.id];
-    setEditBillDueDate(t.billDueDate || (acct ? isoDate(billDueDateFor(acct, t)) : ''));
   };
 
-  const handleEditSubmit = (e, id, txnAccountId) => {
+  const handleEditSubmit = (e, id) => {
     e.preventDefault();
-    const acct = accountById[txnAccountId];
-    const naturalBill = billOptionsFor(acct, editOccurredOn)[0];
-    const isOverride = editBillDueDate && (!naturalBill || editBillDueDate !== isoDate(naturalBill));
     updateMutation.mutate({
       id,
       payload: {
@@ -334,7 +273,6 @@ export default function Transactions() {
         description: editDescription,
         amount: parseSignedAmount(editAmount),
         occurredOn: editOccurredOn,
-        billDueDate: isOverride ? editBillDueDate : null,
       },
     });
   };
@@ -365,6 +303,20 @@ export default function Transactions() {
 
   const accountById = useMemo(() => Object.fromEntries(accounts.map((a) => [a.id, a])), [accounts]);
 
+  // A remembered/linked account id from before credit cards were filtered
+  // out of this page (or a stale URL param) won't resolve anymore — fall
+  // back to "All accounts" instead of silently showing an empty list.
+  useEffect(() => {
+    if (filterAccountId && accountsQuery.data && !accountById[filterAccountId]) {
+      setFilterAccountId('');
+      try {
+        localStorage.removeItem('ledger:lastAccountId');
+      } catch {
+        // ignore storage errors
+      }
+    }
+  }, [accountsQuery.data, filterAccountId, accountById]);
+
   // Chronologically sorted per-account transactions (unfiltered by search/category),
   // used to look up "balance as of a given day" regardless of which rows are
   // currently visible under the active filters.
@@ -391,32 +343,16 @@ export default function Transactions() {
     return balance;
   }
 
-  // Sum of just one bill's transactions (up to cutoffDate) — used instead of
-  // accountBalanceAsOf's full running balance while a specific bill is
-  // selected (via a projected row's "View all"), so the balance stat and day
-  // totals match what the bill-filtered list actually shows.
-  function billBalanceAsOf(account, dueDateIso, cutoffDate) {
-    return (sortedTxnsByAccount.get(account.id) || [])
-      .filter((t) => isoDate(billDueDateFor(account, t)) === dueDateIso)
-      .filter((t) => parseLocalDate(t.occurredOn) <= cutoffDate)
-      .reduce((sum, t) => sum + Number(t.amount), 0);
-  }
-
-  // "All accounts" balance totals only ever mean checking/savings — a
-  // credit card's debt is a different concept (shown via "Credit card
-  // bills" instead), same split as Overview's Total Balance/Credit card
-  // debt columns. Viewing one specific account directly (including a
-  // credit card) is unaffected — that still shows that one account's own
-  // balance.
+  // "All accounts" balance totals only ever mean checking/savings — credit
+  // cards are handled entirely on the Card Bills page. Viewing one specific
+  // account directly is unaffected — that still shows that one account's
+  // own balance.
   const liquidAccounts = useMemo(
     () => accounts.filter((a) => a.kind === 'CHECKING' || a.kind === 'SAVINGS'),
     [accounts]
   );
 
   function balanceAsOfDay(cutoffDate) {
-    if (filterBillDueDate && accountById[filterAccountId]) {
-      return billBalanceAsOf(accountById[filterAccountId], filterBillDueDate, cutoffDate);
-    }
     const relevantAccounts = filterAccountId
       ? accounts.filter((a) => String(a.id) === filterAccountId)
       : liquidAccounts;
@@ -426,56 +362,18 @@ export default function Transactions() {
   const now = new Date();
   const today = startOfDay(now);
   const currentBalanceTotal = filterAccountId
-    ? (accountById[filterAccountId]
-        ? (filterBillDueDate
-            ? billBalanceAsOf(accountById[filterAccountId], filterBillDueDate, today)
-            : accountBalanceAsOf(accountById[filterAccountId], today))
-        : 0)
+    ? (accountById[filterAccountId] ? accountBalanceAsOf(accountById[filterAccountId], today) : 0)
     : liquidAccounts.reduce((sum, a) => sum + accountBalanceAsOf(a, today), 0);
-
-  // A credit card's balance is stored negative (debt), but reads more
-  // naturally as a positive "amount owed" — flip the sign/label only when a
-  // single credit-card account is the active filter. The "All accounts" net
-  // total is a different, valid concept (assets minus card debt) and is
-  // left untouched.
-  const filterAccount = accountById[filterAccountId];
-  const isCreditCardFilter = filterAccount?.kind === 'CREDIT_CARD';
-  const displayBalanceTotal = isCreditCardFilter ? -currentBalanceTotal : currentBalanceTotal;
-  const isOwing = isCreditCardFilter ? displayBalanceTotal > 0 : displayBalanceTotal < 0;
-
-  // A linked credit card's next bill isn't a real transaction yet, so it
-  // never appears in accountBalanceAsOf — but it's a known future outflow
-  // against its linked checking/savings account, so it should reduce the
-  // *projected* balance for periods that extend past the bill's due date.
-  // Never applied to currentBalanceTotal/balanceAsOfDay — those must stay
-  // driven purely by real runningBalance values. Only applied when that one
-  // checking/savings account is the active filter — applying it across the
-  // "All accounts" aggregate would double-count the same debt (once as the
-  // checking account's projected payment, again as the card's own real
-  // negative balance, which doesn't move since no real payment is recorded).
-  function projectedCcDeduction(account, cutoffDate) {
-    return accounts
-      .filter((c) => c.kind === 'CREDIT_CARD' && c.paymentAccount?.id === account.id)
-      .reduce((sum, c) => {
-        const bill = nextBillFor(c, sortedTxnsByAccount.get(c.id) || [], today);
-        return bill && bill.dueDate > today && bill.dueDate <= cutoffDate ? sum + bill.amountOwed : sum;
-      }, 0);
-  }
+  const isOwing = currentBalanceTotal < 0;
 
   const { end: periodEnd } = rangeBounds(filterRange, filterStartDate, filterEndDate, monthOffset);
   const hasFuturePeriod = periodEnd != null && periodEnd > today;
   const futureBalanceRaw = hasFuturePeriod
     ? filterAccountId
-      ? (accountById[filterAccountId]
-          ? accountBalanceAsOf(accountById[filterAccountId], periodEnd) - projectedCcDeduction(accountById[filterAccountId], periodEnd)
-          : 0)
+      ? (accountById[filterAccountId] ? accountBalanceAsOf(accountById[filterAccountId], periodEnd) : 0)
       : liquidAccounts.reduce((sum, a) => sum + accountBalanceAsOf(a, periodEnd), 0)
     : null;
-  const displayFutureBalance = futureBalanceRaw !== null
-    ? (isCreditCardFilter ? -futureBalanceRaw : futureBalanceRaw)
-    : null;
-  const showFutureBalance = displayFutureBalance !== null
-    && Math.abs(displayFutureBalance - displayBalanceTotal) > 0.005;
+  const showFutureBalance = futureBalanceRaw !== null && Math.abs(futureBalanceRaw - currentBalanceTotal) > 0.005;
 
   function periodEndLabel() {
     if (filterRange === 'custom') return `${periodEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
@@ -494,156 +392,20 @@ export default function Transactions() {
       .filter((t) => !filterCategoryId || String(t.category?.id) === filterCategoryId)
       .filter((t) => !start || parseLocalDate(t.occurredOn) >= start)
       .filter((t) => !end || parseLocalDate(t.occurredOn) <= end)
-      .filter((t) => {
-        if (!filterBillDueDate) return true;
-        const acct = accountById[t.account?.id];
-        return !!acct && isoDate(billDueDateFor(acct, t)) === filterBillDueDate;
-      })
       .sort((a, b) => parseLocalDate(b.occurredOn) - parseLocalDate(a.occurredOn));
-  }, [
-    txnQueries,
-    search,
-    filterAccountId,
-    filterCategoryId,
-    filterRange,
-    filterStartDate,
-    filterEndDate,
-    monthOffset,
-    filterBillDueDate,
-    accountById,
-  ]);
-
-  // Only when viewing "All accounts" — a credit card explicitly filtered to
-  // (the "View all" drill-down below, or picked directly) shows its normal
-  // individual rows instead, same as any other account.
-  const aggregateCreditCards = !filterAccountId;
-
-  // A credit card transaction never appears as an individual line item when
-  // viewing "All accounts" — it only ever surfaces via "Credit card bills"
-  // below. (Filtering to that one card directly is unaffected — see
-  // aggregateCreditCards above — and still shows its normal rows.)
-  const isCreditCardTxn = useCallback(
-    (t) => {
-      const acct = accountById[t.account?.id];
-      return !!acct && acct.kind === 'CREDIT_CARD' && acct.dueDayOfMonth != null;
-    },
-    [accountById]
-  );
-
-  // A single "Projected" section covers every upcoming credit card bill —
-  // read-only, never a real row. Under "All accounts" it shows every card
-  // (previously split across a duplicate "Credit card bills" section);
-  // filtering to one specific checking/savings account narrows it to just
-  // the card(s) linked to pay from that account. Only shown when the bill's
-  // due date actually falls within the currently viewed range — otherwise a
-  // transaction dated this month but tagged (via the Bill dropdown, or a
-  // natural due-day rollover) to a future month's bill would "leak" that
-  // future due date into the current view.
-  //
-  // nextBillFor falls back to a synthetic $0 placeholder (dated off of
-  // *today*, not any real transaction) when a card has no activity assigned
-  // to an upcoming bill yet — excluded here (amountOwed > 0) since that
-  // placeholder's date drifts as today/the viewed month changes, which
-  // otherwise made this row flicker in and out inconsistently for no
-  // reason a user could see.
-  const projectedBills = useMemo(() => {
-    let cards;
-    if (filterAccountId) {
-      cards = filterAccount && (filterAccount.kind === 'CHECKING' || filterAccount.kind === 'SAVINGS')
-        ? accounts.filter((c) => c.kind === 'CREDIT_CARD' && c.paymentAccount?.id === filterAccount.id)
-        : [];
-    } else {
-      cards = accounts.filter((c) => c.kind === 'CREDIT_CARD' && c.dueDayOfMonth != null);
-    }
-    const { start, end } = rangeBounds(filterRange, filterStartDate, filterEndDate, monthOffset);
-    return cards
-      .map((c) => ({ card: c, ...nextBillFor(c, sortedTxnsByAccount.get(c.id) || [], today) }))
-      .filter((p) => p.dueDate && p.amountOwed > 0 && (!start || p.dueDate >= start) && (!end || p.dueDate <= end));
-  }, [filterAccountId, filterAccount, accounts, sortedTxnsByAccount, today, filterRange, filterStartDate, filterEndDate, monthOffset]);
+  }, [txnQueries, search, filterAccountId, filterCategoryId, filterRange, filterStartDate, filterEndDate, monthOffset]);
 
   const grouped = useMemo(() => {
     const map = new Map();
     for (const t of filteredFlat) {
-      if (aggregateCreditCards && isCreditCardTxn(t)) continue;
       const label = dayLabel(t.occurredOn);
       if (!map.has(label)) map.set(label, []);
       map.get(label).push(t);
     }
     return Array.from(map.entries());
-  }, [filteredFlat, aggregateCreditCards, isCreditCardTxn]);
+  }, [filteredFlat]);
 
   const filteredCategoryTotal = filteredFlat.reduce((sum, t) => sum + Number(t.amount), 0);
-
-  // billDueDate, if given, narrows to just that specific bill's
-  // transactions (used by the projected bill rows' "View all") rather than
-  // the account's complete history.
-  const viewAccountTransactions = (accountId, billDueDate) => {
-    setFilterAccountId(String(accountId));
-    setFilterCategoryId('');
-    setSearch('');
-    setFilterRange('custom');
-    setFilterStartDate('');
-    setFilterEndDate('');
-    setFilterBillDueDate(billDueDate ? isoDate(billDueDate) : '');
-  };
-
-  // Leaves the bill/account drill-down entirely, back to the page's normal
-  // default view — rather than just clearing the bill filter, which would
-  // still leave the account filter stuck on that one card's full history.
-  const resetToDefaultView = () => {
-    setFilterAccountId('');
-    setFilterCategoryId('');
-    setSearch('');
-    setFilterRange('this-month');
-    setFilterStartDate('');
-    setFilterEndDate('');
-    setFilterBillDueDate('');
-    setMonthOffset(0);
-    try {
-      localStorage.removeItem('ledger:lastAccountId');
-    } catch {
-      // ignore storage errors
-    }
-  };
-
-  // Every bill (ascending due date) the currently-filtered credit card has
-  // ever had a transaction assigned to — drawn from its complete history,
-  // not the currently visible/filtered rows, so prev/next can reach bills
-  // outside whatever date range happens to be active.
-  const cardBillDates = useMemo(() => {
-    if (!filterAccount || filterAccount.kind !== 'CREDIT_CARD' || filterAccount.dueDayOfMonth == null) {
-      return [];
-    }
-    return groupTransactionsByBill(filterAccount, sortedTxnsByAccount.get(filterAccount.id) || [])
-      .map((g) => isoDate(g.dueDate))
-      .sort();
-  }, [filterAccount, sortedTxnsByAccount]);
-
-  // The bill to jump to when switching from full history back into a
-  // specific bill — the next upcoming one if it's a real bill, otherwise
-  // the most recent past one.
-  function defaultBillDueDate() {
-    if (!cardBillDates.length) return '';
-    const next = nextBillFor(filterAccount, sortedTxnsByAccount.get(filterAccount.id) || [], today);
-    const nextIso = next?.dueDate ? isoDate(next.dueDate) : null;
-    return nextIso && cardBillDates.includes(nextIso) ? nextIso : cardBillDates[cardBillDates.length - 1];
-  }
-
-  // Steps to the previous/next bill in cardBillDates, entering bill-scoped
-  // mode (an unbounded custom range, so the date filter never hides the
-  // bill's transactions) regardless of what range was active before.
-  function stepBill(direction) {
-    if (!cardBillDates.length) return;
-    const idx = cardBillDates.indexOf(filterBillDueDate);
-    const nextIdx = idx === -1
-      ? (direction === 'prev' ? cardBillDates.length - 1 : 0)
-      : idx + (direction === 'prev' ? -1 : 1);
-    if (nextIdx < 0 || nextIdx >= cardBillDates.length) return;
-    setFilterBillDueDate(cardBillDates[nextIdx]);
-    setFilterRange('custom');
-    setFilterStartDate('');
-    setFilterEndDate('');
-  }
 
   const handleExport = () => {
     downloadCsv(toCsv(filteredFlat), `transactions-${todayIso()}.csv`);
@@ -672,7 +434,6 @@ export default function Transactions() {
           onChange={(e) => {
             const next = e.target.value;
             setFilterAccountId(next);
-            setFilterBillDueDate('');
             try {
               if (next) {
                 localStorage.setItem('ledger:lastAccountId', next);
@@ -705,7 +466,6 @@ export default function Transactions() {
               onChange={(e) => {
                 const next = e.target.value;
                 setFilterRange(next);
-                setFilterBillDueDate('');
                 if (next === 'this-month') {
                   setMonthOffset(0);
                 }
@@ -723,7 +483,7 @@ export default function Transactions() {
                   type="button"
                   className="icon-btn"
                   title="Previous month"
-                  onClick={() => { setMonthOffset((o) => o - 1); setFilterBillDueDate(''); }}
+                  onClick={() => setMonthOffset((o) => o - 1)}
                 >
                   <i className="bi bi-chevron-left" />
                 </button>
@@ -732,7 +492,7 @@ export default function Transactions() {
                   type="button"
                   className="icon-btn"
                   title="Next month"
-                  onClick={() => { setMonthOffset((o) => o + 1); setFilterBillDueDate(''); }}
+                  onClick={() => setMonthOffset((o) => o + 1)}
                 >
                   <i className="bi bi-chevron-right" />
                 </button>
@@ -748,7 +508,7 @@ export default function Transactions() {
                 className="form-control form-control-sm"
                 style={{ width: 'auto' }}
                 value={filterStartDate}
-                onChange={(e) => { setFilterStartDate(e.target.value); setFilterBillDueDate(''); }}
+                onChange={(e) => setFilterStartDate(e.target.value)}
               />
               <span className="text-faint">to</span>
               <input
@@ -756,7 +516,7 @@ export default function Transactions() {
                 className="form-control form-control-sm"
                 style={{ width: 'auto' }}
                 value={filterEndDate}
-                onChange={(e) => { setFilterEndDate(e.target.value); setFilterBillDueDate(''); }}
+                onChange={(e) => setFilterEndDate(e.target.value)}
               />
             </div>
           );
@@ -768,74 +528,22 @@ export default function Transactions() {
           <div className={filterCategoryId ? 'col-md-7' : 'col-md-12'}>
             <div className="eyebrow mb-2 d-flex align-items-center gap-2">
               <span>
-                {isCreditCardFilter ? 'Amount owed' : 'Current balance'}
-                {filterAccountId ? ` — ${filterAccount?.name}` : ''}
+                Current balance
+                {filterAccountId ? ` — ${accountById[filterAccountId]?.name}` : ''}
               </span>
-              {filterBillDueDate && (
-                <>
-                  <button
-                    type="button"
-                    className="icon-btn"
-                    title="Previous bill"
-                    disabled={cardBillDates.indexOf(filterBillDueDate) <= 0}
-                    onClick={() => stepBill('prev')}
-                  >
-                    <i className="bi bi-chevron-left" />
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
-                    style={{ fontSize: 11, padding: '2px 8px' }}
-                    onClick={() => setFilterBillDueDate('')}
-                  >
-                    Showing {parseLocalDate(filterBillDueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} bill only · View full history
-                  </button>
-                  <button
-                    type="button"
-                    className="icon-btn"
-                    title="Next bill"
-                    disabled={cardBillDates.indexOf(filterBillDueDate) === -1
-                      || cardBillDates.indexOf(filterBillDueDate) >= cardBillDates.length - 1}
-                    onClick={() => stepBill('next')}
-                  >
-                    <i className="bi bi-chevron-right" />
-                  </button>
-                </>
-              )}
-              {!filterBillDueDate && cardBillDates.length > 0 && (
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  style={{ fontSize: 11, padding: '2px 8px' }}
-                  onClick={() => setFilterBillDueDate(defaultBillDueDate())}
-                >
-                  Viewing full history · Show bill
-                </button>
-              )}
-              {cardBillDates.length > 0 && (
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  style={{ fontSize: 11, padding: '2px 8px' }}
-                  onClick={resetToDefaultView}
-                >
-                  <i className="bi bi-arrow-left me-1" />
-                  Back to all transactions
-                </button>
-              )}
             </div>
             <div className="hero-balance md" style={{ color: isOwing ? 'var(--red)' : undefined }}>
-              {money(displayBalanceTotal)}
+              {money(currentBalanceTotal)}
             </div>
             {showFutureBalance && (
               <div className="text-faint mt-1" style={{ fontSize: 11.5 }}>
                 {periodEndLabel()}:{' '}
-                <span className="mono" style={{ color: displayFutureBalance < 0 ? 'var(--red)' : undefined }}>
-                  {money(displayFutureBalance)}
+                <span className="mono" style={{ color: futureBalanceRaw < 0 ? 'var(--red)' : undefined }}>
+                  {money(futureBalanceRaw)}
                 </span>
               </div>
             )}
-            {!filterBillDueDate && (filterCategoryId || search) && (
+            {(filterCategoryId || search) && (
               <div className="text-faint mt-1" style={{ fontSize: 11.5 }}>
                 Your real balance — not limited to the category/search filter below.
               </div>
@@ -963,22 +671,6 @@ export default function Transactions() {
                   />
                 </div>
               )}
-              {repeat === 'NONE' && selectedAccount?.kind === 'CREDIT_CARD' && selectedAccount?.dueDayOfMonth != null && (
-                <div className="col-md-2">
-                  <label className="eyebrow d-block mb-2">Bill</label>
-                  <select
-                    className="form-select form-select-sm"
-                    value={billDueDate}
-                    onChange={(e) => setBillDueDate(e.target.value)}
-                  >
-                    {billOptionsFor(selectedAccount, occurredOn).map((d) => (
-                      <option key={isoDate(d)} value={isoDate(d)}>
-                        {d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} bill
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
               {repeat !== 'NONE' && (
                 <div className="col-md-8 text-faint" style={{ fontSize: 11.5 }}>
                   {repeat === 'INSTALLMENTS'
@@ -1039,49 +731,15 @@ export default function Transactions() {
 
       {isLoading && <div className="text-muted-c">Loading…</div>}
 
-      {!isLoading && projectedBills.length > 0 && (
-        <div className="mb-3">
-          <div className="eyebrow mb-2">Projected</div>
-          {projectedBills.map((p) => (
-            <div className="txn-row" key={p.card.id} style={{ borderStyle: 'dashed' }}>
-              <div className="txn-icon" style={{ color: '#8B92A0' }}>
-                <i className="bi bi-credit-card" />
-              </div>
-              <div className="txn-main">
-                <div className="txn-desc">
-                  Credit card bill — {p.card.name}
-                  <span className="tag ms-2">Projected</span>
-                </div>
-                <div className="txn-meta">
-                  <span>{dueLabel(p.dueDate)} · not a real transaction</span>
-                </div>
-              </div>
-              <div className="txn-right">
-                <div className="cell-amount" style={{ color: 'var(--red)' }}>
-                  {money(-p.amountOwed, { signed: true })}
-                </div>
-              </div>
-              <button
-                className="btn btn-ghost btn-sm ms-2"
-                onClick={() => viewAccountTransactions(p.card.id, p.dueDate)}
-              >
-                View all
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {!isLoading && grouped.length === 0 && projectedBills.length === 0 && (
+      {!isLoading && grouped.length === 0 && (
         <div className="panel p-4 text-muted-c" style={{ fontSize: 13 }}>
           No transactions yet.
         </div>
       )}
 
       {grouped.map(([label, items]) => {
-        const rawDayBalance = balanceAsOfDay(parseLocalDate(items[0].occurredOn));
-        const dayBalance = isCreditCardFilter ? -rawDayBalance : rawDayBalance;
-        const dayOwing = isCreditCardFilter ? dayBalance > 0 : dayBalance < 0;
+        const dayBalance = balanceAsOfDay(parseLocalDate(items[0].occurredOn));
+        const dayOwing = dayBalance < 0;
         const kind = dayLabelKind(items[0].occurredOn);
         return (
           <div key={label} className="mb-1">
@@ -1100,7 +758,7 @@ export default function Transactions() {
                 <div className={`txn-row ${rowKind}`} key={t.id}>
                   {editingId === t.id ? (
                     <form
-                      onSubmit={(e) => handleEditSubmit(e, t.id, t.account?.id)}
+                      onSubmit={(e) => handleEditSubmit(e, t.id)}
                       className="d-flex align-items-center gap-2 flex-wrap w-100"
                     >
                       <select
@@ -1140,20 +798,6 @@ export default function Transactions() {
                         onChange={(e) => setEditOccurredOn(e.target.value)}
                         required
                       />
-                      {accountById[t.account?.id]?.kind === 'CREDIT_CARD' && accountById[t.account?.id]?.dueDayOfMonth != null && (
-                        <select
-                          className="form-select form-select-sm"
-                          style={{ maxWidth: 140 }}
-                          value={editBillDueDate}
-                          onChange={(e) => setEditBillDueDate(e.target.value)}
-                        >
-                          {billOptionsWithCurrent(accountById[t.account.id], editOccurredOn, editBillDueDate).map((d) => (
-                            <option key={isoDate(d)} value={isoDate(d)}>
-                              {d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} bill
-                            </option>
-                          ))}
-                        </select>
-                      )}
                       <div className="d-flex gap-2 ms-auto">
                         <button type="submit" className="btn btn-jade btn-sm" disabled={updateMutation.isPending}>
                           {updateMutation.isPending ? 'Saving…' : 'Save'}
@@ -1217,7 +861,7 @@ export default function Transactions() {
                           {money(Number(t.amount), { signed: true })}
                         </div>
                         <div className="txn-balance">
-                          {money(isCreditCardFilter ? -Number(t.runningBalance) : Number(t.runningBalance))}
+                          {money(Number(t.runningBalance))}
                         </div>
                       </div>
                       <div className="d-flex gap-1 ms-2">

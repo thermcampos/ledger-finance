@@ -8,6 +8,7 @@ import Transactions from './pages/Transactions';
 import Budgets from './pages/Budgets';
 import Accounts from './pages/Accounts';
 import CreditCards from './pages/CreditCards';
+import CardBills from './pages/CardBills';
 import Categories from './pages/Categories';
 import Profile from './pages/Profile';
 
@@ -65,6 +66,14 @@ export default function App() {
         element={
           <ProtectedLayout>
             <CreditCards />
+          </ProtectedLayout>
+        }
+      />
+      <Route
+        path="/card-bills"
+        element={
+          <ProtectedLayout>
+            <CardBills />
           </ProtectedLayout>
         }
       />
