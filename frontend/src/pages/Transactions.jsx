@@ -193,6 +193,20 @@ export default function Transactions() {
     },
   });
 
+  const startClone = (t) => {
+    setEditingId(null);
+    setConfirmingId(null);
+    setAccountId(String(t.account?.id || ''));
+    setCategoryId(t.category?.id ? String(t.category.id) : '');
+    setDescription(t.description);
+    setAmount(formatSignedAmount(t.amount));
+    setOccurredOn(t.occurredOn);
+    setRepeat('NONE');
+    setOccurrences('');
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const startEdit = (t) => {
     setConfirmingId(null);
     setEditingId(t.id);
@@ -802,6 +816,9 @@ export default function Transactions() {
                       <div className="d-flex gap-1 ms-2">
                         <button className="icon-btn" title="Edit transaction" onClick={() => startEdit(t)}>
                           <i className="bi bi-pencil" />
+                        </button>
+                        <button className="icon-btn" title="Clone transaction" onClick={() => startClone(t)}>
+                          <i className="bi bi-copy" />
                         </button>
                         <button className="icon-btn" title="Delete transaction" onClick={() => setConfirmingId(t.id)}>
                           <i className="bi bi-trash" />
