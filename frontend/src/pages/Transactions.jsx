@@ -11,8 +11,27 @@ function todayIso() {
 
 function parseSignedAmount(raw) {
   const trimmed = raw.trim();
-  const value = Math.abs(Number(trimmed.startsWith('+') ? trimmed.slice(1) : trimmed));
-  return trimmed.startsWith('+') ? value : -value;
+  const isPositive = trimmed.startsWith('+');
+  const stripped = isPositive ? trimmed.slice(1) : trimmed;
+
+  const lastSep = Math.max(stripped.lastIndexOf('.'), stripped.lastIndexOf(','));
+  let normalized;
+  if (lastSep !== -1) {
+    const afterSep = stripped.length - lastSep - 1;
+    if (afterSep >= 1 && afterSep <= 2) {
+      // Last separator is the decimal point
+      const intPart = stripped.slice(0, lastSep).replace(/[.,]/g, '');
+      normalized = `${intPart || '0'}.${stripped.slice(lastSep + 1)}`;
+    } else {
+      // All separators are thousands separators
+      normalized = stripped.replace(/[.,]/g, '');
+    }
+  } else {
+    normalized = stripped;
+  }
+
+  const value = Math.abs(Number(normalized));
+  return isPositive ? value : -value;
 }
 
 // Inverse of parseSignedAmount — round-trips a stored amount back into the
