@@ -58,6 +58,7 @@ jobs:
         working-directory: ./frontend
         env:
           VITE_BUILD_NUMBER: ${{ steps.version.outputs.build_number }}
+          VITE_BACKEND_SERVER: ${{ vars.BACKEND_SERVER_URL }}
 
       - name: Set up Docker Buildx
         run: docker buildx inspect --bootstrap
