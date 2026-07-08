@@ -93,6 +93,44 @@ Verified via Playwright: a card whose only transaction is a $80 charge
 explicitly tagged to next month's bill now shows "$80.00" in both the top
 total and its own tile (previously $0 vs $80 — the reported mismatch).
 
+**Follow-up in the same session: Transactions page filter-card redesign.**
+User found the filters card (search, account, category, range, Export all
+crammed into one panel plus a second row of month/date controls)
+cluttered and confusing. Restructured in `Transactions.jsx`:
+- **New toolbar row** directly below the page header, above the balance
+  panel: Account select + range mode select ("This month"/"Custom range")
+  + either month chevrons/label or From–To date inputs inline, depending
+  on mode — the two most important filters, always visible, no longer
+  buried in a bordered card.
+- **Search + Category** moved into a collapsible "More filters" panel
+  (new `showMoreFilters` state), collapsed by default; shows a small
+  "Active" tag next to the toggle when collapsed with a search term or
+  category selected, so an active filter is never silently hidden.
+- **Export** demoted to a small ghost button on the same low-emphasis row
+  as the "More filters" toggle, right-aligned — no longer competing
+  visually with the primary filters.
+- All existing behavior preserved as-is: `filterBillDueDate` still clears
+  on every account/range/month/date-range change, the credit-card bill
+  navigator (chevrons + toggle + "Back to all transactions") still lives
+  in the balance panel and works unchanged, and the "your real balance —
+  not limited to..." disclaimer still appears correctly.
+
+Verified via Playwright: default view shows the compact toolbar with
+"More filters" collapsed and Export tucked to the side; toggling shows
+search+category and the "Active" chip appears correctly when collapsed
+with a filter set; switching to "Custom range" swaps in date inputs
+inline; the credit-card bill navigator and new toolbar coexist correctly
+(tested filtering to a card, stepping through "View all").
+
+**Follow-up polish in the same session:** the range select still showed
+the static label "This month" next to a separate "Jul 2026" span flanked
+by chevrons — two elements doing one job. Merged them: the select's
+"this-month" option now renders the live month label itself (e.g. "Jul
+2026"), and the prev/next chevrons wrap the select directly instead of a
+separate label — so it reads as one control, `< [Jul 2026 ▾] >`, that's
+also still a real dropdown (selecting "Custom range" from it works exactly
+as before). No behavior change, purely visual consolidation.
+
 ## Status as of end of session (2026-07-08)
 
 **Done, not yet committed: Credit card overhaul** (requested 2026-07-08 via

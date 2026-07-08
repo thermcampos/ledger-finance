@@ -185,6 +185,7 @@ export default function Transactions() {
   // account's full history down to just that bill's transactions. Cleared
   // whenever any other filter control is touched directly.
   const [filterBillDueDate, setFilterBillDueDate] = useState('');
+  const [showMoreFilters, setShowMoreFilters] = useState(false);
 
   // Arriving via a "View transactions" link (e.g. from the Credit Cards
   // page) with ?account=<id> jumps straight to that account's full list —
@@ -663,6 +664,105 @@ export default function Transactions() {
         </button>
       </div>
 
+      <div className="d-flex flex-wrap align-items-center gap-2 mb-3">
+        <select
+          className="form-select form-select-sm"
+          style={{ width: 'auto' }}
+          value={filterAccountId}
+          onChange={(e) => {
+            const next = e.target.value;
+            setFilterAccountId(next);
+            setFilterBillDueDate('');
+            try {
+              if (next) {
+                localStorage.setItem('ledger:lastAccountId', next);
+              } else {
+                localStorage.removeItem('ledger:lastAccountId');
+              }
+            } catch {
+              // ignore storage errors
+            }
+          }}
+        >
+          <option value="">All accounts</option>
+          {accounts.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.name}
+            </option>
+          ))}
+        </select>
+
+        {(() => {
+          const monthLabel = monthBounds(monthOffset).start.toLocaleDateString('en-US', {
+            month: 'short',
+            year: 'numeric',
+          });
+          const rangeSelect = (
+            <select
+              className="form-select form-select-sm"
+              style={{ width: 'auto' }}
+              value={filterRange}
+              onChange={(e) => {
+                const next = e.target.value;
+                setFilterRange(next);
+                setFilterBillDueDate('');
+                if (next === 'this-month') {
+                  setMonthOffset(0);
+                }
+              }}
+            >
+              <option value="this-month">{monthLabel}</option>
+              <option value="custom">Custom range</option>
+            </select>
+          );
+
+          if (filterRange === 'this-month') {
+            return (
+              <div className="d-flex align-items-center gap-1">
+                <button
+                  type="button"
+                  className="icon-btn"
+                  title="Previous month"
+                  onClick={() => { setMonthOffset((o) => o - 1); setFilterBillDueDate(''); }}
+                >
+                  <i className="bi bi-chevron-left" />
+                </button>
+                {rangeSelect}
+                <button
+                  type="button"
+                  className="icon-btn"
+                  title="Next month"
+                  onClick={() => { setMonthOffset((o) => o + 1); setFilterBillDueDate(''); }}
+                >
+                  <i className="bi bi-chevron-right" />
+                </button>
+              </div>
+            );
+          }
+
+          return (
+            <div className="d-flex align-items-center gap-2">
+              {rangeSelect}
+              <input
+                type="date"
+                className="form-control form-control-sm"
+                style={{ width: 'auto' }}
+                value={filterStartDate}
+                onChange={(e) => { setFilterStartDate(e.target.value); setFilterBillDueDate(''); }}
+              />
+              <span className="text-faint">to</span>
+              <input
+                type="date"
+                className="form-control form-control-sm"
+                style={{ width: 'auto' }}
+                value={filterEndDate}
+                onChange={(e) => { setFilterEndDate(e.target.value); setFilterBillDueDate(''); }}
+              />
+            </div>
+          );
+        })()}
+      </div>
+
       <div className="panel p-4 mb-4">
         <div className="row g-3">
           <div className={filterCategoryId ? 'col-md-7' : 'col-md-12'}>
@@ -891,137 +991,51 @@ export default function Transactions() {
         </div>
       )}
 
-      <div className="panel p-3 mb-3">
-        <div className="row g-2 align-items-center">
-          <div className="col-md-4">
-            <input
-              type="text"
-              className="form-control form-control-sm"
-              placeholder="Search transactions"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          <div className="col-md-2">
-            <select
-              className="form-select form-select-sm"
-              value={filterAccountId}
-              onChange={(e) => {
-                const next = e.target.value;
-                setFilterAccountId(next);
-                setFilterBillDueDate('');
-                try {
-                  if (next) {
-                    localStorage.setItem('ledger:lastAccountId', next);
-                  } else {
-                    localStorage.removeItem('ledger:lastAccountId');
-                  }
-                } catch {
-                  // ignore storage errors
-                }
-              }}
-            >
-              <option value="">All accounts</option>
-              {accounts.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="col-md-2">
-            <select
-              className="form-select form-select-sm"
-              value={filterCategoryId}
-              onChange={(e) => setFilterCategoryId(e.target.value)}
-            >
-              <option value="">All categories</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="col-md-2">
-            <select
-              className="form-select form-select-sm"
-              value={filterRange}
-              onChange={(e) => {
-                const next = e.target.value;
-                setFilterRange(next);
-                setFilterBillDueDate('');
-                if (next === 'this-month') {
-                  setMonthOffset(0);
-                }
-              }}
-            >
-              <option value="this-month">This month</option>
-              <option value="custom">Custom range</option>
-            </select>
-          </div>
-          <div className="col-md-2 text-md-end">
-            <button className="btn btn-ghost btn-sm w-100 w-md-auto" onClick={handleExport}>
-              <i className="bi bi-download me-1" />
-              Export
-            </button>
-          </div>
-        </div>
-        <div className="row g-2 align-items-end mt-2 justify-content-center">
-          {filterRange === 'this-month' && (
-            <>
-              <div className="col-md-2">
-                <button
-                  className="btn btn-ghost btn-sm w-100"
-                  disabled={filterRange === 'custom'}
-                  onClick={() => { setMonthOffset((o) => o - 1); setFilterBillDueDate(''); }}
-                >
-                  <i className="bi bi-chevron-left" />
-                </button>
-              </div>
-              <div className="col-md-2 text-center">
-                <span className="eyebrow">
-                  {(() => {
-                    const { start } = monthBounds(monthOffset);
-                    return start.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-                  })()}
-                </span>
-              </div>
-              <div className="col-md-2">
-                <button
-                  className="btn btn-ghost btn-sm w-100"
-                  disabled={filterRange === 'custom'}
-                  onClick={() => { setMonthOffset((o) => o + 1); setFilterBillDueDate(''); }}
-                >
-                  <i className="bi bi-chevron-right" />
-                </button>
-              </div>
-            </>
-          )}
-          {filterRange === 'custom' && (
-            <>
-              <div className="col-md-2">
-                <label className="eyebrow d-block mb-1">From</label>
-                <input
-                  type="date"
-                  className="form-control form-control-sm"
-                  value={filterStartDate}
-                  onChange={(e) => { setFilterStartDate(e.target.value); setFilterBillDueDate(''); }}
-                />
-              </div>
-              <div className="col-md-2">
-                <label className="eyebrow d-block mb-1">To</label>
-                <input
-                  type="date"
-                  className="form-control form-control-sm"
-                  value={filterEndDate}
-                  onChange={(e) => { setFilterEndDate(e.target.value); setFilterBillDueDate(''); }}
-                />
-              </div>
-            </>
-          )}
-        </div>
+      <div className="d-flex align-items-center justify-content-between mb-3">
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm"
+          onClick={() => setShowMoreFilters((s) => !s)}
+        >
+          <i className={`bi ${showMoreFilters ? 'bi-chevron-up' : 'bi-chevron-down'} me-1`} />
+          {showMoreFilters ? 'Hide filters' : 'More filters'}
+          {!showMoreFilters && (search || filterCategoryId) && <span className="tag ms-2">Active</span>}
+        </button>
+        <button className="btn btn-ghost btn-sm" onClick={handleExport}>
+          <i className="bi bi-download me-1" />
+          Export
+        </button>
       </div>
+
+      {showMoreFilters && (
+        <div className="panel p-3 mb-3">
+          <div className="row g-2 align-items-center">
+            <div className="col-md-6">
+              <input
+                type="text"
+                className="form-control form-control-sm"
+                placeholder="Search transactions"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <div className="col-md-6">
+              <select
+                className="form-select form-select-sm"
+                value={filterCategoryId}
+                onChange={(e) => setFilterCategoryId(e.target.value)}
+              >
+                <option value="">All categories</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isLoading && <div className="text-muted-c">Loading…</div>}
 
