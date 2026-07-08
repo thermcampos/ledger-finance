@@ -162,7 +162,7 @@ export default function Overview() {
         ) : (
           <div className="row align-items-end g-3">
             <div className="col-md-6">
-              <div className="eyebrow mb-2">Total balance</div>
+              <div className="eyebrow mb-2">Current balance</div>
               <div className="hero-balance">{money(totalBalance)}</div>
               <div className="text-muted-c mt-2" style={{ fontSize: 12.5 }}>
                 across {liquidAccounts.length} checking &amp; savings account{liquidAccounts.length === 1 ? '' : 's'}
@@ -182,6 +182,7 @@ export default function Overview() {
       </div>
 
       <div className="row g-3 mb-4">
+        <div className="eyebrow mb-2">Checking & Savings accounts</div>
         {accounts.filter((a) => a.kind !== 'CREDIT_CARD').map((a) => {
           const bal = accountBalances.get(a.id) ?? Number(a.balance);
           return (
