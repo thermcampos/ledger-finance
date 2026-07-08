@@ -288,6 +288,25 @@ export default function Transactions() {
   const displayBalanceTotal = isCreditCardFilter ? -currentBalanceTotal : currentBalanceTotal;
   const isOwing = isCreditCardFilter ? displayBalanceTotal > 0 : displayBalanceTotal < 0;
 
+  const { end: periodEnd } = rangeBounds(filterRange, filterStartDate, filterEndDate);
+  const hasFuturePeriod = periodEnd != null && periodEnd > today;
+  const futureBalanceRaw = hasFuturePeriod
+    ? filterAccountId
+      ? (accountById[filterAccountId] ? accountBalanceAsOf(accountById[filterAccountId], periodEnd) : 0)
+      : accounts.reduce((sum, a) => sum + accountBalanceAsOf(a, periodEnd), 0)
+    : null;
+  const displayFutureBalance = futureBalanceRaw !== null
+    ? (isCreditCardFilter ? -futureBalanceRaw : futureBalanceRaw)
+    : null;
+  const showFutureBalance = displayFutureBalance !== null
+    && Math.abs(displayFutureBalance - displayBalanceTotal) > 0.005;
+
+  function periodEndLabel() {
+    if (filterRange === 'this-month') return 'End of month';
+    if (filterRange === 'next-month') return 'End of next month';
+    return `${periodEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+  }
+
   const filteredCategoryName = categories.find((c) => String(c.id) === filterCategoryId)?.name;
 
   const filteredFlat = useMemo(() => {
@@ -381,6 +400,14 @@ export default function Transactions() {
             <div className="hero-balance md" style={{ color: isOwing ? 'var(--red)' : undefined }}>
               {money(displayBalanceTotal)}
             </div>
+            {showFutureBalance && (
+              <div className="text-faint mt-1" style={{ fontSize: 11.5 }}>
+                {periodEndLabel()}:{' '}
+                <span className="mono" style={{ color: displayFutureBalance < 0 ? 'var(--red)' : undefined }}>
+                  {money(displayFutureBalance)}
+                </span>
+              </div>
+            )}
             {(filterCategoryId || search) && (
               <div className="text-faint mt-1" style={{ fontSize: 11.5 }}>
                 Your real balance — not limited to the category/search filter below.
