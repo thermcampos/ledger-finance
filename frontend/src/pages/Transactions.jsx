@@ -138,7 +138,10 @@ export default function Transactions() {
   const accountsQuery = useQuery({ queryKey: ['accounts'], queryFn: AccountsApi.list });
   const accounts = useMemo(() => accountsQuery.data || [], [accountsQuery.data]);
   const categoriesQuery = useQuery({ queryKey: ['categories'], queryFn: CategoriesApi.list });
-  const categories = categoriesQuery.data || [];
+  const categories = useMemo(
+    () => [...(categoriesQuery.data || [])].sort((a, b) => a.name.localeCompare(b.name)),
+    [categoriesQuery.data]
+  );
 
   const [showForm, setShowForm] = useState(false);
   const [accountId, setAccountId] = useState('');
