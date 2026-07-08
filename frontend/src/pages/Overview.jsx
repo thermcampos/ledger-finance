@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { AccountsApi, BudgetsApi, TransactionsApi } from '../api/ledger';
 import Dropdown from '../components/Dropdown';
-import { parseLocalDate, localYearMonth } from '../utils/date';
+import { parseLocalDate, localYearMonth, startOfDay } from '../utils/date';
 
 const rangeOptions = [
   { value: 'week', label: 'This week' },
@@ -95,7 +95,27 @@ export default function Overview() {
     })),
   });
 
-  const totalBalance = accounts.reduce((sum, a) => sum + Number(a.balance), 0);
+  const today = startOfDay(new Date());
+
+  const accountBalances = useMemo(() => {
+    const map = new Map();
+    accounts.forEach((a, i) => {
+      const raw = txnQueries[i]?.data || [];
+      const sorted = [...raw].sort((x, y) => {
+        const diff = parseLocalDate(x.occurredOn) - parseLocalDate(y.occurredOn);
+        return diff !== 0 ? diff : x.id - y.id;
+      });
+      let balance = Number(a.openingBalance ?? 0);
+      for (const t of sorted) {
+        if (parseLocalDate(t.occurredOn) > today) break;
+        balance = Number(t.runningBalance);
+      }
+      map.set(a.id, balance);
+    });
+    return map;
+  }, [accounts, txnQueries, today]);
+
+  const totalBalance = accounts.reduce((sum, a) => sum + (accountBalances.get(a.id) ?? Number(a.balance)), 0);
   const { start, end } = rangeBounds(range);
   const recent = txnQueries
     .flatMap((q) => q.data || [])
@@ -133,17 +153,20 @@ export default function Overview() {
       </div>
 
       <div className="row g-3 mb-4">
-        {accounts.map((a) => (
-          <div className="col-6 col-md-3" key={a.id}>
-            <div className="acct-card">
-              <div className="acct-kind">{a.kind?.replace('_', ' ')}</div>
-              <div className="acct-balance" style={{ color: a.balance < 0 ? 'var(--red)' : undefined }}>
-                {money(Number(a.balance))}
+        {accounts.map((a) => {
+          const bal = accountBalances.get(a.id) ?? Number(a.balance);
+          return (
+            <div className="col-6 col-md-3" key={a.id}>
+              <div className="acct-card">
+                <div className="acct-kind">{a.kind?.replace('_', ' ')}</div>
+                <div className="acct-balance" style={{ color: bal < 0 ? 'var(--red)' : undefined }}>
+                  {money(bal)}
+                </div>
+                <div className="acct-name">{a.name}</div>
               </div>
-              <div className="acct-name">{a.name}</div>
             </div>
-          </div>
-        ))}
+          );
+        })}
         {accounts.length === 0 && !accountsQuery.isLoading && (
           <div className="col-12 text-muted-c" style={{ fontSize: 13 }}>
             No accounts yet — add one from the Accounts page to get started.

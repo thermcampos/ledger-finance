@@ -129,6 +129,16 @@ function dayLabel(dateStr) {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+function dayLabelKind(dateStr) {
+  const date = parseLocalDate(dateStr);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const sameDay = (a, b) => a.toDateString() === b.toDateString();
+  if (sameDay(date, today)) return 'today';
+  if (date > today) return 'future';
+  return 'past';
+}
+
 export default function Transactions() {
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
@@ -313,8 +323,8 @@ export default function Transactions() {
   const now = new Date();
   const today = startOfDay(now);
   const currentBalanceTotal = filterAccountId
-    ? (accountById[filterAccountId] ? accountBalanceAsOf(accountById[filterAccountId], now) : 0)
-    : accounts.reduce((sum, a) => sum + accountBalanceAsOf(a, now), 0);
+    ? (accountById[filterAccountId] ? accountBalanceAsOf(accountById[filterAccountId], today) : 0)
+    : accounts.reduce((sum, a) => sum + accountBalanceAsOf(a, today), 0);
 
   // A credit card's balance is stored negative (debt), but reads more
   // naturally as a positive "amount owed" — flip the sign/label only when a
@@ -713,9 +723,10 @@ export default function Transactions() {
         const rawDayBalance = balanceAsOfDay(parseLocalDate(items[0].occurredOn));
         const dayBalance = isCreditCardFilter ? -rawDayBalance : rawDayBalance;
         const dayOwing = isCreditCardFilter ? dayBalance > 0 : dayBalance < 0;
+        const kind = dayLabelKind(items[0].occurredOn);
         return (
           <div key={label} className="mb-1">
-            <div className="day-heading">
+            <div className={`day-heading ${kind}`}>
               <div className="eyebrow">{label}</div>
               <div className="day-total" style={{ color: dayOwing ? 'var(--red)' : undefined }}>
                 {money(dayBalance)}
@@ -725,8 +736,9 @@ export default function Transactions() {
               const catName = t.category?.name;
               const icon = categoryIcons[catName] || 'bi-dot';
               const color = t.category?.colorHex || categoryColors[catName] || '#8B92A0';
+              const rowKind = dayLabelKind(t.occurredOn);
               return (
-                <div className="txn-row" key={t.id}>
+                <div className={`txn-row ${rowKind}`} key={t.id}>
                   {editingId === t.id ? (
                     <form
                       onSubmit={(e) => handleEditSubmit(e, t.id)}

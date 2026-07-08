@@ -85,7 +85,6 @@ body {
 .main {
   margin-left: 220px;
   padding: 32px 40px 60px 40px;
-  max-width: 1180px;
 }
 .page-header {
   display: flex;
@@ -249,10 +248,23 @@ body {
   justify-content: space-between;
   padding: 14px 4px 8px 4px;
 }
+.day-heading.today .eyebrow {
+  color: var(--jade);
+  font-weight: 600;
+}
+.day-heading.future .eyebrow {
+  color: var(--text-faint);
+}
 .day-total {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 11.5px;
   color: var(--text-faint);
+}
+.txn-row.future {
+  opacity: 0.55;
+}
+.txn-row.future:hover {
+  opacity: 0.75;
 }
 .txn-row {
   display: flex;
