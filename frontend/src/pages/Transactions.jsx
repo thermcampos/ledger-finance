@@ -400,7 +400,7 @@ export default function Transactions() {
           <div className="eyebrow mb-1">All accounts</div>
           <div className="page-title">Transactions</div>
         </div>
-        <button className="btn btn-jade btn-sm" onClick={() => setShowForm((s) => !s)}>
+        <button className="btn btn-jade btn-sm" onClick={() => { if (!showForm && filterAccountId) setAccountId(filterAccountId); setShowForm((s) => !s); }}>
           <i className="bi bi-plus-lg me-1" />
           Add transaction
         </button>
