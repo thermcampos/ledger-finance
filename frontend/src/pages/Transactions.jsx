@@ -143,7 +143,13 @@ export default function Transactions() {
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const [search, setSearch] = useState('');
-  const [filterAccountId, setFilterAccountId] = useState('');
+  const [filterAccountId, setFilterAccountId] = useState(() => {
+    try {
+      return localStorage.getItem('ledger:lastAccountId') || '';
+    } catch {
+      return '';
+    }
+  });
   const [filterCategoryId, setFilterCategoryId] = useState('');
   const [filterRange, setFilterRange] = useState('this-month');
   const [filterStartDate, setFilterStartDate] = useState('');
@@ -152,6 +158,7 @@ export default function Transactions() {
   // Arriving via a "View transactions" link (e.g. from the Credit Cards
   // page) with ?account=<id> jumps straight to that account's full list —
   // an unbounded custom range shows the complete history.
+  // URL param also updates the remembered account.
   useEffect(() => {
     const accountParam = searchParams.get('account');
     if (accountParam) {
@@ -161,6 +168,11 @@ export default function Transactions() {
       setFilterRange('custom');
       setFilterStartDate('');
       setFilterEndDate('');
+      try {
+        localStorage.setItem('ledger:lastAccountId', accountParam);
+      } catch {
+        // ignore storage errors
+      }
     }
   }, [searchParams]);
 
@@ -611,7 +623,19 @@ export default function Transactions() {
             <select
               className="form-select form-select-sm"
               value={filterAccountId}
-              onChange={(e) => setFilterAccountId(e.target.value)}
+              onChange={(e) => {
+                const next = e.target.value;
+                setFilterAccountId(next);
+                try {
+                  if (next) {
+                    localStorage.setItem('ledger:lastAccountId', next);
+                  } else {
+                    localStorage.removeItem('ledger:lastAccountId');
+                  }
+                } catch {
+                  // ignore storage errors
+                }
+              }}
             >
               <option value="">All accounts</option>
               {accounts.map((a) => (

@@ -71,7 +71,7 @@ function money(amount, { signed = false } = {}) {
 export default function Overview() {
   const [range, setRange] = useState('month');
   const accountsQuery = useQuery({ queryKey: ['accounts'], queryFn: AccountsApi.list });
-  const accounts = accountsQuery.data || [];
+  const accounts = useMemo(() => accountsQuery.data || [], [accountsQuery.data]);
 
   const yearMonth = localYearMonth();
   const budgetsQuery = useQuery({
