@@ -80,16 +80,14 @@ function monthBounds(monthOffset) {
 
 // Custom range with a blank start/end means "unbounded" in that direction —
 // used to show a full account history when drilling in from elsewhere.
-function rangeBounds(range, customStart, customEnd) {
-  if (range === 'past-month') return monthBounds(-1);
-  if (range === 'next-month') return monthBounds(1);
+function rangeBounds(range, customStart, customEnd, monthOffset) {
   if (range === 'custom') {
     return {
       start: customStart ? parseLocalDate(customStart) : null,
       end: customEnd ? parseLocalDate(customEnd) : null,
     };
   }
-  return monthBounds(0);
+  return monthBounds(monthOffset);
 }
 
 function toCsv(rows) {
@@ -154,6 +152,7 @@ export default function Transactions() {
   const [filterRange, setFilterRange] = useState('this-month');
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
+  const [monthOffset, setMonthOffset] = useState(0);
 
   // Arriving via a "View transactions" link (e.g. from the Credit Cards
   // page) with ?account=<id> jumps straight to that account's full list —
@@ -168,6 +167,7 @@ export default function Transactions() {
       setFilterRange('custom');
       setFilterStartDate('');
       setFilterEndDate('');
+      setMonthOffset(0);
       try {
         localStorage.setItem('ledger:lastAccountId', accountParam);
       } catch {
@@ -348,7 +348,7 @@ export default function Transactions() {
   const displayBalanceTotal = isCreditCardFilter ? -currentBalanceTotal : currentBalanceTotal;
   const isOwing = isCreditCardFilter ? displayBalanceTotal > 0 : displayBalanceTotal < 0;
 
-  const { end: periodEnd } = rangeBounds(filterRange, filterStartDate, filterEndDate);
+  const { end: periodEnd } = rangeBounds(filterRange, filterStartDate, filterEndDate, monthOffset);
   const hasFuturePeriod = periodEnd != null && periodEnd > today;
   const futureBalanceRaw = hasFuturePeriod
     ? filterAccountId
@@ -362,15 +362,15 @@ export default function Transactions() {
     && Math.abs(displayFutureBalance - displayBalanceTotal) > 0.005;
 
   function periodEndLabel() {
-    if (filterRange === 'this-month') return 'End of month';
-    if (filterRange === 'next-month') return 'End of next month';
-    return `${periodEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+    if (filterRange === 'custom') return `${periodEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+    const { start } = monthBounds(monthOffset);
+    return start.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   }
 
   const filteredCategoryName = categories.find((c) => String(c.id) === filterCategoryId)?.name;
 
   const filteredFlat = useMemo(() => {
-    const { start, end } = rangeBounds(filterRange, filterStartDate, filterEndDate);
+    const { start, end } = rangeBounds(filterRange, filterStartDate, filterEndDate, monthOffset);
     return txnQueries
       .flatMap((q) => q.data || [])
       .filter((t) => t.description.toLowerCase().includes(search.toLowerCase()))
@@ -379,7 +379,7 @@ export default function Transactions() {
       .filter((t) => !start || parseLocalDate(t.occurredOn) >= start)
       .filter((t) => !end || parseLocalDate(t.occurredOn) <= end)
       .sort((a, b) => parseLocalDate(b.occurredOn) - parseLocalDate(a.occurredOn));
-  }, [txnQueries, search, filterAccountId, filterCategoryId, filterRange, filterStartDate, filterEndDate]);
+  }, [txnQueries, search, filterAccountId, filterCategoryId, filterRange, filterStartDate, filterEndDate, monthOffset]);
 
   // Only when viewing "All accounts" — a credit card explicitly filtered to
   // (the "View all" drill-down below, or picked directly) shows its normal
@@ -663,11 +663,15 @@ export default function Transactions() {
             <select
               className="form-select form-select-sm"
               value={filterRange}
-              onChange={(e) => setFilterRange(e.target.value)}
+              onChange={(e) => {
+                const next = e.target.value;
+                setFilterRange(next);
+                if (next === 'this-month') {
+                  setMonthOffset(0);
+                }
+              }}
             >
               <option value="this-month">This month</option>
-              <option value="past-month">Past month</option>
-              <option value="next-month">Next month</option>
               <option value="custom">Custom range</option>
             </select>
           </div>
@@ -677,9 +681,41 @@ export default function Transactions() {
               Export
             </button>
           </div>
+        </div>
+        <div className="row g-2 align-items-end mt-2 justify-content-center">
+          {filterRange === 'this-month' && (
+            <>
+              <div className="col-md-2">
+                <button
+                  className="btn btn-ghost btn-sm w-100"
+                  disabled={filterRange === 'custom'}
+                  onClick={() => setMonthOffset((o) => o - 1)}
+                >
+                  <i className="bi bi-chevron-left" />
+                </button>
+              </div>
+              <div className="col-md-2 text-center">
+                <span className="eyebrow">
+                  {(() => {
+                    const { start } = monthBounds(monthOffset);
+                    return start.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+                  })()}
+                </span>
+              </div>
+              <div className="col-md-2">
+                <button
+                  className="btn btn-ghost btn-sm w-100"
+                  disabled={filterRange === 'custom'}
+                  onClick={() => setMonthOffset((o) => o + 1)}
+                >
+                  <i className="bi bi-chevron-right" />
+                </button>
+              </div>
+            </>
+          )}
           {filterRange === 'custom' && (
             <>
-              <div className="col-md-2 offset-md-4">
+              <div className="col-md-2">
                 <label className="eyebrow d-block mb-1">From</label>
                 <input
                   type="date"
