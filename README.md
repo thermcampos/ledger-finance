@@ -1,45 +1,85 @@
 # Ledger
 
-A personal finance app. Dark-mode-only, Bootstrap-based front end with a card/ledger visual language, backed by a Quarkus API.
+Personal finance app. Dark-mode-only, ledger-style UI backed by a Quarkus API on Kubernetes.
 
 ```
-ledger-app/
-├── backend/     Quarkus (Java 21, Maven) — REST API, Postgres, JWT auth
-└── frontend/    React (Vite) + Bootstrap 5 — SPA
+ledger-finance/
+├── backend/     Quarkus (Java 21, Maven) — REST API, Postgres, JWT auth, Flyway
+├── frontend/    React (Vite) — SPA, served via Nginx in prod
+└── terraform/   Kubernetes manifests (Terraform) — deployed to VPS via GitHub Actions
 ```
 
 ## Running locally
 
-**1. Backend** (see `backend/README.md` for full setup — database, JWT keys):
+**Recommended: Docker Compose**
 ```bash
-cd backend
-./mvnw quarkus:dev
+docker compose up
 ```
-Runs on `http://localhost:8080`.
+- Backend: `http://localhost:8080` (Quarkus dev mode, live-reload enabled)
+- Frontend: `http://localhost:5173`
+- DB: `localhost:5432` (postgres/ledger/ledger)
 
-**2. Frontend:**
+> Warning: editing any `.java` file triggers Hibernate `drop-and-create` in dev mode — local data is wiped on every live-reload. Expected behavior until Flyway is wired for dev.
+
+**Manual:**
 ```bash
-cd frontend
-npm install
-npm run dev
+# Backend
+cd backend && ./mvnw quarkus:dev     # localhost:8080
+
+# Frontend
+cd frontend && npm install && npm run dev   # localhost:5173
 ```
-Runs on `http://localhost:5173` and proxies `/api/*` requests to the backend (see `vite.config.js`).
 
-## What's wired up vs. stubbed
+## Seed data
 
-**Wired end-to-end:**
-- Sign up / log in, JWT issued by the backend and attached to every request
-- Accounts: list, create, delete
-- Transactions: list per account, create (updates the account's running balance)
-- Budgets: create/update a monthly limit per category, with spend totals computed live from transactions (`GET /budgets/month/{yyyy-MM}/spend`)
+```bash
+# After backend has created the schema at least once:
+psql -h localhost -U ledger -d ledger -f backend/seed-data.sql
+# Login: demo@ledger.app / demo12345
+```
 
-**Stubbed for now (visual only):**
-- The "Accounts at a glance" panel on Overview is a placeholder — a category breakdown card, not a chart, per the design brief.
+> Known bug: the demo password hash uses `$2b$` prefix — Quarkus Elytron's `BcryptUtil` expects `$2a$`. Demo login is currently broken.
 
-## Demo data
+## Feature status
 
-`backend/seed-data.sql` loads a demo user and a realistic set of accounts, categories, transactions, and July 2026 budgets — see `backend/README.md` for how to run it.
+All pages are fully wired end-to-end:
 
-## Design reference
+| Page | Route | Status |
+|------|-------|--------|
+| Overview | `/` | Done — balance, recent transactions, budget spend panel, date-range dropdown |
+| Transactions | `/transactions` | Done — list, add, edit, delete, account/category/date filters, CSV export |
+| Accounts | `/accounts` | Done — list, add, edit, delete (with FK pre-check) |
+| Budgets | `/budgets` | Done — list, add, edit, delete, month navigation, spend progress bars |
+| Categories | `/categories` | Done — list, add, edit, delete (blocked if in use) |
+| Credit Cards | `/credit-cards` | Done — glance dashboard: total owed/limit/available, utilization bars, due dates |
+| Profile | `/profile` | Done — edit display name/email, change password, account history log |
 
-The original static mockup (`finance-app-mockup.html` from earlier in this conversation) is the visual source of truth. The tokens in `frontend/src/styles/tokens.scss` and component classes in `main.scss` are a direct port — if the two drift, treat the mockup as the spec and reconcile the SCSS.
+## Architecture
+
+- **Auth:** JWT (SmallRye JWT), 7-day bearer tokens, no refresh flow. BCrypt via `BcryptUtil` (`$2a$` prefix).
+- **Migrations:** Flyway active in prod (`V1__init_schema.sql`). Dev uses `drop-and-create`.
+- **Budget spend:** computed live from transactions (`GET /budgets/month/{yyyy-MM}/spend`), not stored.
+- **Balance math:** `Account.openingBalance` (immutable) + chronological walk of transactions via `recomputeAccountBalance()` — no insertion-order math.
+- **Transactions with repeat/installments:** pre-generated as flat rows at create time; `seriesInfo` is display-only (no `series_id` group column yet).
+
+## Deployment
+
+GitHub Actions → Docker Hub → Terraform apply to Kubernetes (self-hosted VPS).
+
+- CI runners: `graalvm-25` (backend), `easynode-debian` (frontend + deploy)
+- Secrets managed via **Doppler** (`prd` config)
+- Docker images: `rmcampos/ledger-backend`, `rmcampos/ledger-frontend`
+- Versioning: `vYYYY.MM.DD.<run_number>` for backend; `latest` for frontend
+- Prod URLs:
+  - Frontend: `https://ledger-finance.darkroasted.vps-kinghost.net`
+  - Backend API: `https://ledgerapi.darkroasted.vps-kinghost.net`
+- Terraform state: Cloudflare R2 bucket `ledger-finance`
+- DB backups: Kubernetes CronJob → R2 bucket `ledger-finance-backups` (twice daily, 00:00 and 12:00 UTC)
+
+## Known gaps
+
+- Demo login broken (`$2b$` bcrypt prefix in seed-data.sql)
+- No refresh tokens — re-login after 7 days
+- No date-range query params on `GET /transactions/account/{id}` — filtering is client-side
+- No `series_id` on Transaction — repeat/installment occurrences share only a cosmetic `seriesInfo` string; no bulk edit/delete
+- No dashboard aggregation endpoint — Overview computes totals client-side

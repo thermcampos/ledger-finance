@@ -6,37 +6,64 @@ Personal finance app. Read this before making changes — it captures decisions 
 
 - **Dark mode only.** No light theme, no toggle.
 - **The "ledger" concept is the whole point.** Every monetary figure is set in monospace (IBM Plex Mono), right-aligned, tabular. This is the one non-negotiable rule — if you add a new figure anywhere (a new stat, a new card), it follows this rule too.
-- **Fraunces (serif)** is reserved for the hero balance number and page titles only. Do not use it for body text or labels — that dilutes the effect.
-- **No charts.** Budgets and spending are shown as cards with progress bars and status words (On track / Near limit / Over budget), not pie or line charts. This was an explicit choice, not an oversight.
+- **Fraunces (serif)** is reserved for the hero balance number and page titles only. Do not use it for body text or labels.
+- **No charts.** Budgets and spending are shown as cards with progress bars and status words (On track / Near limit / Over budget). This was an explicit choice.
 - **Palette is muted, not neon:** jade `#4FA98A` for positive, brick-red `#C75450` for negative, gold `#C9A227` reserved for "near limit" warnings only. Background is ink-navy `#0E1116`, not true black.
 - **Hairline borders** (`#262C36`) do the separating — avoid drop shadows or heavy card elevation.
-- Tokens live in `frontend/src/styles/tokens.scss`. Treat that file as the source of truth; if the UI and the tokens ever disagree, fix the UI, not the tokens.
+- Tokens live in `frontend/src/styles/tokens.scss`. If the UI and tokens disagree, fix the UI, not the tokens.
 
 ## Architecture decisions
 
-- **Backend: Quarkus (Java 21, Maven), not Node.** Explicit choice for native-image builds via GraalVM — fast startup, low memory. Don't suggest swapping to Spring Boot or Express.
-- **IDENTITY, not Hibernate SEQUENCE, for entity IDs.** Changed deliberately so plain SQL (seed scripts, manual fixes) never has to guess Hibernate's sequence names. Keep this pattern for any new entity.
+- **Backend: Quarkus (Java 21, Maven).** Explicit choice for native-image builds via GraalVM. Don't suggest swapping to Spring Boot or Express.
+- **IDENTITY, not Hibernate SEQUENCE, for entity IDs.** So plain SQL (seed scripts, manual fixes) never has to guess Hibernate's sequence names. Keep this pattern for any new entity.
 - **Monorepo:** `/frontend` and `/backend` in one repo, deployed as two separate artifacts.
-- **Auth:** full signup/login, JWT via SmallRye JWT, 7-day bearer tokens, no refresh flow yet. BCrypt via `quarkus-elytron-security-common`'s `BcryptUtil` (not jBCrypt).
-- **Budget spend is computed live** from transactions (`GET /budgets/month/{yyyy-MM}/spend`), not stored — don't add a cached "spent" column to the Budget entity, it'll drift.
+- **Auth:** JWT via SmallRye JWT, 7-day bearer tokens, no refresh flow. BCrypt via `quarkus-elytron-security-common`'s `BcryptUtil` (not jBCrypt, always `$2a$` prefix).
+- **Budget spend is computed live** from transactions (`GET /budgets/month/{yyyy-MM}/spend`), not stored — don't add a cached "spent" column to Budget, it'll drift.
+- **Balance math:** `Account.openingBalance` (immutable, set at creation) + `recomputeAccountBalance()` in `TransactionResource` — re-derives `account.balance` and every `runningBalance` in chronological order (`occurredOn`, then `id`) on every create/edit/delete. Never touch insertion-order-based math.
+- **Flyway:** active in prod (`%prod.quarkus.flyway.migrate-at-start=true`). Dev uses `drop-and-create`. Migrations live in `backend/src/main/resources/db/migration/`.
+- **Repeat/installments:** pre-generated as flat `Transaction` rows at create time (no scheduler, no series table). `seriesInfo` (e.g. `"3/12"`) is display-only. No bulk edit/delete by design.
+- **Credit cards:** `Account` has optional `creditLimit` (BigDecimal) and `dueDayOfMonth` (Integer 1-31). No statement-cycle model — just a recurring day. Validated in `AccountResource#validateCreditCardFields`.
+- **TokenService:** extracted from `AuthResource` into `security/TokenService` — both `AuthResource` and `UserResource` (after profile email change) use it to issue JWTs.
+- **Delete pattern:** in-card/in-row confirm panel (no `window.confirm`, no modal), pre-validates before showing confirm step when something might reference the row (e.g. `GET /categories/{id}/usage`). Skip pre-check only when nothing could reference the row (Budget, Transaction).
 
-## Known gaps / next steps
+## Dev environment
 
-- No Flyway/Liquibase yet — dev mode uses `drop-and-create`. Add real migrations before anything resembling production.
-- No refresh tokens — sessions just expire after 7 days and require re-login.
-- CORS is hardcoded to `http://localhost:5173` in `application.properties` — update before deploying the frontend anywhere else.
-- Demo data: `backend/seed-data.sql` (login `demo@ledger.app` / `demo12345`).
+- **Local dev runs via Docker Compose** — containers `ledger-backend` (8080), `ledger-frontend` (5173), `ledger-db` (5432). Check `docker ps` before assuming anything needs starting.
+- **Editing any `.java` file while `quarkus:dev` is running wipes the local database** (Hibernate `drop-and-create` on live-reload). Expected. Local data is disposable.
+- **The real logged-in user** is `ricardompcampos@hotmail.com`, not the seeded `demo@ledger.app` account.
+- CORS in dev allows `http://localhost:5173` and the ngrok dev URL (`flattop-depth-dropper.ngrok-free.dev`).
+- Prod CORS is locked to `https://ledger-finance.darkroasted.vps-kinghost.net`.
+
+## Deployment
+
+- CI: GitHub Actions on self-hosted runners (`graalvm-25` for backend, `easynode-debian` for frontend/deploy)
+- Secrets: Doppler (`prd` config) — `DOPPLER_AT_SECRETS` GitHub secret is the only secret in GH Actions
+- Docker Hub: `rmcampos/ledger-backend` (versioned `vYYYY.MM.DD.<run_number>` + `latest`), `rmcampos/ledger-frontend` (`latest` only)
+- Deploy workflow: triggered after Backend CI or Frontend CI completes → Terraform plan+apply to Kubernetes
+- Terraform state: Cloudflare R2, bucket `ledger-finance`
+- DB backups: Kubernetes CronJob → R2 bucket `ledger-finance-backups`, twice daily
+
+## Known gaps / deferred
+
+- Demo login broken: `seed-data.sql` hash uses `$2b$` prefix, Elytron wants `$2a$`. Fix: regenerate hash via `BcryptUtil.bcryptHash`.
+- No refresh tokens — re-login after 7 days.
+- No date-range query params on `GET /transactions/account/{id}` — filtering is client-side over full history.
+- No `series_id` on Transaction — repeat/installment occurrences share only `seriesInfo` string. Consequence: deleting one leaves a gap in numbering; no "delete all future" affordance. Tracked in TODO.md §8.
+- No dashboard aggregation endpoint — Overview computes totals client-side.
 
 ## Commands
 
 ```bash
-# Backend
+# Preferred: full stack via Docker Compose
+docker compose up
+
+# Backend only (local JVM)
 cd backend && ./mvnw quarkus:dev          # dev server, localhost:8080
 ./mvnw package -Pnative                    # native build
 
-# Frontend
+# Frontend only (local Node)
 cd frontend && npm install && npm run dev  # localhost:5173
 
-# Seed data (after backend has created the schema at least once)
+# Seed data (after backend has created the schema)
 psql -h localhost -U ledger -d ledger -f backend/seed-data.sql
 ```
