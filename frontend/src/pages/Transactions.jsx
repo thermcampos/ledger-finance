@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AccountsApi, CategoriesApi, TransactionsApi } from '../api/ledger';
-import { parseLocalDate, nextDueDate, dueLabel } from '../utils/date';
+import { parseLocalDate, startOfDay, nextDueDate, dueLabel } from '../utils/date';
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -273,9 +273,10 @@ export default function Transactions() {
     return relevantAccounts.reduce((sum, a) => sum + accountBalanceAsOf(a, cutoffDate), 0);
   }
 
+  const today = startOfDay(new Date());
   const currentBalanceTotal = filterAccountId
-    ? Number(accountById[filterAccountId]?.balance || 0)
-    : accounts.reduce((sum, a) => sum + Number(a.balance), 0);
+    ? (accountById[filterAccountId] ? accountBalanceAsOf(accountById[filterAccountId], today) : 0)
+    : accounts.reduce((sum, a) => sum + accountBalanceAsOf(a, today), 0);
 
   // A credit card's balance is stored negative (debt), but reads more
   // naturally as a positive "amount owed" — flip the sign/label only when a
