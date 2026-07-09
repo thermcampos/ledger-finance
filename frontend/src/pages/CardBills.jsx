@@ -217,7 +217,7 @@ export default function CardBills() {
     if (!billDates.includes(selectedBillDueDate)) {
       setSelectedBillDueDate(defaultBillDueDate);
     }
-  }, [billDates, defaultBillDueDate, searchParams]);
+  }, [billDates, defaultBillDueDate, selectedBillDueDate, searchParams]);
 
   function stepBill(direction) {
     if (!billDates.length) return;

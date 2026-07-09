@@ -124,6 +124,7 @@ export default function Overview() {
 
   const liquidAccounts = accounts.filter((a) => a.kind === 'CHECKING' || a.kind === 'SAVINGS');
   const ccAccounts = accounts.filter((a) => a.kind === 'CREDIT_CARD');
+  const investmentAccounts = accounts.filter((a) => a.kind === 'INVESTMENT');
   const totalBalance = liquidAccounts.reduce((sum, a) => sum + (accountBalances.get(a.id) ?? Number(a.balance)), 0);
 
   // Sum of each card's next open bill (same nextBillFor call the "Credit
@@ -132,6 +133,10 @@ export default function Overview() {
   // land in. A card with nothing owed yet contributes 0.
   const totalCardDebt = ccAccounts.reduce(
     (sum, a) => sum + Math.max(nextBillFor(a, txnsByAccountId.get(a.id) || [], today)?.amountOwed ?? 0, 0),
+    0
+  );
+  const totalInvestments = investmentAccounts.reduce(
+    (sum, a) => sum + (accountBalances.get(a.id) ?? Number(a.balance)),
     0
   );
   const { start, end } = rangeBounds(range);
@@ -161,14 +166,14 @@ export default function Overview() {
           <div className="text-muted-c">Loading…</div>
         ) : (
           <div className="row align-items-end g-3">
-            <div className="col-md-6">
+            <div className="col-md-4">
               <div className="eyebrow mb-2">Current balance</div>
               <div className="hero-balance">{money(totalBalance)}</div>
               <div className="text-muted-c mt-2" style={{ fontSize: 12.5 }}>
                 across {liquidAccounts.length} checking &amp; savings account{liquidAccounts.length === 1 ? '' : 's'}
               </div>
             </div>
-            <div className="col-md-6">
+            <div className="col-md-4">
               <div className="eyebrow mb-2">Credit card debt</div>
               <div className="hero-balance md" style={{ color: totalCardDebt > 0 ? 'var(--red)' : undefined }}>
                 {money(totalCardDebt)}
@@ -177,13 +182,20 @@ export default function Overview() {
                 across {ccAccounts.length} card{ccAccounts.length === 1 ? '' : 's'}
               </div>
             </div>
+            <div className="col-md-4">
+              <div className="eyebrow mb-2">Total investments</div>
+              <div className="hero-balance md">{money(totalInvestments)}</div>
+              <div className="text-muted-c mt-2" style={{ fontSize: 12.5 }}>
+                across {investmentAccounts.length} account{investmentAccounts.length === 1 ? '' : 's'}
+              </div>
+            </div>
           </div>
         )}
       </div>
 
       <div className="row g-3 mb-4">
         <div className="eyebrow mb-2">Checking & Savings accounts</div>
-        {accounts.filter((a) => a.kind !== 'CREDIT_CARD').map((a) => {
+        {liquidAccounts.map((a) => {
           const bal = accountBalances.get(a.id) ?? Number(a.balance);
           return (
             <div className="col-6 col-md-3" key={a.id}>
@@ -203,6 +215,26 @@ export default function Overview() {
           </div>
         )}
       </div>
+
+      {investmentAccounts.length > 0 && (
+        <div className="row g-3 mb-4">
+          <div className="eyebrow mb-2">Investments</div>
+          {investmentAccounts.map((a) => {
+            const bal = accountBalances.get(a.id) ?? Number(a.balance);
+            return (
+              <div className="col-6 col-md-3" key={a.id}>
+                <div className="acct-card">
+                  <div className="acct-kind">{a.kind?.replace('_', ' ')}</div>
+                  <div className="acct-balance" style={{ color: bal < 0 ? 'var(--red)' : undefined }}>
+                    {money(bal)}
+                  </div>
+                  <div className="acct-name">{a.name}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {ccAccounts.length > 0 && (
         <div className="mb-4">
