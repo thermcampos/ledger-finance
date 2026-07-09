@@ -139,6 +139,7 @@ export default function Categories() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
+                  autoFocus
                 />
               </div>
               <div className="col-md-5">
