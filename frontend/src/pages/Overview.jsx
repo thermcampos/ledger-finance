@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { AccountsApi, BudgetsApi, TransactionsApi } from '../api/ledger';
 import { localYearMonth, startOfDay, dueLabel } from '../utils/date';
@@ -23,7 +23,8 @@ const categoryColors = {
   Salary: '#4FA98A',
 };
 
-function money(amount, { signed = false } = {}) {
+function money(amount, { signed = false, hidden = false } = {}) {
+  if (hidden) return '••••';
   const value = Math.abs(amount).toLocaleString('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
@@ -33,6 +34,8 @@ function money(amount, { signed = false } = {}) {
 }
 
 export default function Overview() {
+  const [hideValues, setHideValues] = useState(false);
+
   const accountsQuery = useQuery({ queryKey: ['accounts'], queryFn: AccountsApi.list });
   const accounts = useMemo(() => accountsQuery.data || [], [accountsQuery.data]);
 
@@ -113,6 +116,15 @@ export default function Overview() {
           </div>
           <div className="page-title">Overview</div>
         </div>
+        <button
+          type="button"
+          className="btn btn-sm btn-ghost"
+          onClick={() => setHideValues((v) => !v)}
+          title={hideValues ? 'Show values' : 'Hide values'}
+          aria-label={hideValues ? 'Show values' : 'Hide values'}
+        >
+          <i className={`bi ${hideValues ? 'bi-eye-slash' : 'bi-eye'}`} />
+        </button>
       </div>
 
       <div className="panel p-4 mb-4">
@@ -122,7 +134,7 @@ export default function Overview() {
           <div className="row align-items-end g-3">
             <div className="col-md-4">
               <div className="eyebrow mb-2">Current balance</div>
-              <div className="hero-balance">{money(totalBalance)}</div>
+              <div className="hero-balance">{money(totalBalance, { hidden: hideValues })}</div>
               <div className="text-muted-c mt-2" style={{ fontSize: 12.5 }}>
                 across {liquidAccounts.length} checking &amp; savings account{liquidAccounts.length === 1 ? '' : 's'}
               </div>
@@ -130,7 +142,7 @@ export default function Overview() {
             <div className="col-md-4">
               <div className="eyebrow mb-2">Credit card debt</div>
               <div className="hero-balance md" style={{ color: totalCardDebt > 0 ? 'var(--red)' : undefined }}>
-                {money(totalCardDebt)}
+                {money(totalCardDebt, { hidden: hideValues })}
               </div>
               <div className="text-muted-c mt-2" style={{ fontSize: 12.5 }}>
                 across {ccAccounts.length} card{ccAccounts.length === 1 ? '' : 's'}
@@ -138,7 +150,7 @@ export default function Overview() {
             </div>
             <div className="col-md-4">
               <div className="eyebrow mb-2">Total investments</div>
-              <div className="hero-balance md">{money(totalInvestments)}</div>
+              <div className="hero-balance md">{money(totalInvestments, { hidden: hideValues })}</div>
               <div className="text-muted-c mt-2" style={{ fontSize: 12.5 }}>
                 across {investmentAccounts.length} account{investmentAccounts.length === 1 ? '' : 's'}
               </div>
@@ -156,7 +168,7 @@ export default function Overview() {
               <div className="acct-card">
                 <div className="acct-kind">{a.kind?.replace('_', ' ')}</div>
                 <div className="acct-balance" style={{ color: bal < 0 ? 'var(--red)' : undefined }}>
-                  {money(bal)}
+                  {money(bal, { hidden: hideValues })}
                 </div>
                 <div className="acct-name">{a.name}</div>
               </div>
@@ -180,7 +192,7 @@ export default function Overview() {
                 <div className="acct-card">
                   <div className="acct-kind">{a.kind?.replace('_', ' ')}</div>
                   <div className="acct-balance" style={{ color: bal < 0 ? 'var(--red)' : undefined }}>
-                    {money(bal)}
+                    {money(bal, { hidden: hideValues })}
                   </div>
                   <div className="acct-name">{a.name}</div>
                 </div>
@@ -201,7 +213,7 @@ export default function Overview() {
                   <div className="acct-card">
                     <div className="acct-kind">Credit card</div>
                     <div className="acct-balance" style={{ color: bill?.amountOwed > 0 ? 'var(--red)' : undefined }}>
-                      {bill ? money(bill.amountOwed) : '—'}
+                      {bill ? money(bill.amountOwed, { hidden: hideValues }) : '—'}
                     </div>
                     <div className="acct-name">{c.name}</div>
                     <div className="text-faint mt-1" style={{ fontSize: 11 }}>
@@ -236,7 +248,7 @@ export default function Overview() {
                     <span className="feed-desc">{t.description}</span>
                   </div>
                   <span className={`cell-amount ${t.amount < 0 ? 'neg' : 'pos'}`}>
-                    {money(Number(t.amount), { signed: true })}
+                    {money(Number(t.amount), { signed: true, hidden: hideValues })}
                   </span>
                 </div>
               ))
@@ -268,7 +280,7 @@ export default function Overview() {
                         {b.category?.name}
                       </span>
                       <span className="mono text-muted-c" style={{ fontSize: 12 }}>
-                        {money(spent)} / {money(limit)}
+                        {money(spent, { hidden: hideValues })} / {money(limit, { hidden: hideValues })}
                       </span>
                     </div>
                     <div className="track">
