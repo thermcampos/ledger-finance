@@ -48,7 +48,7 @@ export default function Budgets() {
   );
 
   const totalBudgeted = budgets.reduce((s, b) => s + Number(b.limitAmount), 0);
-  const totalSpent = Object.values(spendByCategory).reduce((s, v) => s + v, 0);
+  const totalSpent = budgets.reduce((s, b) => s + (spendByCategory[b.category?.id] || 0), 0);
 
   const [showForm, setShowForm] = useState(false);
   const [categoryId, setCategoryId] = useState('');

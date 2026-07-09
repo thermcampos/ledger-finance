@@ -48,6 +48,10 @@ public class BudgetResource {
         User user = currentUser.require();
         LocalDate start = LocalDate.parse(yearMonth + "-01");
         LocalDate end = start.plusMonths(1).minusDays(1);
+        LocalDate today = LocalDate.now();
+        if (end.isAfter(today)) {
+            end = today;
+        }
 
         return em.createQuery(
                 "SELECT new com.ledger.budget.CategorySpend(t.category.id, t.category.name, SUM(t.amount)) " +
