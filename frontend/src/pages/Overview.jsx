@@ -1,46 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { AccountsApi, BudgetsApi, TransactionsApi } from '../api/ledger';
-import Dropdown from '../components/Dropdown';
 import { parseLocalDate, localYearMonth, startOfDay, dueLabel } from '../utils/date';
 import { nextBillFor } from '../utils/creditCard';
-
-const rangeOptions = [
-  { value: 'week', label: 'This week' },
-  { value: 'lastWeek', label: 'Last week' },
-  { value: 'month', label: 'This month' },
-  { value: 'last30', label: 'Last 30 days' },
-  { value: 'year', label: 'This year' },
-];
-
-function startOfWeek(date) {
-  const start = new Date(date);
-  start.setHours(0, 0, 0, 0);
-  start.setDate(start.getDate() - start.getDay());
-  return start;
-}
-
-function rangeBounds(range) {
-  const now = new Date();
-  const end = new Date(now);
-  end.setHours(23, 59, 59, 999);
-
-  if (range === 'week') return { start: startOfWeek(now), end };
-  if (range === 'lastWeek') {
-    const start = startOfWeek(now);
-    start.setDate(start.getDate() - 7);
-    const lastWeekEnd = startOfWeek(now);
-    lastWeekEnd.setMilliseconds(-1);
-    return { start, end: lastWeekEnd };
-  }
-  if (range === 'last30') {
-    const start = new Date(now);
-    start.setDate(start.getDate() - 30);
-    return { start, end };
-  }
-  if (range === 'year') return { start: new Date(now.getFullYear(), 0, 1), end };
-  return { start: new Date(now.getFullYear(), now.getMonth(), 1), end };
-}
 
 function statusColor(spent, limit) {
   const pct = limit > 0 ? (spent / limit) * 100 : 0;
@@ -70,7 +32,6 @@ function money(amount, { signed = false } = {}) {
 }
 
 export default function Overview() {
-  const [range, setRange] = useState('month');
   const accountsQuery = useQuery({ queryKey: ['accounts'], queryFn: AccountsApi.list });
   const accounts = useMemo(() => accountsQuery.data || [], [accountsQuery.data]);
 
@@ -139,14 +100,17 @@ export default function Overview() {
     (sum, a) => sum + (accountBalances.get(a.id) ?? Number(a.balance)),
     0
   );
-  const { start, end } = rangeBounds(range);
+  // "Latest added" — global across all accounts, not sorted by occurredOn,
+  // since a backdated/future entry can still be the most recently added
+  // one. System-generated credit card bill rows (linkedCard set) aren't
+  // something the user "added," so they're excluded here.
   const recent = txnQueries
     .flatMap((q) => q.data || [])
-    .filter((t) => {
-      const occurred = parseLocalDate(t.occurredOn);
-      return occurred >= start && occurred <= end;
+    .filter((t) => !t.linkedCard)
+    .sort((a, b) => {
+      const diff = new Date(b.createdAt) - new Date(a.createdAt);
+      return diff !== 0 ? diff : b.id - a.id;
     })
-    .sort((a, b) => parseLocalDate(b.occurredOn) - parseLocalDate(a.occurredOn))
     .slice(0, 5);
 
   return (
@@ -158,7 +122,6 @@ export default function Overview() {
           </div>
           <div className="page-title">Overview</div>
         </div>
-        <Dropdown icon="bi-calendar3" options={rangeOptions} value={range} onChange={setRange} />
       </div>
 
       <div className="panel p-4 mb-4">
@@ -269,7 +232,7 @@ export default function Overview() {
             </div>
             {recent.length === 0 ? (
               <div className="p-4 text-muted-c" style={{ fontSize: 13 }}>
-                No transactions in this range.
+                No transactions yet.
               </div>
             ) : (
               recent.map((t) => (

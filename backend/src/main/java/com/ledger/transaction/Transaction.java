@@ -6,6 +6,7 @@ import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -59,6 +60,17 @@ public class Transaction extends PanacheEntityBase {
     @ManyToOne
     @JoinColumn(name = "linked_card_id")
     public Account linkedCard;
+
+    /** When this row was inserted — drives "latest added" ordering (e.g. Overview's Recent Activity). */
+    @Column(name = "created_at", nullable = false, columnDefinition = "TIMESTAMPTZ NOT NULL DEFAULT now()")
+    public Instant createdAt;
+
+    @PrePersist
+    void onPersist() {
+        if (createdAt == null) {
+            createdAt = Instant.now();
+        }
+    }
 
     public static List<Transaction> findByAccount(Long accountId) {
         return list("account.id", io.quarkus.panache.common.Sort.descending("occurredOn"), accountId);
