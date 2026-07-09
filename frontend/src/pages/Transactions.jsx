@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AccountsApi, CategoriesApi, TransactionsApi } from '../api/ledger';
 import { parseLocalDate, startOfDay } from '../utils/date';
@@ -140,8 +140,20 @@ function dayLabelKind(dateStr) {
 
 export default function Transactions() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [search, setSearch] = useState('');
+  const [showAddMenu, setShowAddMenu] = useState(false);
+  const addMenuRef = useRef(null);
+
+  useEffect(() => {
+    function onClickOutside(e) {
+      if (addMenuRef.current && !addMenuRef.current.contains(e.target)) setShowAddMenu(false);
+    }
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
+  }, []);
+
   const [filterAccountId, setFilterAccountId] = useState(() => {
     try {
       return localStorage.getItem('ledger:lastAccountId') || '';
@@ -410,10 +422,35 @@ export default function Transactions() {
           <div className="eyebrow mb-1">All accounts</div>
           <div className="page-title">Transactions</div>
         </div>
-        <button className="btn btn-jade btn-sm" onClick={() => { if (!showForm && filterAccountId) setAccountId(filterAccountId); setShowForm((s) => !s); }}>
-          <i className="bi bi-plus-lg me-1" />
-          Add transaction
-        </button>
+        <div className="dropdown-custom d-flex align-items-center" ref={addMenuRef}>
+          <button
+            className="btn btn-jade btn-sm"
+            onClick={() => { if (!showForm && filterAccountId) setAccountId(filterAccountId); setShowForm((s) => !s); }}
+          >
+            <i className="bi bi-plus-lg me-1" />
+            Add transaction
+          </button>
+          <button
+            type="button"
+            className="btn btn-jade btn-sm px-2 ms-1"
+            title="More ways to add"
+            onClick={() => setShowAddMenu((s) => !s)}
+          >
+            <i className="bi bi-chevron-down" />
+          </button>
+          {showAddMenu && (
+            <div className="dropdown-menu-custom">
+              <button
+                type="button"
+                className="dropdown-item-custom"
+                onClick={() => { setShowAddMenu(false); navigate('/card-bills?add=1'); }}
+              >
+                <i className="bi bi-credit-card me-2" />
+                Add credit card transaction
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="d-flex flex-wrap align-items-center gap-2 mb-3">

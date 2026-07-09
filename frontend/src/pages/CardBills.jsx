@@ -256,6 +256,25 @@ export default function CardBills() {
     setShowForm((s) => !s);
   };
 
+  // Deep link from Transactions' "Add credit card transaction" menu item
+  // (?add=1) — force the form open (not openForm's toggle) as soon as a
+  // bill is actually selected, so billDueDate captures a real value instead
+  // of the '' it starts as before the bill-selection effect above runs.
+  const appliedAddParam = useRef(false);
+  useEffect(() => {
+    if (
+      searchParams.get('add') === '1' &&
+      selectedCard &&
+      selectedBillDueDate &&
+      !appliedAddParam.current
+    ) {
+      appliedAddParam.current = true;
+      setOccurredOn(todayIso());
+      setBillDueDate(selectedBillDueDate);
+      setShowForm(true);
+    }
+  }, [searchParams, selectedCard, selectedBillDueDate]);
+
   const createMutation = useMutation({
     mutationFn: TransactionsApi.create,
     onSuccess: () => {
