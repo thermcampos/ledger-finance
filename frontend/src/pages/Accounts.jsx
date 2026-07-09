@@ -1,6 +1,9 @@
-import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AccountsApi, TransactionsApi } from '../api/ledger';
+import { startOfDay } from '../utils/date';
+import { balanceAsOf, sortChronologically } from '../utils/balance';
+import { nextBillFor } from '../utils/creditCard';
 
 const kindIcons = {
   CHECKING: 'bi-wallet2',
@@ -20,7 +23,21 @@ function money(amount) {
 export default function Accounts() {
   const queryClient = useQueryClient();
   const accountsQuery = useQuery({ queryKey: ['accounts'], queryFn: AccountsApi.list });
-  const accounts = accountsQuery.data || [];
+  const accounts = useMemo(() => accountsQuery.data || [], [accountsQuery.data]);
+
+  const txnQueries = useQueries({
+    queries: accounts.map((a) => ({
+      queryKey: ['transactions', a.id],
+      queryFn: () => TransactionsApi.listByAccount(a.id),
+      enabled: !!a.id,
+    })),
+  });
+  const today = startOfDay(new Date());
+  const txnsByAccountId = useMemo(() => {
+    const map = new Map();
+    accounts.forEach((a, i) => map.set(a.id, txnQueries[i]?.data || []));
+    return map;
+  }, [accounts, txnQueries]);
 
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
@@ -254,7 +271,11 @@ export default function Accounts() {
       )}
 
       <div className="row g-3">
-        {accounts.map((a) => (
+        {accounts.map((a) => {
+          const txns = txnsByAccountId.get(a.id) || [];
+          const bill = a.kind === 'CREDIT_CARD' ? nextBillFor(a, txns, today) : null;
+          const bal = a.kind === 'CREDIT_CARD' ? bill?.amountOwed : balanceAsOf(a, sortChronologically(txns), today);
+          return (
           <div className="col-md-6 col-lg-3" key={a.id}>
             <div className="account-card-lg">
               {editingId === a.id ? (
@@ -385,8 +406,8 @@ export default function Accounts() {
                     </div>
                   </div>
                   <div className="acct-kind">{a.kind?.replace('_', ' ')}</div>
-                  <div className="acct-balance" style={{ color: a.balance < 0 ? 'var(--red)' : undefined }}>
-                    {money(Number(a.balance))}
+                  <div className="acct-balance" style={{ color: bal < 0 ? 'var(--red)' : undefined }}>
+                    {bal != null ? money(bal) : '—'}
                   </div>
                   <div className="acct-name mb-3">{a.name}</div>
                   {a.institution && <div className="text-faint mb-2" style={{ fontSize: 11.5 }}>{a.institution}</div>}
@@ -402,7 +423,8 @@ export default function Accounts() {
               )}
             </div>
           </div>
-        ))}
+          );
+        })}
         <div className="col-md-6 col-lg-3">
           <div className="add-account-card" onClick={() => setShowForm(true)}>
             <i className="bi bi-plus-lg mb-2" style={{ fontSize: 18 }} />

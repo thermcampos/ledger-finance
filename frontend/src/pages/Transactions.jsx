@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AccountsApi, CategoriesApi, TransactionsApi } from '../api/ledger';
 import { parseLocalDate, startOfDay } from '../utils/date';
+import { balanceAsOf, sortChronologically } from '../utils/balance';
 
 function todayIso() {
   const d = new Date();
@@ -323,24 +324,13 @@ export default function Transactions() {
   const sortedTxnsByAccount = useMemo(() => {
     const map = new Map();
     accounts.forEach((a, i) => {
-      const raw = txnQueries[i]?.data || [];
-      const sorted = [...raw].sort((x, y) => {
-        const diff = parseLocalDate(x.occurredOn) - parseLocalDate(y.occurredOn);
-        return diff !== 0 ? diff : x.id - y.id;
-      });
-      map.set(a.id, sorted);
+      map.set(a.id, sortChronologically(txnQueries[i]?.data || []));
     });
     return map;
   }, [accounts, txnQueries]);
 
   function accountBalanceAsOf(account, cutoffDate) {
-    const sorted = sortedTxnsByAccount.get(account.id) || [];
-    let balance = Number(account.openingBalance ?? 0);
-    for (const t of sorted) {
-      if (parseLocalDate(t.occurredOn) > cutoffDate) break;
-      balance = Number(t.runningBalance);
-    }
-    return balance;
+    return balanceAsOf(account, sortedTxnsByAccount.get(account.id) || [], cutoffDate);
   }
 
   // "All accounts" balance totals only ever mean checking/savings — credit

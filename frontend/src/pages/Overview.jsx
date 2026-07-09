@@ -1,8 +1,9 @@
 import { useMemo } from 'react';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { AccountsApi, BudgetsApi, TransactionsApi } from '../api/ledger';
-import { parseLocalDate, localYearMonth, startOfDay, dueLabel } from '../utils/date';
+import { localYearMonth, startOfDay, dueLabel } from '../utils/date';
 import { nextBillFor } from '../utils/creditCard';
+import { balanceAsOf, sortChronologically } from '../utils/balance';
 
 function statusColor(spent, limit) {
   const pct = limit > 0 ? (spent / limit) * 100 : 0;
@@ -62,17 +63,7 @@ export default function Overview() {
   const accountBalances = useMemo(() => {
     const map = new Map();
     accounts.forEach((a, i) => {
-      const raw = txnQueries[i]?.data || [];
-      const sorted = [...raw].sort((x, y) => {
-        const diff = parseLocalDate(x.occurredOn) - parseLocalDate(y.occurredOn);
-        return diff !== 0 ? diff : x.id - y.id;
-      });
-      let balance = Number(a.openingBalance ?? 0);
-      for (const t of sorted) {
-        if (parseLocalDate(t.occurredOn) > today) break;
-        balance = Number(t.runningBalance);
-      }
-      map.set(a.id, balance);
+      map.set(a.id, balanceAsOf(a, sortChronologically(txnQueries[i]?.data || []), today));
     });
     return map;
   }, [accounts, txnQueries, today]);
