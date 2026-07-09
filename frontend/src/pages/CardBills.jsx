@@ -239,6 +239,19 @@ export default function CardBills() {
     [selectedCard, sortedTxns, selectedBillDueDate]
   );
 
+  const [search, setSearch] = useState('');
+
+  const filteredBillTransactions = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return billTransactions;
+    return billTransactions.filter(
+      (t) =>
+        t.description.toLowerCase().includes(term) ||
+        (t.category?.name || '').toLowerCase().includes(term) ||
+        String(t.amount).toLowerCase().includes(term)
+    );
+  }, [billTransactions, search]);
+
   const [showForm, setShowForm] = useState(false);
   const [categoryId, setCategoryId] = useState('');
   const [description, setDescription] = useState('');
@@ -275,19 +288,23 @@ export default function CardBills() {
     }
   }, [searchParams, selectedCard, selectedBillDueDate]);
 
+  const resetForm = () => {
+    setShowForm(false);
+    setCategoryId('');
+    setDescription('');
+    setAmount('');
+    setOccurredOn(todayIso());
+    setRepeat('NONE');
+    setOccurrences('');
+    setBillDueDate('');
+  };
+
   const createMutation = useMutation({
     mutationFn: TransactionsApi.create,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
       queryClient.invalidateQueries({ queryKey: ['transactions', selectedCard?.id] });
-      setShowForm(false);
-      setCategoryId('');
-      setDescription('');
-      setAmount('');
-      setOccurredOn(todayIso());
-      setRepeat('NONE');
-      setOccurrences('');
-      setBillDueDate('');
+      resetForm();
     },
   });
 
@@ -411,49 +428,51 @@ export default function CardBills() {
 
       {selectedCard && (
         <>
-          {eligibleCards.length > 1 && (
-            <div className="d-flex align-items-center gap-2 mb-3">
-              <select
-                className="form-select form-select-sm"
-                style={{ width: 'auto' }}
-                value={selectedCardId}
-                onChange={(e) => setSelectedCardId(e.target.value)}
-              >
-                {eligibleCards.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+          {(eligibleCards.length > 1 || dueDateObj) && (
+            <div className="nav-toolbar">
+              {eligibleCards.length > 1 && (
+                <select
+                  className="form-select form-select-lg"
+                  style={{ width: 'auto', minWidth: 220 }}
+                  value={selectedCardId}
+                  onChange={(e) => setSelectedCardId(e.target.value)}
+                >
+                  {eligibleCards.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              )}
 
-          {dueDateObj && (
-            <div className="d-flex align-items-center gap-1 mb-3">
-              <button
-                type="button"
-                className="icon-btn"
-                title="Previous bill"
-                disabled={billDates.indexOf(selectedBillDueDate) <= 0}
-                onClick={() => stepBill('prev')}
-              >
-                <i className="bi bi-chevron-left" />
-              </button>
-              <span className="eyebrow" style={{ minWidth: 160, textAlign: 'center' }}>
-                {dueDateObj.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} bill
-              </span>
-              <button
-                type="button"
-                className="icon-btn"
-                title="Next bill"
-                disabled={
-                  billDates.indexOf(selectedBillDueDate) === -1 ||
-                  billDates.indexOf(selectedBillDueDate) >= billDates.length - 1
-                }
-                onClick={() => stepBill('next')}
-              >
-                <i className="bi bi-chevron-right" />
-              </button>
+              {dueDateObj && (
+                <div className="d-flex align-items-center gap-2">
+                  <button
+                    type="button"
+                    className="icon-btn icon-btn-lg"
+                    title="Previous bill"
+                    disabled={billDates.indexOf(selectedBillDueDate) <= 0}
+                    onClick={() => stepBill('prev')}
+                  >
+                    <i className="bi bi-chevron-left" />
+                  </button>
+                  <span className="nav-toolbar-label" style={{ minWidth: 180, textAlign: 'center' }}>
+                    {dueDateObj.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} bill
+                  </span>
+                  <button
+                    type="button"
+                    className="icon-btn icon-btn-lg"
+                    title="Next bill"
+                    disabled={
+                      billDates.indexOf(selectedBillDueDate) === -1 ||
+                      billDates.indexOf(selectedBillDueDate) >= billDates.length - 1
+                    }
+                    onClick={() => stepBill('next')}
+                  >
+                    <i className="bi bi-chevron-right" />
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -467,6 +486,16 @@ export default function CardBills() {
                 {dueDateLine(dueDateObj, today)}
               </div>
             )}
+          </div>
+
+          <div className="mb-3">
+            <input
+              type="text"
+              className="form-control form-control-sm"
+              placeholder="Search description, category, or amount"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
 
           {showForm && (
@@ -497,7 +526,7 @@ export default function CardBills() {
                       required
                     />
                   </div>
-                  <div className="col-md-2">
+                  <div className="col-md-3">
                     <label className="eyebrow d-block mb-2">Amount</label>
                     <input
                       type="text"
@@ -509,7 +538,7 @@ export default function CardBills() {
                       required
                     />
                   </div>
-                  <div className="col-md-2">
+                  <div className="col-md-3">
                     <label className="eyebrow d-block mb-2">Date</label>
                     <input
                       type="date"
@@ -519,14 +548,9 @@ export default function CardBills() {
                       required
                     />
                   </div>
-                  <div className="col-md-2">
-                    <button type="submit" className="btn btn-jade btn-sm w-100" disabled={createMutation.isPending}>
-                      {createMutation.isPending ? '…' : 'Add'}
-                    </button>
-                  </div>
                 </div>
                 <div className="row g-3 align-items-end mt-1">
-                  <div className="col-md-2">
+                  <div className="col-md-6">
                     <label className="eyebrow d-block mb-2">Repeat</label>
                     <select
                       className="form-select form-select-sm"
@@ -541,7 +565,7 @@ export default function CardBills() {
                     </select>
                   </div>
                   {repeat !== 'NONE' && (
-                    <div className="col-md-2">
+                    <div className="col-md-6">
                       <label className="eyebrow d-block mb-2">
                         {repeat === 'INSTALLMENTS' ? 'Installments' : 'Occurrences'}
                       </label>
@@ -557,7 +581,7 @@ export default function CardBills() {
                     </div>
                   )}
                   {repeat === 'NONE' && (
-                    <div className="col-md-2">
+                    <div className="col-md-6">
                       <label className="eyebrow d-block mb-2">Bill</label>
                       <select
                         className="form-select form-select-sm"
@@ -573,12 +597,22 @@ export default function CardBills() {
                     </div>
                   )}
                   {repeat !== 'NONE' && (
-                    <div className="col-md-8 text-faint" style={{ fontSize: 11.5 }}>
+                    <div className="col-12 text-faint" style={{ fontSize: 11.5 }}>
                       {repeat === 'INSTALLMENTS'
                         ? `Splits the amount evenly into ${occurrences || 'N'} monthly transactions.`
                         : `Creates ${occurrences || 'N'} ${repeat.toLowerCase()} transactions of the same amount, starting on the date above.`}
                     </div>
                   )}
+                </div>
+                <div className="row mt-3">
+                  <div className="col-12 d-flex justify-content-end gap-2">
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={resetForm}>
+                      Cancel
+                    </button>
+                    <button type="submit" className="btn btn-jade btn-sm" disabled={createMutation.isPending}>
+                      {createMutation.isPending ? 'Adding…' : 'Add'}
+                    </button>
+                  </div>
                 </div>
               </form>
             </div>
@@ -592,8 +626,14 @@ export default function CardBills() {
             </div>
           )}
 
+          {!isLoading && billTransactions.length > 0 && filteredBillTransactions.length === 0 && (
+            <div className="panel p-4 text-muted-c" style={{ fontSize: 13 }}>
+              No transactions match your search.
+            </div>
+          )}
+
           {!isLoading &&
-            billTransactions.map((t) => {
+            filteredBillTransactions.map((t) => {
               const catName = t.category?.name;
               const icon = categoryIcons[catName] || 'bi-dot';
               const color = t.category?.colorHex || categoryColors[catName] || '#8B92A0';

@@ -16,7 +16,7 @@ function pickNextColor(usedColors) {
 export default function Categories() {
   const queryClient = useQueryClient();
   const categoriesQuery = useQuery({ queryKey: ['categories'], queryFn: CategoriesApi.list });
-  const categories = categoriesQuery.data || [];
+  const categories = [...(categoriesQuery.data || [])].sort((a, b) => a.name.localeCompare(b.name));
 
   const [showForm, setShowForm] = useState(false);
   const [showPalette, setShowPalette] = useState(false);

@@ -422,6 +422,31 @@ body {
   color: var(--text);
   border-color: var(--text-muted);
 }
+.icon-btn-lg {
+  width: 40px;
+  height: 40px;
+  font-size: 17px;
+  border-radius: 8px;
+}
+.nav-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 0;
+  margin-bottom: 24px;
+}
+.nav-toolbar .form-select-lg {
+  font-size: 16px;
+  font-weight: 500;
+}
+.nav-toolbar-label {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text);
+  display: inline-block;
+}
 
 /* --- Auth pages --- */
 .auth-shell {

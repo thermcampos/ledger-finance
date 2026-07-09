@@ -111,7 +111,7 @@ export default function Accounts() {
       name,
       institution,
       kind,
-      balance: Number(balance) || 0,
+      balance: kind === 'CREDIT_CARD' ? 0 : Number(balance) || 0,
       creditLimit: kind === 'CREDIT_CARD' && creditLimit !== '' ? Number(creditLimit) : null,
       dueDayOfMonth: kind === 'CREDIT_CARD' && dueDayOfMonth !== '' ? Number(dueDayOfMonth) : null,
       paymentAccountId: kind === 'CREDIT_CARD' && paymentAccountId ? Number(paymentAccountId) : null,
@@ -175,7 +175,7 @@ export default function Accounts() {
         <div className="panel p-4 mb-4">
           <form onSubmit={handleSubmit}>
             <div className="row g-3 align-items-end">
-              <div className="col-md-3">
+              <div className={kind === 'CREDIT_CARD' ? 'col-md-4' : 'col-md-3'}>
                 <label className="eyebrow d-block mb-2">Name</label>
                 <input
                   className="form-control form-control-sm"
@@ -184,7 +184,7 @@ export default function Accounts() {
                   required
                 />
               </div>
-              <div className="col-md-3">
+              <div className={kind === 'CREDIT_CARD' ? 'col-md-4' : 'col-md-3'}>
                 <label className="eyebrow d-block mb-2">Institution</label>
                 <input
                   className="form-control form-control-sm"
@@ -192,7 +192,7 @@ export default function Accounts() {
                   onChange={(e) => setInstitution(e.target.value)}
                 />
               </div>
-              <div className="col-md-2">
+              <div className={kind === 'CREDIT_CARD' ? 'col-md-4' : 'col-md-3'}>
                 <label className="eyebrow d-block mb-2">Kind</label>
                 <select
                   className="form-select form-select-sm"
@@ -205,25 +205,22 @@ export default function Accounts() {
                   <option value="INVESTMENT">Investment</option>
                 </select>
               </div>
-              <div className="col-md-2">
-                <label className="eyebrow d-block mb-2">Starting balance</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  className="form-control form-control-sm"
-                  value={balance}
-                  onChange={(e) => setBalance(e.target.value)}
-                />
-              </div>
-              <div className="col-md-2">
-                <button type="submit" className="btn btn-jade btn-sm w-100" disabled={createMutation.isPending}>
-                  {createMutation.isPending ? 'Adding…' : 'Add'}
-                </button>
-              </div>
+              {kind !== 'CREDIT_CARD' && (
+                <div className="col-md-3">
+                  <label className="eyebrow d-block mb-2">Starting balance</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="form-control form-control-sm"
+                    value={balance}
+                    onChange={(e) => setBalance(e.target.value)}
+                  />
+                </div>
+              )}
             </div>
             {kind === 'CREDIT_CARD' && (
               <div className="row g-3 align-items-end mt-1">
-                <div className="col-md-3">
+                <div className="col-md-4">
                   <label className="eyebrow d-block mb-2">Credit limit</label>
                   <input
                     type="number"
@@ -235,7 +232,7 @@ export default function Accounts() {
                     onChange={(e) => setCreditLimit(e.target.value)}
                   />
                 </div>
-                <div className="col-md-3">
+                <div className="col-md-4">
                   <label className="eyebrow d-block mb-2">Due day of month</label>
                   <input
                     type="number"
@@ -247,7 +244,7 @@ export default function Accounts() {
                     onChange={(e) => setDueDayOfMonth(e.target.value)}
                   />
                 </div>
-                <div className="col-md-3">
+                <div className="col-md-4">
                   <label className="eyebrow d-block mb-2">Payment account</label>
                   <select
                     className="form-select form-select-sm"
@@ -266,6 +263,13 @@ export default function Accounts() {
                 </div>
               </div>
             )}
+            <div className="row mt-3">
+              <div className="col-12 d-flex justify-content-end">
+                <button type="submit" className="btn btn-jade btn-sm" disabled={createMutation.isPending}>
+                  {createMutation.isPending ? 'Adding…' : 'Add'}
+                </button>
+              </div>
+            </div>
           </form>
         </div>
       )}

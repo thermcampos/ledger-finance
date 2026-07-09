@@ -210,19 +210,23 @@ export default function Transactions() {
   const [repeat, setRepeat] = useState('NONE');
   const [occurrences, setOccurrences] = useState('');
 
+  const resetForm = () => {
+    setShowForm(false);
+    setAccountId('');
+    setCategoryId('');
+    setDescription('');
+    setAmount('');
+    setOccurredOn(todayIso());
+    setRepeat('NONE');
+    setOccurrences('');
+  };
+
   const createMutation = useMutation({
     mutationFn: TransactionsApi.create,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      setShowForm(false);
-      setAccountId('');
-      setCategoryId('');
-      setDescription('');
-      setAmount('');
-      setOccurredOn(todayIso());
-      setRepeat('NONE');
-      setOccurrences('');
+      resetForm();
     },
   });
 
@@ -389,7 +393,15 @@ export default function Transactions() {
     const { start, end } = rangeBounds(filterRange, filterStartDate, filterEndDate, monthOffset);
     return txnQueries
       .flatMap((q) => q.data || [])
-      .filter((t) => t.description.toLowerCase().includes(search.toLowerCase()))
+      .filter((t) => {
+        const term = search.trim().toLowerCase();
+        if (!term) return true;
+        return (
+          t.description.toLowerCase().includes(term) ||
+          (t.category?.name || '').toLowerCase().includes(term) ||
+          String(t.amount).toLowerCase().includes(term)
+        );
+      })
       .filter((t) => !filterAccountId || String(t.account?.id) === filterAccountId)
       .filter((t) => !filterCategoryId || String(t.category?.id) === filterCategoryId)
       .filter((t) => !start || parseLocalDate(t.occurredOn) >= start)
@@ -455,10 +467,10 @@ export default function Transactions() {
         </div>
       </div>
 
-      <div className="d-flex flex-wrap align-items-center gap-2 mb-3">
+      <div className="nav-toolbar">
         <select
-          className="form-select form-select-sm"
-          style={{ width: 'auto' }}
+          className="form-select form-select-lg"
+          style={{ width: 'auto', minWidth: 220 }}
           value={filterAccountId}
           onChange={(e) => {
             const next = e.target.value;
@@ -489,8 +501,8 @@ export default function Transactions() {
           });
           const rangeSelect = (
             <select
-              className="form-select form-select-sm"
-              style={{ width: 'auto' }}
+              className="form-select form-select-lg"
+              style={{ width: 'auto', minWidth: 180 }}
               value={filterRange}
               onChange={(e) => {
                 const next = e.target.value;
@@ -507,10 +519,10 @@ export default function Transactions() {
 
           if (filterRange === 'this-month') {
             return (
-              <div className="d-flex align-items-center gap-1">
+              <div className="d-flex align-items-center gap-2">
                 <button
                   type="button"
-                  className="icon-btn"
+                  className="icon-btn icon-btn-lg"
                   title="Previous month"
                   onClick={() => setMonthOffset((o) => o - 1)}
                 >
@@ -519,7 +531,7 @@ export default function Transactions() {
                 {rangeSelect}
                 <button
                   type="button"
-                  className="icon-btn"
+                  className="icon-btn icon-btn-lg"
                   title="Next month"
                   onClick={() => setMonthOffset((o) => o + 1)}
                 >
@@ -599,7 +611,7 @@ export default function Transactions() {
         <div className="panel p-4 mb-4">
           <form onSubmit={handleSubmit}>
             <div className="row g-3 align-items-end">
-              <div className="col-md-2">
+              <div className="col-md-3">
                 <label className="eyebrow d-block mb-2">Account</label>
                 <select
                   className="form-select form-select-sm"
@@ -617,7 +629,7 @@ export default function Transactions() {
                   ))}
                 </select>
               </div>
-              <div className="col-md-2">
+              <div className="col-md-3">
                 <label className="eyebrow d-block mb-2">Category</label>
                 <select
                   className="form-select form-select-sm"
@@ -641,7 +653,7 @@ export default function Transactions() {
                   required
                 />
               </div>
-              <div className="col-md-2">
+              <div className="col-md-3">
                 <label className="eyebrow d-block mb-2">Amount (+ for income)</label>
                 <input
                   type="text"
@@ -653,7 +665,9 @@ export default function Transactions() {
                   required
                 />
               </div>
-              <div className="col-md-2">
+            </div>
+            <div className="row g-3 align-items-end mt-1">
+              <div className={repeat === 'NONE' ? 'col-md-6' : 'col-md-4'}>
                 <label className="eyebrow d-block mb-2">Date</label>
                 <input
                   type="date"
@@ -663,14 +677,7 @@ export default function Transactions() {
                   required
                 />
               </div>
-              <div className="col-md-1">
-                <button type="submit" className="btn btn-jade btn-sm w-100" disabled={createMutation.isPending}>
-                  {createMutation.isPending ? '…' : 'Add'}
-                </button>
-              </div>
-            </div>
-            <div className="row g-3 align-items-end mt-1">
-              <div className="col-md-2">
+              <div className={repeat === 'NONE' ? 'col-md-6' : 'col-md-4'}>
                 <label className="eyebrow d-block mb-2">Repeat</label>
                 <select
                   className="form-select form-select-sm"
@@ -685,7 +692,7 @@ export default function Transactions() {
                 </select>
               </div>
               {repeat !== 'NONE' && (
-                <div className="col-md-2">
+                <div className="col-md-4">
                   <label className="eyebrow d-block mb-2">
                     {repeat === 'INSTALLMENTS' ? 'Installments' : 'Occurrences'}
                   </label>
@@ -701,12 +708,22 @@ export default function Transactions() {
                 </div>
               )}
               {repeat !== 'NONE' && (
-                <div className="col-md-8 text-faint" style={{ fontSize: 11.5 }}>
+                <div className="col-12 text-faint" style={{ fontSize: 11.5 }}>
                   {repeat === 'INSTALLMENTS'
                     ? `Splits the amount evenly into ${occurrences || 'N'} monthly transactions.`
                     : `Creates ${occurrences || 'N'} ${repeat.toLowerCase()} transactions of the same amount, starting on the date above.`}
                 </div>
               )}
+            </div>
+            <div className="row mt-3">
+              <div className="col-12 d-flex justify-content-end gap-2">
+                <button type="button" className="btn btn-ghost btn-sm" onClick={resetForm}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-jade btn-sm" disabled={createMutation.isPending}>
+                  {createMutation.isPending ? 'Adding…' : 'Add'}
+                </button>
+              </div>
             </div>
           </form>
         </div>
@@ -735,7 +752,7 @@ export default function Transactions() {
               <input
                 type="text"
                 className="form-control form-control-sm"
-                placeholder="Search transactions"
+                placeholder="Search description, category, or amount"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
