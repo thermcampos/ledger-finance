@@ -1,6 +1,68 @@
 # Ledger — Outstanding Work
 
-## Status as of end of session (2026-07-08, latest session)
+## Status as of end of session (2026-07-09, latest session)
+
+**Product.md audit → 5 fix chunks, all done, each reviewed/committed
+individually by the user as we went.** User wrote `Product.md` (repo root,
+new file) spelling out expected behavior for Overview/Accounts/Credit
+Cards. Three subagents audited the actual code against it; findings below,
+in the order fixed:
+
+1. Overview: "Checking & Savings accounts" list was `kind !== 'CREDIT_CARD'`
+   (leaked INVESTMENT accounts in) instead of reusing `liquidAccounts`. Also
+   added a new "Investments" section and a third hero-panel column ("Total
+   investments") per user follow-up request — same today-cutoff balance
+   logic as the other two columns.
+2. Backend: added `Transaction.createdAt` (`V5` migration, `Instant`,
+   `@PrePersist`-guaranteed on every insert path incl. repeat/installment
+   batches and `CreditCardBillSyncService`'s system rows) — needed for #3.
+   `columnDefinition` carries the `DEFAULT now()` into Hibernate's
+   dev-mode DDL too, not just the Flyway migration, so `seed-data.sql`
+   (which doesn't set the column) keeps working in dev.
+3. Overview's "Recent activity" was scoped to the page's date-range
+   dropdown and sorted by `occurredOn` — spec wants "latest 5 added,"
+   global, regardless of account. Now sorts by `createdAt` desc (id as
+   tiebreaker), ignores range entirely, excludes `linkedCard` bill-sync
+   rows. This made the date-range dropdown itself dead (it had no other
+   consumer) — removed from Overview's header along with `rangeOptions`/
+   `rangeBounds`/`startOfWeek`.
+4. Accounts.jsx rendered raw `a.balance` (all-time, future-inclusive) for
+   every account kind, and credit cards showed that same raw balance
+   instead of a bill total. Now fetches each account's transactions
+   (shares the `['transactions', id]` query key with Overview) and shows
+   a proper today-cutoff balance / current-bill amount.
+5. CreditCards.jsx "Available credit" (`totalLimit - totalOwed`) mixed
+   mismatched sets: `totalLimit` only summed cards *with* a limit, but
+   `totalOwed` summed *all* cards — a no-limit card's debt silently ate
+   into another card's available credit. Fixed by summing owed only over
+   `cardsWithLimit` for this one figure (the "Total owed across all
+   cards" stat itself is intentionally unchanged, still all cards). Also
+   "View transactions" now passes an explicit `&bill=<dueDate>` param
+   (via `nextBillFor`), matching the pattern Transactions.jsx's "View
+   bill" link already used, instead of relying on `CardBills.jsx`'s
+   implicit default-bill fallback.
+
+Refactor along the way (chunk 4 + a follow-up ask): extracted the
+"balance as of a cutoff date" walk — previously duplicated near-verbatim
+in Overview.jsx and Transactions.jsx — into `frontend/src/utils/balance.js`
+as two pieces: `sortChronologically` (sort once) and `balanceAsOf(account,
+sortedTransactions, cutoffDate)` (walk many times against the same sorted
+array) — preserves Transactions.jsx's existing sort-once/walk-per-day-group
+performance shape instead of resorting on every call. All three pages
+(Overview, Accounts, Transactions) now call the same implementation.
+Also promoted a small `isoDate` formatter (pre-existing local copy in
+`CardBills.jsx`) into `utils/date.js` so CreditCards.jsx's new bill-param
+link could reuse it instead of a third copy-paste.
+
+Verified via ad hoc Playwright (scratchpad-installed `playwright-core`,
+cached Chromium) driving a throwaway signup user (`qa-test2@ledger.local`)
+through `/auth/signup` + direct API calls to seed specific test data
+(future-dated txn, backdated txn, a limited + a no-limit credit card),
+then screenshotting/reading Overview, Accounts, Credit Cards, Card Bills,
+and Transactions. All five fixes confirmed with concrete numbers; no
+console errors in any pass.
+
+## Status as of end of session (2026-07-08, previous session)
 
 **Done, not yet committed: split credit cards out of Transactions.jsx onto
 a new "Card Bills" page.** User found the Transactions page overwhelming —

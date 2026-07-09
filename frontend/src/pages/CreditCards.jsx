@@ -1,7 +1,8 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQueries, useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { AccountsApi } from '../api/ledger';
-import { nextDueDate, dueLabel } from '../utils/date';
+import { AccountsApi, TransactionsApi } from '../api/ledger';
+import { nextDueDate, dueLabel, startOfDay, isoDate } from '../utils/date';
+import { nextBillFor } from '../utils/creditCard';
 
 function money(amount) {
   const sign = amount < 0 ? '-' : '';
@@ -22,10 +23,24 @@ export default function CreditCards() {
   const accountsQuery = useQuery({ queryKey: ['accounts'], queryFn: AccountsApi.list });
   const cards = (accountsQuery.data || []).filter((a) => a.kind === 'CREDIT_CARD');
 
+  const txnQueries = useQueries({
+    queries: cards.map((c) => ({
+      queryKey: ['transactions', c.id],
+      queryFn: () => TransactionsApi.listByAccount(c.id),
+      enabled: !!c.id,
+    })),
+  });
+  const today = startOfDay(new Date());
+  const txnsByCardId = new Map(cards.map((c, i) => [c.id, txnQueries[i]?.data || []]));
+
   const owed = (c) => Math.max(-Number(c.balance), 0);
   const totalOwed = cards.reduce((s, c) => s + owed(c), 0);
   const cardsWithLimit = cards.filter((c) => c.creditLimit != null);
   const totalLimit = cardsWithLimit.reduce((s, c) => s + Number(c.creditLimit), 0);
+  // Available credit only makes sense across cards that actually have a
+  // limit — a no-limit card's debt shouldn't eat into another card's
+  // available credit just because it's excluded from totalLimit above.
+  const owedOnLimitedCards = cardsWithLimit.reduce((s, c) => s + owed(c), 0);
 
   return (
     <div>
@@ -57,7 +72,7 @@ export default function CreditCards() {
               <div className="col-4">
                 <div className="eyebrow mb-1">Available credit</div>
                 <div className="mono" style={{ fontSize: 16, color: 'var(--jade)' }}>
-                  {cardsWithLimit.length ? money(totalLimit - totalOwed) : '—'}
+                  {cardsWithLimit.length ? money(totalLimit - owedOnLimitedCards) : '—'}
                 </div>
               </div>
               <div className="col-4">
@@ -91,6 +106,7 @@ export default function CreditCards() {
           const st = limit != null ? creditStatusFor(amountOwed, limit) : null;
           const pct = limit ? Math.min((amountOwed / limit) * 100, 100) : 0;
           const due = c.dueDayOfMonth != null ? nextDueDate(c.dueDayOfMonth) : null;
+          const bill = nextBillFor(c, txnsByCardId.get(c.id) || [], today);
           return (
             <div className="col-md-6 col-lg-4" key={c.id}>
               <div className="account-card-lg">
@@ -117,7 +133,10 @@ export default function CreditCards() {
                     {dueLabel(due)}
                   </div>
                 )}
-                <Link to={`/card-bills?account=${c.id}`} className="btn btn-ghost btn-sm w-100 mt-3">
+                <Link
+                  to={`/card-bills?account=${c.id}${bill ? `&bill=${isoDate(bill.dueDate)}` : ''}`}
+                  className="btn btn-ghost btn-sm w-100 mt-3"
+                >
                   View transactions
                 </Link>
               </div>

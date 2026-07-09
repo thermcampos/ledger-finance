@@ -15,6 +15,13 @@ export function startOfDay(d) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
+// Inverse of parseLocalDate — formats a Date as a plain yyyy-MM-dd string
+// (local calendar day, no time/timezone) for backend LocalDate fields and
+// ?bill= query params.
+export function isoDate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function daysInMonth(year, month) {
   return new Date(year, month + 1, 0).getDate();
 }
