@@ -439,6 +439,63 @@ body {
   padding: 32px;
 }
 
+/* --- Public pages (landing, legal) --- */
+.landing {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+.landing-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28px 0 40px 0;
+}
+.landing-hero {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+  align-items: center;
+  padding: 24px 0 80px 0;
+}
+.landing-features {
+  padding-bottom: 80px;
+}
+.landing-cta {
+  text-align: center;
+  padding: 60px 0 70px 0;
+  border-top: 1px solid var(--border);
+}
+.public-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 0 40px 0;
+  border-top: 1px solid var(--border);
+}
+.legal-content {
+  max-width: 640px;
+  padding-bottom: 40px;
+}
+.legal-content h2,
+.legal-content .legal-h2 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 28px 0 10px 0;
+}
+.legal-content p {
+  color: var(--text-muted);
+  font-size: 13.5px;
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+@media (max-width: 860px) {
+  .landing-hero {
+    grid-template-columns: 1fr;
+    padding: 12px 0 60px 0;
+  }
+}
+
 /* --- Form controls --- */
 .form-control,
 .form-select {

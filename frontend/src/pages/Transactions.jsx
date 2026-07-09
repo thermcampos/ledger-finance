@@ -394,7 +394,7 @@ export default function Transactions() {
       .filter((t) => !filterCategoryId || String(t.category?.id) === filterCategoryId)
       .filter((t) => !start || parseLocalDate(t.occurredOn) >= start)
       .filter((t) => !end || parseLocalDate(t.occurredOn) <= end)
-      .sort((a, b) => parseLocalDate(b.occurredOn) - parseLocalDate(a.occurredOn));
+      .sort((a, b) => parseLocalDate(a.occurredOn) - parseLocalDate(b.occurredOn));
   }, [txnQueries, search, filterAccountId, filterCategoryId, filterRange, filterStartDate, filterEndDate, monthOffset]);
 
   const grouped = useMemo(() => {

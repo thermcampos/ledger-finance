@@ -1,6 +1,9 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from './context/useAuth';
 import Sidebar from './components/Sidebar';
+import Landing from './pages/Landing';
+import Privacy from './pages/Privacy';
+import Terms from './pages/Terms';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Overview from './pages/Overview';
@@ -23,20 +26,28 @@ function ProtectedLayout({ children }) {
   );
 }
 
+// Logged-in visitors go straight into the app at "/", same as before this
+// page existed; logged-out visitors see the public landing page instead of
+// being redirected straight to /login.
+function Root() {
+  const { isAuthenticated } = useAuth();
+  if (!isAuthenticated) return <Landing />;
+  return (
+    <ProtectedLayout>
+      <Overview />
+    </ProtectedLayout>
+  );
+}
+
 export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
+      <Route path="/privacy" element={<Privacy />} />
+      <Route path="/terms" element={<Terms />} />
 
-      <Route
-        path="/"
-        element={
-          <ProtectedLayout>
-            <Overview />
-          </ProtectedLayout>
-        }
-      />
+      <Route path="/" element={<Root />} />
       <Route
         path="/transactions"
         element={
