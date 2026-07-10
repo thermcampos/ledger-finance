@@ -12,6 +12,8 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
+import java.time.Instant;
+
 @Path("/auth")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
@@ -32,6 +34,7 @@ public class AuthResource {
         user.email = request.email;
         user.displayName = request.displayName;
         user.passwordHash = BcryptUtil.bcryptHash(request.password);
+        user.createdAt = Instant.now();
         user.persist();
 
         return Response.status(Response.Status.CREATED)

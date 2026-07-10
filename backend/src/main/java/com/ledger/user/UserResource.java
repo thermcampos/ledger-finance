@@ -29,6 +29,13 @@ public class UserResource {
     @Inject
     TokenService tokenService;
 
+    @GET
+    @Path("/me")
+    public MeResponse me() {
+        User user = currentUser.require();
+        return new MeResponse(user.email, user.displayName, user.createdAt);
+    }
+
     @PUT
     @Path("/me")
     @Transactional
@@ -100,5 +107,17 @@ public class UserResource {
         @NotBlank
         @Size(min = 8, message = "Password must be at least 8 characters")
         public String newPassword;
+    }
+
+    public static class MeResponse {
+        public String email;
+        public String displayName;
+        public Instant createdAt;
+
+        public MeResponse(String email, String displayName, Instant createdAt) {
+            this.email = email;
+            this.displayName = displayName;
+            this.createdAt = createdAt;
+        }
     }
 }

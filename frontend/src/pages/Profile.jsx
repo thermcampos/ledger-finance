@@ -20,6 +20,7 @@ export default function Profile() {
   const { user, applySession } = useAuth();
   const queryClient = useQueryClient();
 
+  const meQuery = useQuery({ queryKey: ['me'], queryFn: UsersApi.me });
   const historyQuery = useQuery({ queryKey: ['account-history'], queryFn: UsersApi.history });
   const history = historyQuery.data || [];
 
@@ -199,6 +200,12 @@ export default function Profile() {
             </span>
           </div>
         ))}
+        {meQuery.data?.createdAt && (
+          <div className="text-faint mt-3" style={{ fontSize: 11.5 }}>
+            Member since{' '}
+            {new Date(meQuery.data.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+          </div>
+        )}
       </div>
     </div>
   );
