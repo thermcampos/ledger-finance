@@ -2,34 +2,18 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AccountsApi, CategoriesApi, TransactionsApi } from '../api/ledger';
-import { parseLocalDate, startOfDay, nextDueDate, isoDate } from '../utils/date';
-import { billDueDateFor, nextBillFor, groupTransactionsByBill } from '../utils/creditCard';
+import { parseLocalDate, startOfDay, isoDate } from '../utils/date';
+import {
+  billDueDateFor,
+  nextBillFor,
+  groupTransactionsByBill,
+  billOptionsFor,
+  billOptionsWithCurrent,
+} from '../utils/creditCard';
 
 function todayIso() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-// The next 3 upcoming bills relative to occurredOn, for the "Bill" dropdown —
-// lets a purchase made right before a statement closes be pinned to next
-// month's bill instead of the one occurredOn would naturally roll into.
-function billOptionsFor(account, occurredOnStr) {
-  if (!account?.dueDayOfMonth) return [];
-  const first = nextDueDate(account.dueDayOfMonth, parseLocalDate(occurredOnStr));
-  const second = nextDueDate(account.dueDayOfMonth, new Date(first.getFullYear(), first.getMonth() + 1, 1));
-  const third = nextDueDate(account.dueDayOfMonth, new Date(second.getFullYear(), second.getMonth() + 1, 1));
-  return [first, second, third];
-}
-
-// Same as billOptionsFor, but ensures the currently-assigned bill stays a
-// selectable option even if it no longer matches the 3 natural upcoming ones.
-function billOptionsWithCurrent(account, occurredOnStr, currentIso) {
-  const options = billOptionsFor(account, occurredOnStr);
-  if (currentIso && !options.some((d) => isoDate(d) === currentIso)) {
-    options.push(parseLocalDate(currentIso));
-    options.sort((a, b) => a - b);
-  }
-  return options;
 }
 
 function parseSignedAmount(raw) {

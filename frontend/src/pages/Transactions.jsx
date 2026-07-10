@@ -462,6 +462,14 @@ export default function Transactions() {
                 <i className="bi bi-credit-card me-2" />
                 Add credit card transaction
               </button>
+              <button
+                type="button"
+                className="dropdown-item-custom"
+                onClick={() => { setShowAddMenu(false); navigate('/transactions/import'); }}
+              >
+                <i className="bi bi-file-earmark-arrow-up me-2" />
+                Import from CSV/PDF
+              </button>
             </div>
           )}
         </div>

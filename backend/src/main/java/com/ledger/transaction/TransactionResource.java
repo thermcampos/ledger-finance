@@ -10,6 +10,7 @@ import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -64,6 +65,36 @@ public class TransactionResource {
             txn.persist();
             created.add(txn);
             date = advance(date, repeat);
+        }
+
+        billSync.recomputeAccountBalance(account);
+        if (account.kind == AccountKind.CREDIT_CARD) {
+            billSync.sync(account);
+        }
+        return created;
+    }
+
+    @POST
+    @Path("/batch")
+    @Transactional
+    public List<Transaction> batchCreate(@Valid BatchImportRequest request) {
+        Account account = requireOwnedAccount(request.accountId);
+        if (account.kind == AccountKind.CREDIT_CARD && request.billDueDate == null) {
+            throw new WebApplicationException("billDueDate required for credit card imports", 400);
+        }
+        LocalDate billDueDate = account.kind == AccountKind.CREDIT_CARD ? request.billDueDate : null;
+
+        List<Transaction> created = new ArrayList<>();
+        for (BatchRow row : request.rows) {
+            Transaction txn = new Transaction();
+            txn.account = account;
+            txn.category = row.categoryId != null ? Category.findById(row.categoryId) : null;
+            txn.description = row.description;
+            txn.amount = row.amount;
+            txn.occurredOn = row.occurredOn;
+            txn.billDueDate = billDueDate;
+            txn.persist();
+            created.add(txn);
         }
 
         billSync.recomputeAccountBalance(account);
@@ -182,6 +213,26 @@ public class TransactionResource {
         public Integer occurrences;
         /** Only applied when repeat is NONE — see TransactionResource#create. */
         public LocalDate billDueDate;
+    }
+
+    public static class BatchImportRequest {
+        @NotNull
+        public Long accountId;
+        /** Required when the target account is a credit card — one bill for the whole batch, not per-row. */
+        public LocalDate billDueDate;
+        @NotEmpty
+        @Valid
+        public List<BatchRow> rows;
+    }
+
+    public static class BatchRow {
+        public Long categoryId;
+        @NotBlank
+        public String description;
+        @NotNull
+        public BigDecimal amount;
+        @NotNull
+        public LocalDate occurredOn;
     }
 
     public static class UpdateTransactionRequest {

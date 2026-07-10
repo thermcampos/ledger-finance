@@ -9,6 +9,7 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Overview from './pages/Overview';
 import Transactions from './pages/Transactions';
+import Import from './pages/Import';
 import Budgets from './pages/Budgets';
 import Accounts from './pages/Accounts';
 import CreditCards from './pages/CreditCards';
@@ -84,6 +85,14 @@ export default function App() {
         element={
           <ProtectedLayout>
             <Transactions />
+          </ProtectedLayout>
+        }
+      />
+      <Route
+        path="/transactions/import"
+        element={
+          <ProtectedLayout>
+            <Import />
           </ProtectedLayout>
         }
       />

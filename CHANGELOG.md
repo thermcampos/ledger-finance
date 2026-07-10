@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## frontend:v2026.07.10.74 & backend:v2026.07.10.70 - 2026-07-10
+
+## Added
+- Feature to import transactions from CSV file.
+- Anthropic LLM to read and parse PDFs allowing to import transactions.
+
+### Docker images
+- `docker.io/rmcampos/ledger-backend:v2026.07.10.?`
+- `docker.io/rmcampos/ledger-frontend:v2026.07.10.?`
+
 ## frontend:v2026.07.10.74 & backend:v2026.07.10.70 - 2026-07-09
 
 ## Added

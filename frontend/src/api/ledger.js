@@ -35,6 +35,20 @@ export const TransactionsApi = {
   remove: (id) => client.delete(`/transactions/${id}`),
 };
 
+export const ImportApi = {
+  parse: (accountId, file) => {
+    const formData = new FormData();
+    formData.append('accountId', accountId);
+    formData.append('file', file);
+    return client
+      .post('/transactions/import/parse', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      .then((r) => r.data);
+  },
+  batch: (payload) => client.post('/transactions/batch', payload).then((r) => r.data),
+};
+
 export const BudgetsApi = {
   listForMonth: (yearMonth) =>
     client.get(`/budgets/month/${yearMonth}`).then((r) => r.data),
