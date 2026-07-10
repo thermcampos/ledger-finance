@@ -86,7 +86,13 @@ export default function Sidebar({ isOpen, onClose }) {
           Sign out
         </button>
         <div className="text-faint mt-2 text-center" style={{ fontSize: 10.5 }}>
-          {import.meta.env.VITE_BUILD_NUMBER || 'nightly'}
+          <a
+            href="https://lightroasted.vps-kinghost.net/rmcampos/ledger-finance/src/branch/main/CHANGELOG.md"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+              {import.meta.env.VITE_BUILD_NUMBER || 'nightly'}
+          </a>
         </div>
       </div>
     </div>

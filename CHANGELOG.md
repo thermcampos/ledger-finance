@@ -1,0 +1,23 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+## frontend:v2026.07.10.74 & backend:v2026.07.10.70 - 2026-07-09
+
+## Added
+- Favicon for browser tab and in the side panel navbar.
+- App version below the sign-out button.
+- "Member since" tag in the profile page.
+- Mobile responsiveness.
+
+## Fixed
+- Budgets logic with wrong values.
+
+### Docker images
+- `docker.io/rmcampos/ledger-backend:v2026.07.10.70`
+- `docker.io/rmcampos/ledger-frontend:v2026.07.10.74`
