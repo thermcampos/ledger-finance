@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from './context/useAuth';
 import Sidebar from './components/Sidebar';
@@ -17,11 +18,32 @@ import Profile from './pages/Profile';
 
 function ProtectedLayout({ children }) {
   const { isAuthenticated } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   return (
     <>
-      <Sidebar />
-      <div className="main">{children}</div>
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      {sidebarOpen && (
+        <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} />
+      )}
+      <div className="main">
+        <div className="mobile-header">
+          <button
+            className="btn btn-ghost btn-sm"
+            style={{ padding: '4px 8px' }}
+            onClick={() => setSidebarOpen(true)}
+            aria-label="Open menu"
+          >
+            <i className="bi bi-list" style={{ fontSize: 20 }} />
+          </button>
+          <span className="brand" style={{ padding: 0 }}>
+            <span className="dot" />
+            Ledger
+          </span>
+        </div>
+        {children}
+      </div>
     </>
   );
 }

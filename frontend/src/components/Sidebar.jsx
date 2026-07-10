@@ -12,7 +12,7 @@ const links = [
   { to: '/profile', label: 'Profile', icon: 'bi-person' },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen, onClose }) {
   const { user, logout } = useAuth();
   const initials = (user?.displayName || user?.email || '?')
     .split(' ')
@@ -22,10 +22,20 @@ export default function Sidebar() {
     .toUpperCase();
 
   return (
-    <div className="sidebar">
-      <div className="brand">
-        <span className="dot" />
-        Ledger
+    <div className={`sidebar${isOpen ? ' open' : ''}`}>
+      <div className="sidebar-brand-row">
+        <div className="brand">
+          <span className="dot" />
+          Ledger
+        </div>
+        <button
+          className="btn btn-ghost btn-sm sidebar-close-btn"
+          onClick={onClose}
+          aria-label="Close menu"
+          style={{ padding: '4px 8px' }}
+        >
+          <i className="bi bi-x" style={{ fontSize: 20 }} />
+        </button>
       </div>
       <nav>
         {links.map((link) => (
@@ -34,6 +44,7 @@ export default function Sidebar() {
             to={link.to}
             end={link.end}
             className={({ isActive }) => 'nav-link-custom' + (isActive ? ' active' : '')}
+            onClick={onClose}
           >
             <i className={`bi ${link.icon}`} />
             {link.label}
