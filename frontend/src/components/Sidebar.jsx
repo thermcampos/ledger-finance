@@ -76,6 +76,9 @@ export default function Sidebar({ isOpen, onClose }) {
         <button className="btn btn-ghost btn-sm w-100" onClick={logout}>
           Sign out
         </button>
+        <div className="text-faint mt-2 text-center" style={{ fontSize: 10.5 }}>
+          {import.meta.env.VITE_BUILD_NUMBER || 'nightly'}
+        </div>
       </div>
     </div>
   );
