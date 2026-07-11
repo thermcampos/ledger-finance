@@ -132,9 +132,11 @@ public class CreditCardBillSyncService {
     /**
      * Rolls dueDay forward to its next on-or-after occurrence relative to
      * `from`, clamping for months shorter than dueDay — mirrors the
-     * frontend's utils/date.js#nextDueDate exactly.
+     * frontend's utils/date.js#nextDueDate exactly. Package-private so
+     * TransactionResource can reuse it for bill-offset math on repeat/
+     * installment series (see TransactionResource#billOffsetMonths).
      */
-    private LocalDate nextDueDate(int dueDay, LocalDate from) {
+    LocalDate nextDueDate(int dueDay, LocalDate from) {
         LocalDate candidate = from.withDayOfMonth(Math.min(dueDay, from.lengthOfMonth()));
         if (candidate.isBefore(from)) {
             LocalDate nextMonth = from.plusMonths(1);

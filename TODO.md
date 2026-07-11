@@ -1,6 +1,61 @@
 # Ledger — Outstanding Work
 
-## Status as of end of session (2026-07-11, latest session)
+## Status as of end of session (2026-07-11, latest session, continued)
+
+**Done, not yet committed: bill-offset support for repeat/installment
+series on Card Bills.** Bug found via user testing right after the §8 work
+above: on `CardBills.jsx`'s add-transaction form, picking any `Repeat`
+value other than "Doesn't repeat" made the `Bill` dropdown disappear
+entirely — pre-existing, deliberate restriction from the original
+credit-card work (`billDueDate` was only ever applied when
+`repeat == NONE`, both frontend and backend), but it blocked a real use
+case: a purchase made before the due day but after the bank's statement
+already closed needs to land on *next* month's bill instead of the natural
+one — same logic that already worked for one-off transactions, just never
+extended to series.
+
+Fixed by having the override apply as an offset: the user's chosen bill
+for the *first* occurrence is compared to that occurrence's natural bill
+to derive a whole-month offset (e.g. picking "next bill" = +1), then every
+generated occurrence's own natural bill is shifted by that same offset —
+so a MONTHLY/INSTALLMENTS/etc. series starting on an overridden bill keeps
+each subsequent charge one bill cycle ahead of where it'd naturally land,
+rather than only the first occurrence being correct.
+
+- Backend: `CreditCardBillSyncService#nextDueDate` (the Java port of the
+  due-day roll-forward math) changed from `private` to package-private so
+  `TransactionResource` can reuse it. New `TransactionResource#billOffsetMonths`
+  (natural-vs-chosen bill → whole-month offset, null when no genuine
+  override) and `#shiftedBillDueDate` (an occurrence's own natural bill,
+  shifted by that offset, clamped for short months). Wired into both
+  `create()`'s batch-generation loop (replacing the old
+  `repeat == NONE ? request.billDueDate : null` line) and `applyToSeries()`
+  (replacing a flat `t.billDueDate = request.billDueDate` that would have
+  pinned every future-scoped row to one identical date instead of shifting
+  each by the same offset — found and fixed in the same pass, confirmed
+  with user it should cover both create and edit).
+- Frontend (`CardBills.jsx`): the `Bill` dropdown (relabeled "First bill"
+  when a repeat is selected) now always renders regardless of `repeat`,
+  laid out on its own row when `Occurrences` is also showing; `isOverride`
+  in `handleSubmit` no longer gates on `repeat === 'NONE'`. The edit form's
+  bill override was already ungated (single-row edits never had this
+  restriction) — no change needed there.
+
+Verified via curl (fresh signup, CREDIT_CARD account with `dueDayOfMonth`
+10): a MONTHLY series of 3 starting 2026-01-05 (natural bill 01-10) with
+an explicit `billDueDate=2026-02-10` override correctly produced bills
+02-10, 03-10, 04-10 across the three occurrences (each exactly one cycle
+ahead of its own natural bill); an INSTALLMENTS series with the same
+inputs matched identically; a 4-occurrence MONTHLY series created with no
+override (all `billDueDate` null, natural fallback) then edited at
+occurrence 2 with `scope=FUTURE` and a one-bill-ahead override correctly
+left occurrence 1 untouched (`null`) and shifted occurrences 2-4 to
+03-10/04-10/05-10 respectively — each by the same offset, not one flat
+date. Also verified via Playwright: the Bill dropdown (as "First bill")
+and Occurrences field render together for a MONTHLY selection, with the
+new explanatory hint text visible, no console errors.
+
+## Status as of end of session (2026-07-11, earlier in the session)
 
 **Done, not yet committed: §8 series tracking + scope-aware edit/delete**
 (requested 2026-07-11, planned via plan mode, plan saved at

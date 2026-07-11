@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pre-set of categories to help users get started.
 - Linked transactions allowing to propagate changes or deletion.
 
+## Fixed
+- Credit card transactions can select the first bill to land the first record.
+
 ### Docker images
 - `docker.io/rmcampos/ledger-backend:v2026.07.11.82`
 - `docker.io/rmcampos/ledger-frontend:v2026.07.11.83`

@@ -52,9 +52,10 @@ public class TransactionResource {
         BigDecimal[] amounts = splitAmount(request.amount, repeat, count);
         String seriesId = count > 1 ? java.util.UUID.randomUUID().toString() : null;
         RepeatFrequency seriesRepeat = count > 1 ? repeat : null;
+        LocalDate date = request.occurredOn != null ? request.occurredOn : LocalDate.now();
+        Integer offsetMonths = billOffsetMonths(account, date, request.billDueDate);
 
         List<Transaction> created = new ArrayList<>();
-        LocalDate date = request.occurredOn != null ? request.occurredOn : LocalDate.now();
         for (int i = 0; i < count; i++) {
             Transaction txn = new Transaction();
             txn.account = account;
@@ -65,7 +66,7 @@ public class TransactionResource {
             txn.seriesInfo = count > 1 ? (i + 1) + "/" + count : null;
             txn.seriesId = seriesId;
             txn.seriesRepeat = seriesRepeat;
-            txn.billDueDate = repeat == RepeatFrequency.NONE ? request.billDueDate : null;
+            txn.billDueDate = offsetMonths != null ? shiftedBillDueDate(account, date, offsetMonths) : null;
             txn.persist();
             created.add(txn);
             date = advance(date, repeat);
@@ -148,6 +149,7 @@ public class TransactionResource {
     private void applyToSeries(Transaction anchor, UpdateTransactionRequest request) {
         List<Transaction> rest = seriesFrom(anchor);
         Category category = request.categoryId != null ? Category.findById(request.categoryId) : null;
+        Integer offsetMonths = billOffsetMonths(anchor.account, anchor.occurredOn, request.billDueDate);
 
         if (anchor.seriesRepeat == RepeatFrequency.INSTALLMENTS) {
             BigDecimal[] amounts = splitAmount(request.amount, RepeatFrequency.INSTALLMENTS, rest.size());
@@ -155,19 +157,44 @@ public class TransactionResource {
                 Transaction t = rest.get(i);
                 t.description = request.description;
                 t.category = category;
-                t.billDueDate = request.billDueDate;
+                t.billDueDate = offsetMonths != null ? shiftedBillDueDate(t.account, t.occurredOn, offsetMonths) : null;
                 t.amount = amounts[i];
             }
         } else {
             for (Transaction t : rest) {
                 t.description = request.description;
                 t.category = category;
-                t.billDueDate = request.billDueDate;
+                t.billDueDate = offsetMonths != null ? shiftedBillDueDate(t.account, t.occurredOn, offsetMonths) : null;
                 t.amount = request.amount;
             }
         }
 
         anchor.occurredOn = request.occurredOn != null ? request.occurredOn : anchor.occurredOn;
+    }
+
+    /**
+     * Number of calendar months between an occurrence's natural bill and a
+     * genuinely overridden bill choice, anchored at occurredOn — e.g. picking
+     * "next bill" instead of the natural one yields +1. Null when there's no
+     * override to apply (no dueDayOfMonth, or no billDueDate sent). Reused so
+     * every occurrence in a repeat/installment series shifts by the same
+     * number of bill cycles as the anchor's own override, instead of every
+     * row landing on one identical explicit date.
+     */
+    private Integer billOffsetMonths(Account account, LocalDate occurredOn, LocalDate requestedBillDueDate) {
+        if (account.dueDayOfMonth == null || requestedBillDueDate == null) {
+            return null;
+        }
+        LocalDate naturalBill = billSync.nextDueDate(account.dueDayOfMonth, occurredOn);
+        return (requestedBillDueDate.getYear() * 12 + requestedBillDueDate.getMonthValue())
+                - (naturalBill.getYear() * 12 + naturalBill.getMonthValue());
+    }
+
+    /** This occurrence's own natural bill, shifted forward by offsetMonths bill cycles (clamped for short months). */
+    private LocalDate shiftedBillDueDate(Account account, LocalDate occurredOn, int offsetMonths) {
+        LocalDate naturalBill = billSync.nextDueDate(account.dueDayOfMonth, occurredOn);
+        LocalDate shiftedMonth = naturalBill.plusMonths(offsetMonths);
+        return shiftedMonth.withDayOfMonth(Math.min(account.dueDayOfMonth, shiftedMonth.lengthOfMonth()));
     }
 
     /** This row and every row scheduled on/after it within the same series — occurredOn primary, id tie-break for same-day rows. */
@@ -301,7 +328,13 @@ public class TransactionResource {
         public RepeatFrequency repeat;
         /** Required (2-60) when repeat is not NONE. */
         public Integer occurrences;
-        /** Only applied when repeat is NONE — see TransactionResource#create. */
+        /**
+         * A genuine override of the natural bill for the first occurrence
+         * (e.g. the statement already closed before occurredOn). For a
+         * repeat/installment batch, every later occurrence's own natural
+         * bill shifts by the same number of bill cycles — see
+         * TransactionResource#billOffsetMonths.
+         */
         public LocalDate billDueDate;
     }
 

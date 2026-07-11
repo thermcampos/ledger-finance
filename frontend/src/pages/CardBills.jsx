@@ -300,7 +300,7 @@ export default function CardBills() {
     // Overview's "Credit card debt" total relies on this null-means-natural
     // convention to avoid excluding ordinary, untouched transactions.
     const naturalBill = billOptionsFor(selectedCard, occurredOn)[0];
-    const isOverride = repeat === 'NONE' && billDueDate && (!naturalBill || billDueDate !== isoDate(naturalBill));
+    const isOverride = billDueDate && (!naturalBill || billDueDate !== isoDate(naturalBill));
     createMutation.mutate({
       accountId: selectedCard.id,
       categoryId: categoryId ? Number(categoryId) : null,
@@ -568,27 +568,26 @@ export default function CardBills() {
                       />
                     </div>
                   )}
-                  {repeat === 'NONE' && (
-                    <div className="col-md-6">
-                      <label className="eyebrow d-block mb-2">Bill</label>
-                      <select
-                        className="form-select form-select-sm"
-                        value={billDueDate}
-                        onChange={(e) => setBillDueDate(e.target.value)}
-                      >
-                        {billOptionsWithCurrent(selectedCard, occurredOn, billDueDate).map((d) => (
-                          <option key={isoDate(d)} value={isoDate(d)}>
-                            {d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} bill
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
+                  <div className="col-md-6">
+                    <label className="eyebrow d-block mb-2">{repeat === 'NONE' ? 'Bill' : 'First bill'}</label>
+                    <select
+                      className="form-select form-select-sm"
+                      value={billDueDate}
+                      onChange={(e) => setBillDueDate(e.target.value)}
+                    >
+                      {billOptionsWithCurrent(selectedCard, occurredOn, billDueDate).map((d) => (
+                        <option key={isoDate(d)} value={isoDate(d)}>
+                          {d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} bill
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                   {repeat !== 'NONE' && (
                     <div className="col-12 text-faint" style={{ fontSize: 11.5 }}>
                       {repeat === 'INSTALLMENTS'
                         ? `Splits the amount evenly into ${occurrences || 'N'} monthly transactions.`
                         : `Creates ${occurrences || 'N'} ${repeat.toLowerCase()} transactions of the same amount, starting on the date above.`}
+                      {' '}Picking a bill other than the natural one shifts every occurrence by the same number of bills.
                     </div>
                   )}
                 </div>
