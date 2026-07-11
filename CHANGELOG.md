@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## frontend:v2026.07.11.83 & backend:v2026.07.11.82 - 2026-07-11
+## frontend:v2026.07.11.87 & backend:v2026.07.11.86 - 2026-07-11
 
 ## Added
 - Icons in the categories to improve viewing and usage.
@@ -23,8 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Credit card transactions can select the first bill to land the first record.
 
 ### Docker images
-- `docker.io/rmcampos/ledger-backend:v2026.07.11.82`
-- `docker.io/rmcampos/ledger-frontend:v2026.07.11.83`
+- `docker.io/rmcampos/ledger-backend:v2026.07.11.86`
+- `docker.io/rmcampos/ledger-frontend:v2026.07.11.87`
 
 ## frontend:v2026.07.10.78 & backend:v2026.07.10.79 - 2026-07-10
 
