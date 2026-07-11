@@ -305,6 +305,7 @@ export default function Transactions() {
   const [editDescription, setEditDescription] = useState('');
   const [editAmount, setEditAmount] = useState('');
   const [editOccurredOn, setEditOccurredOn] = useState('');
+  const [editScope, setEditScope] = useState('THIS');
 
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }) => TransactionsApi.update(id, payload),
@@ -336,17 +337,19 @@ export default function Transactions() {
     setEditDescription(t.description);
     setEditAmount(formatSignedAmount(t.amount));
     setEditOccurredOn(t.occurredOn);
+    setEditScope('THIS');
   };
 
-  const handleEditSubmit = (e, id) => {
+  const handleEditSubmit = (e, t) => {
     e.preventDefault();
     updateMutation.mutate({
-      id,
+      id: t.id,
       payload: {
         categoryId: editCategoryId ? Number(editCategoryId) : null,
         description: editDescription,
         amount: parseSignedAmount(editAmount),
         occurredOn: editOccurredOn,
+        scope: t.seriesId ? editScope : undefined,
       },
     });
   };
@@ -354,7 +357,7 @@ export default function Transactions() {
   const [confirmingId, setConfirmingId] = useState(null);
 
   const deleteMutation = useMutation({
-    mutationFn: TransactionsApi.remove,
+    mutationFn: ({ id, scope }) => TransactionsApi.remove(id, scope),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
@@ -873,7 +876,7 @@ export default function Transactions() {
                 >
                   {editingId === t.id ? (
                     <form
-                      onSubmit={(e) => handleEditSubmit(e, t.id)}
+                      onSubmit={(e) => handleEditSubmit(e, t)}
                       className="d-flex align-items-center gap-2 flex-wrap w-100"
                     >
                       <select
@@ -921,6 +924,33 @@ export default function Transactions() {
                           Cancel
                         </button>
                       </div>
+                      {t.seriesId && (
+                        <div className="d-flex gap-3 w-100" style={{ fontSize: 12 }}>
+                          <label className="d-flex align-items-center gap-1">
+                            <input
+                              type="radio"
+                              name={`edit-scope-${t.id}`}
+                              checked={editScope === 'THIS'}
+                              onChange={() => setEditScope('THIS')}
+                            />
+                            This occurrence only
+                          </label>
+                          <label className="d-flex align-items-center gap-1">
+                            <input
+                              type="radio"
+                              name={`edit-scope-${t.id}`}
+                              checked={editScope === 'FUTURE'}
+                              onChange={() => setEditScope('FUTURE')}
+                            />
+                            This and future
+                          </label>
+                        </div>
+                      )}
+                      {t.seriesId && editScope === 'FUTURE' && t.seriesRepeat === 'INSTALLMENTS' && (
+                        <div className="w-100 text-faint" style={{ fontSize: 11.5 }}>
+                          Amount is re-split evenly across this and the remaining installments.
+                        </div>
+                      )}
                       {updateMutation.isError && (
                         <div className="w-100" style={{ fontSize: 11.5, color: 'var(--red)' }}>
                           Could not save changes.
@@ -934,13 +964,32 @@ export default function Transactions() {
                         This cannot be undone.
                       </span>
                       <div className="d-flex gap-2 ms-auto">
-                        <button
-                          className="btn btn-red btn-sm"
-                          disabled={deleteMutation.isPending}
-                          onClick={() => deleteMutation.mutate(t.id)}
-                        >
-                          {deleteMutation.isPending ? 'Deleting…' : 'Delete'}
-                        </button>
+                        {t.seriesId ? (
+                          <>
+                            <button
+                              className="btn btn-red btn-sm"
+                              disabled={deleteMutation.isPending}
+                              onClick={() => deleteMutation.mutate({ id: t.id, scope: 'THIS' })}
+                            >
+                              Delete this only
+                            </button>
+                            <button
+                              className="btn btn-red btn-sm"
+                              disabled={deleteMutation.isPending}
+                              onClick={() => deleteMutation.mutate({ id: t.id, scope: 'FUTURE' })}
+                            >
+                              Delete this & future
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            className="btn btn-red btn-sm"
+                            disabled={deleteMutation.isPending}
+                            onClick={() => deleteMutation.mutate({ id: t.id, scope: 'THIS' })}
+                          >
+                            {deleteMutation.isPending ? 'Deleting…' : 'Delete'}
+                          </button>
+                        )}
                         <button type="button" className="btn btn-ghost btn-sm" onClick={cancelDelete}>
                           Cancel
                         </button>

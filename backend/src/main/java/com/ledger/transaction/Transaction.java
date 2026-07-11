@@ -41,6 +41,15 @@ public class Transaction extends PanacheEntityBase {
     @Column(name = "series_info")
     public String seriesInfo;
 
+    /** Opaque token shared by every row generated together in one repeat/installment batch. Not a FK, just a grouping value — see TransactionResource#create. Null for one-off transactions. */
+    @Column(name = "series_id", length = 36)
+    public String seriesId;
+
+    /** The RepeatFrequency the series was created with, set/cleared in lockstep with seriesId. Drives scope-aware edit behavior — INSTALLMENTS re-splits on "this and future" amount edits, others flat-set. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "series_repeat", length = 20)
+    public RepeatFrequency seriesRepeat;
+
     /**
      * Only meaningful for CREDIT_CARD account transactions — the bill this
      * charge was explicitly assigned to. Display/grouping tag only, same
@@ -74,5 +83,9 @@ public class Transaction extends PanacheEntityBase {
 
     public static List<Transaction> findByAccount(Long accountId) {
         return list("account.id", io.quarkus.panache.common.Sort.descending("occurredOn"), accountId);
+    }
+
+    public static List<Transaction> findBySeries(String seriesId) {
+        return list("seriesId", io.quarkus.panache.common.Sort.ascending("occurredOn").and("id"), seriesId);
     }
 }

@@ -50,6 +50,8 @@ public class TransactionResource {
         RepeatFrequency repeat = request.repeat != null ? request.repeat : RepeatFrequency.NONE;
         int count = repeat == RepeatFrequency.NONE ? 1 : requireOccurrences(request.occurrences);
         BigDecimal[] amounts = splitAmount(request.amount, repeat, count);
+        String seriesId = count > 1 ? java.util.UUID.randomUUID().toString() : null;
+        RepeatFrequency seriesRepeat = count > 1 ? repeat : null;
 
         List<Transaction> created = new ArrayList<>();
         LocalDate date = request.occurredOn != null ? request.occurredOn : LocalDate.now();
@@ -61,6 +63,8 @@ public class TransactionResource {
             txn.amount = amounts[i];
             txn.occurredOn = date;
             txn.seriesInfo = count > 1 ? (i + 1) + "/" + count : null;
+            txn.seriesId = seriesId;
+            txn.seriesRepeat = seriesRepeat;
             txn.billDueDate = repeat == RepeatFrequency.NONE ? request.billDueDate : null;
             txn.persist();
             created.add(txn);
@@ -113,11 +117,12 @@ public class TransactionResource {
             throw new WebApplicationException("Cannot directly edit a credit card bill transaction", 400);
         }
 
-        txn.description = request.description;
-        txn.amount = request.amount;
-        txn.occurredOn = request.occurredOn != null ? request.occurredOn : txn.occurredOn;
-        txn.category = request.categoryId != null ? Category.findById(request.categoryId) : null;
-        txn.billDueDate = request.billDueDate;
+        EditScope scope = request.scope != null ? request.scope : EditScope.THIS;
+        if (scope == EditScope.FUTURE && txn.seriesId != null) {
+            applyToSeries(txn, request);
+        } else {
+            applyToSingle(txn, request);
+        }
 
         billSync.recomputeAccountBalance(txn.account);
         if (txn.account.kind == AccountKind.CREDIT_CARD) {
@@ -126,19 +131,104 @@ public class TransactionResource {
         return txn;
     }
 
+    private void applyToSingle(Transaction txn, UpdateTransactionRequest request) {
+        txn.description = request.description;
+        txn.amount = request.amount;
+        txn.occurredOn = request.occurredOn != null ? request.occurredOn : txn.occurredOn;
+        txn.category = request.categoryId != null ? Category.findById(request.categoryId) : null;
+        txn.billDueDate = request.billDueDate;
+    }
+
+    /**
+     * "This and future": description/category/billDueDate propagate to every
+     * row from the anchor onward. occurredOn is never propagated — only the
+     * anchor's own date changes, and seriesFrom() uses the anchor's original
+     * date, so moving it can't change which rows count as "future".
+     */
+    private void applyToSeries(Transaction anchor, UpdateTransactionRequest request) {
+        List<Transaction> rest = seriesFrom(anchor);
+        Category category = request.categoryId != null ? Category.findById(request.categoryId) : null;
+
+        if (anchor.seriesRepeat == RepeatFrequency.INSTALLMENTS) {
+            BigDecimal[] amounts = splitAmount(request.amount, RepeatFrequency.INSTALLMENTS, rest.size());
+            for (int i = 0; i < rest.size(); i++) {
+                Transaction t = rest.get(i);
+                t.description = request.description;
+                t.category = category;
+                t.billDueDate = request.billDueDate;
+                t.amount = amounts[i];
+            }
+        } else {
+            for (Transaction t : rest) {
+                t.description = request.description;
+                t.category = category;
+                t.billDueDate = request.billDueDate;
+                t.amount = request.amount;
+            }
+        }
+
+        anchor.occurredOn = request.occurredOn != null ? request.occurredOn : anchor.occurredOn;
+    }
+
+    /** This row and every row scheduled on/after it within the same series — occurredOn primary, id tie-break for same-day rows. */
+    private List<Transaction> seriesFrom(Transaction anchor) {
+        return Transaction.list(
+                "seriesId = ?1 and (occurredOn > ?2 or (occurredOn = ?2 and id >= ?3))",
+                io.quarkus.panache.common.Sort.ascending("occurredOn").and("id"),
+                anchor.seriesId, anchor.occurredOn, anchor.id);
+    }
+
     @DELETE
     @Path("/{id}")
     @Transactional
-    public void delete(@PathParam("id") Long id) {
+    public void delete(@PathParam("id") Long id, @QueryParam("scope") @DefaultValue("THIS") EditScope scope) {
         Transaction txn = requireOwnedTransaction(id);
         if (txn.linkedCard != null) {
             throw new WebApplicationException("Cannot directly delete a credit card bill transaction", 400);
         }
         Account account = txn.account;
-        txn.delete();
+        String seriesId = txn.seriesId;
+
+        if (scope == EditScope.FUTURE && seriesId != null) {
+            for (Transaction t : seriesFrom(txn)) {
+                t.delete();
+            }
+        } else {
+            txn.delete();
+        }
+
+        if (seriesId != null) {
+            renumberSeries(seriesId);
+        }
+
         billSync.recomputeAccountBalance(account);
         if (account.kind == AccountKind.CREDIT_CARD) {
             billSync.sync(account);
+        }
+    }
+
+    /**
+     * Keeps seriesInfo contiguous after any delete (single-row or "this and
+     * future" batch): e.g. 1/12,2/12,4/12,5/12... becomes 1/11,2/11,3/11...
+     * A series collapsed down to one remaining row is no longer meaningfully
+     * a series — clear its series fields so it falls back to plain
+     * single-row edit/delete and drops the seriesInfo badge.
+     */
+    private void renumberSeries(String seriesId) {
+        List<Transaction> remaining = Transaction.findBySeries(seriesId);
+        if (remaining.isEmpty()) {
+            return;
+        }
+        if (remaining.size() == 1) {
+            Transaction only = remaining.get(0);
+            only.seriesInfo = null;
+            only.seriesId = null;
+            only.seriesRepeat = null;
+            return;
+        }
+        int total = remaining.size();
+        for (int i = 0; i < total; i++) {
+            remaining.get(i).seriesInfo = (i + 1) + "/" + total;
         }
     }
 
@@ -243,5 +333,7 @@ public class TransactionResource {
         public BigDecimal amount;
         public LocalDate occurredOn;
         public LocalDate billDueDate;
+        /** THIS (default when omitted) or FUTURE. FUTURE is only honored when the target transaction has a non-null seriesId — see TransactionResource#update. */
+        public EditScope scope;
     }
 }

@@ -1,6 +1,74 @@
 # Ledger — Outstanding Work
 
-## Status as of end of session (2026-07-09, latest session)
+## Status as of end of session (2026-07-11, latest session)
+
+**Done, not yet committed: §8 series tracking + scope-aware edit/delete**
+(requested 2026-07-11, planned via plan mode, plan saved at
+`/home/ricardo/.claude/plans/idempotent-hugging-cupcake.md`). Resolves §8's
+long-standing gap (repeat/installment rows only shared a cosmetic
+`seriesInfo` string, no real grouping key) and adds the "apply to future
+occurrences?" prompt on edit/delete the user asked for.
+
+- Backend: two new nullable columns on `Transaction` — `seriesId` (Java
+  `UUID.randomUUID().toString()`, `VARCHAR(36)`, `V8__transaction_series_id.sql`,
+  indexed) and `seriesRepeat` (the `RepeatFrequency` the batch was created
+  with, `V9__transaction_series_repeat.sql`) — both set once per batch in
+  `TransactionResource#create`, identically across every generated row, both
+  null for one-off transactions (no backfill for pre-existing rows — they
+  keep their `seriesInfo` display string and fall back to plain single-row
+  edit/delete, per §8's already-accepted tradeoff).
+- New `EditScope` enum (`THIS`/`FUTURE`). `PUT /transactions/{id}` gained an
+  optional `scope` body field (default `THIS`, backward compatible);
+  `DELETE /transactions/{id}` gained an optional `?scope=` query param
+  (default `THIS`). `FUTURE` is only honored when the target row has a
+  non-null `seriesId`.
+  - Edit "this and future": `description`/`category`/`billDueDate` flat-set
+    across every row from the edited occurrence onward (via new
+    `seriesFrom(anchor)`, `occurredOn`-then-`id` ordered). `occurredOn` is
+    **never** propagated — only the anchor row's own date changes.
+    `amount` on an `INSTALLMENTS` series re-splits the entered total evenly
+    across the remaining rows (reuses the existing `splitAmount` helper,
+    same remainder-on-last-row rule as creation); non-INSTALLMENTS series
+    flat-set every affected row to the entered amount.
+  - Delete "this and future": deletes every row from the target occurrence
+    onward in the same series.
+  - Every delete (single or batch) calls new `renumberSeries()`, which
+    relabels remaining rows' `seriesInfo` contiguously (closing gaps like
+    `1/12,2/12,4/12,5/12` → `1/11,2/11,3/11...`), and clears
+    `seriesId`/`seriesInfo`/`seriesRepeat` entirely if a series collapses to
+    one remaining row (it silently reverts to a plain non-series
+    transaction — no scope UI shown for it anymore).
+- Frontend (`Transactions.jsx` and its line-for-line duplicate block in
+  `CardBills.jsx`, both updated identically): the in-row edit form shows a
+  "This occurrence only" / "This and future" radio pair — and, when the
+  latter is picked on an `INSTALLMENTS` row, a one-line re-split hint —
+  only when `t.seriesId` is set; the delete confirm panel swaps its single
+  "Delete" button for "Delete this only" / "Delete this & future" under the
+  same condition. Non-series transactions render zero new UI, byte-for-byte
+  unchanged from before. `TransactionsApi.remove` gained a defaulted
+  `scope` param (`'THIS'`); `update`'s payload just gained one more
+  optional key.
+
+Verified via curl (fresh signup, INSTALLMENTS batch creation confirms
+shared `seriesId`; `PUT .../2?scope=FUTURE` on occurrence 2 of 4 re-split a
+new $90 total across occurrences 2-4 leaving occurrence 1 untouched, and
+only occurrence 2's own date changed; `DELETE .../1?scope=THIS` renumbered
+the remaining three from `2/4,3/4,4/4` to `1/3,2/3,3/3`; a further
+`DELETE ...?scope=FUTURE` collapsing a series to one row correctly nulled
+out its `seriesId`/`seriesInfo`/`seriesRepeat`; a separate uneven-total
+re-split ($100 over 3) landed `33.33/33.33/33.34`, remainder on the last
+row as designed; a plain non-series transaction created/deleted with no
+`scope` param at all, confirming backward compatibility) and via a fresh
+Playwright pass (`playwright-core` + cached Chromium installed ad hoc into
+scratchpad, no OS-level deps available so `--with-deps` wasn't used) on
+both `Transactions.jsx` and `CardBills.jsx`: scope radios and the
+INSTALLMENTS hint appear only on series rows, the re-split renders
+correctly in the row list after saving, deleting "this only" renumbers the
+badge in place, and a non-series row (`Coffee`) shows the exact pre-change
+single-button edit/delete UI with no radios. No console errors in any
+pass.
+
+## Status as of end of session (2026-07-09, previous session)
 
 **Product.md audit → 5 fix chunks, all done, each reviewed/committed
 individually by the user as we went.** User wrote `Product.md` (repo root,
@@ -645,27 +713,22 @@ possibly reference the row (Budget's and Transaction's case).
 feature below — nothing outstanding right now beyond §5's demo-login bug,
 §6's backend gaps, and the new §8 item below (neither urgent).
 
-## 8. Recurring-series tracking at the DB level (raised 2026-07-07, not started)
+## 8. Recurring-series tracking at the DB level — [x] done (raised 2026-07-07, resolved 2026-07-11)
 
-Today a repeat/installment purchase generates N independent `Transaction`
-rows linked only by a cosmetic `seriesInfo` string (e.g. `"3/12"`) — there is
-no `series_id`/group column anywhere. Consequence, confirmed with user:
-editing or deleting one occurrence only ever touches that single row.
-Deleting one leaves a gap in the `seriesInfo` numbering (e.g.
-`1/12, 2/12, 4/12, 5/12...`) since nothing renumbers the rest, and there's
-no "edit/delete this and all future occurrences" option.
+Was: a repeat/installment purchase generated N independent `Transaction`
+rows linked only by a cosmetic `seriesInfo` string (e.g. `"3/12"`), no real
+`series_id`/group column anywhere — editing/deleting one occurrence only
+ever touched that single row, deleting one left a gap in the numbering, no
+"edit/delete this and all future occurrences" option.
 
-If this is worth fixing later:
-- Add a real `series_id` (e.g. a generated UUID or a self-referential FK to
-  the first row) on `Transaction`, set at generation time in
-  `TransactionResource#create`, so occurrences are actually queryable as a
-  group instead of only sharing a display string.
-- Decide the desired bulk behavior once tracked: renumber remaining
-  `seriesInfo` labels after a delete, and/or add "delete this and all
-  future" / "edit all remaining" affordances on the frontend.
-- Not urgent — no one has hit this in practice yet, purely a known gap from
-  how §-recurrence was deliberately kept simple (pre-generate flat rows, no
-  scheduler, no series table — see the entry above).
+Now fixed — see the 2026-07-11 session entry above for full detail:
+- [x] Real `series_id` (Java-generated UUID, `V8__transaction_series_id.sql`)
+  set at generation time in `TransactionResource#create`.
+- [x] `seriesInfo` renumbers contiguously after any delete; a series
+  collapsed to one row clears its series fields entirely.
+- [x] "This occurrence only" / "This and future" scope choice on both edit
+  and delete, frontend + backend, including INSTALLMENTS-aware amount
+  re-splitting.
 
 **Done, not yet committed: Recurrence/installments** (requested 2026-07-07).
 - Backend: `Transaction` gained `seriesInfo` (nullable String, e.g. `"3/12"`,
