@@ -384,22 +384,25 @@ export default function CardBills() {
           <div className="eyebrow mb-1">{selectedCard ? selectedCard.name : 'Credit card'}</div>
           <div className="page-title">Card Bills</div>
         </div>
-        {selectedCard && (
+        {selectedCard ? (
           <button className="btn btn-jade btn-sm" onClick={openForm}>
             <i className="bi bi-plus-lg me-1" />
             Add transaction
           </button>
+        ) : (
+          !accountsQuery.isLoading &&
+          allCards.length === 0 && (
+            <Link to="/accounts?add=credit-card" className="btn btn-jade btn-sm">
+              <i className="bi bi-plus-lg me-1" />
+              Add credit card
+            </Link>
+          )
         )}
       </div>
 
       {!accountsQuery.isLoading && allCards.length === 0 && (
         <div className="panel p-4 text-center text-muted-c" style={{ padding: 40, fontSize: 13 }}>
           No credit card accounts yet.
-          <div className="mt-3">
-            <Link to="/accounts" className="btn btn-jade btn-sm">
-              Add a credit card in Accounts
-            </Link>
-          </div>
         </div>
       )}
 

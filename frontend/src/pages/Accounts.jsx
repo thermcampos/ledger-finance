@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AccountsApi, TransactionsApi } from '../api/ledger';
 import { startOfDay } from '../utils/date';
@@ -47,6 +48,19 @@ export default function Accounts() {
   const [creditLimit, setCreditLimit] = useState('');
   const [dueDayOfMonth, setDueDayOfMonth] = useState('');
   const [paymentAccountId, setPaymentAccountId] = useState('');
+
+  // Deep link from Credit Cards / Card Bills' "Add a credit card" CTAs
+  // (?add=credit-card) — open the form with Kind pre-selected instead of
+  // landing on the page and making the user pick it again.
+  const [searchParams] = useSearchParams();
+  const appliedAddParam = useRef(false);
+  useEffect(() => {
+    if (searchParams.get('add') === 'credit-card' && !appliedAddParam.current) {
+      appliedAddParam.current = true;
+      setKind('CREDIT_CARD');
+      setShowForm(true);
+    }
+  }, [searchParams]);
 
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState('');
@@ -274,6 +288,12 @@ export default function Accounts() {
         </div>
       )}
 
+      {!accountsQuery.isLoading && accounts.length === 0 && (
+        <div className="panel p-4 text-center text-muted-c" style={{ padding: 40, fontSize: 13 }}>
+          No accounts yet.
+        </div>
+      )}
+
       <div className="row g-3">
         {accounts.map((a) => {
           const txns = txnsByAccountId.get(a.id) || [];
@@ -429,12 +449,6 @@ export default function Accounts() {
           </div>
           );
         })}
-        <div className="col-md-6 col-lg-3">
-          <div className="add-account-card" onClick={() => setShowForm(true)}>
-            <i className="bi bi-plus-lg mb-2" style={{ fontSize: 18 }} />
-            <div style={{ fontSize: 13, fontWeight: 500 }}>Add account</div>
-          </div>
-        </div>
       </div>
     </div>
   );

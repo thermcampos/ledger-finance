@@ -51,6 +51,10 @@ export default function CreditCards() {
           </div>
           <div className="page-title">Credit Cards</div>
         </div>
+        <Link to="/accounts?add=credit-card" className="btn btn-jade btn-sm">
+          <i className="bi bi-plus-lg me-1" />
+          Add credit card
+        </Link>
       </div>
 
       <div className="panel p-4 mb-4">
@@ -91,11 +95,6 @@ export default function CreditCards() {
       {!accountsQuery.isLoading && cards.length === 0 && (
         <div className="panel p-4 text-center text-muted-c" style={{ padding: 40, fontSize: 13 }}>
           No credit card accounts yet.
-          <div className="mt-3">
-            <Link to="/accounts" className="btn btn-jade btn-sm">
-              Add a credit card in Accounts
-            </Link>
-          </div>
         </div>
       )}
 

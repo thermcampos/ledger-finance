@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pre-set of categories to help users get started.
 - Linked transactions allowing to propagate changes or deletion.
 
+## Changed
+- Removed the accounts add card that not follows the app pattern.
+- When adding a credit card, the user is redirected having the add form visible and selected.
+- Normalized the Add Credit Card button across the app to stick to visual pattern.
+
 ## Fixed
 - Credit card transactions can select the first bill to land the first record.
 
