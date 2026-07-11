@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AccountsApi, CategoriesApi, TransactionsApi } from '../api/ledger';
 import { parseLocalDate, startOfDay, isoDate } from '../utils/date';
+import { iconClassName } from '../constants/categoryIcons';
 import {
   billDueDateFor,
   nextBillFor,
@@ -619,7 +620,7 @@ export default function CardBills() {
           {!isLoading &&
             filteredBillTransactions.map((t) => {
               const catName = t.category?.name;
-              const icon = categoryIcons[catName] || 'bi-dot';
+              const icon = t.category?.icon || categoryIcons[catName] || 'bi-dot';
               const color = t.category?.colorHex || categoryColors[catName] || '#8B92A0';
               return (
                 <div className="txn-row" key={t.id}>
@@ -718,7 +719,7 @@ export default function CardBills() {
                   ) : (
                     <>
                       <div className="txn-icon" style={{ color }}>
-                        <i className={`bi ${icon}`} />
+                        <i className={iconClassName(icon)} />
                       </div>
                       <div className="txn-main">
                         <div className="txn-desc">

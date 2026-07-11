@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## frontend:v2026.07.11. & backend:v2026.07.11. - 2026-07-11
+
+## Added
+- Icons in the categories to improve viewing and usage.
+
+### Docker images
+- `docker.io/rmcampos/ledger-backend:v2026.07.11.?`
+- `docker.io/rmcampos/ledger-frontend:v2026.07.11.?`
+
 ## frontend:v2026.07.10.78 & backend:v2026.07.10.79 - 2026-07-10
 
 ## Added

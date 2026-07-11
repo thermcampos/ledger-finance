@@ -214,6 +214,7 @@ body {
   text-align: right;
   font-weight: 500;
   white-space: nowrap;
+  font-size: 15px;
 }
 .cell-amount.pos {
   color: var(--jade);
@@ -267,7 +268,7 @@ body {
   font-weight: 600;
 }
 .day-heading.future .eyebrow {
-  color: var(--text-faint);
+  color: var(--jade);
 }
 .day-total {
   font-family: 'IBM Plex Mono', monospace;
@@ -275,20 +276,27 @@ body {
   color: var(--text-faint);
 }
 .txn-row.future {
-  opacity: 0.55;
+  border-left: 3px solid var(--jade);
+  background: var(--jade-dim);
 }
 .txn-row.future:hover {
-  opacity: 0.75;
+  background: var(--jade-dim);
+  border-color: #39414f;
+  border-left-color: var(--jade);
+}
+.txn-row.future .txn-icon {
+  border-color: rgba(79, 169, 138, 0.45);
+  background: var(--surface);
 }
 .txn-row {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 13px 16px;
+  gap: 16px;
+  padding: 16px 18px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   transition: border-color 0.12s ease, background 0.12s ease;
 }
 .txn-row:hover {
@@ -296,14 +304,14 @@ body {
   background: var(--surface-2);
 }
 .txn-icon {
-  width: 34px;
-  height: 34px;
-  border-radius: 7px;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  font-size: 14px;
+  font-size: 16px;
   border: 1px solid var(--border);
 }
 .txn-main {
@@ -311,13 +319,13 @@ body {
   min-width: 0;
 }
 .txn-desc {
-  font-size: 13.5px;
+  font-size: 15px;
   font-weight: 500;
 }
 .txn-meta {
-  font-size: 12px;
+  font-size: 12.5px;
   color: var(--text-muted);
-  margin-top: 2px;
+  margin-top: 3px;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -335,9 +343,9 @@ body {
 }
 .txn-balance {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 11.5px;
+  font-size: 12.5px;
   color: var(--text-faint);
-  margin-top: 2px;
+  margin-top: 3px;
 }
 
 /* --- Budgets --- */

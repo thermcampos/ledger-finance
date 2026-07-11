@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CategoriesApi } from '../api/ledger';
+import { DEFAULT_ICON, ICON_OPTIONS, iconClassName } from '../constants/categoryIcons';
 
 const CATEGORY_PALETTE = [
   '#4FA98A', '#6B8FC9', '#9B7FD4', '#C9A227', '#C75450',
@@ -20,8 +21,10 @@ export default function Categories() {
 
   const [showForm, setShowForm] = useState(false);
   const [showPalette, setShowPalette] = useState(false);
+  const [showIconPicker, setShowIconPicker] = useState(false);
   const [name, setName] = useState('');
   const [colorHex, setColorHex] = useState(CATEGORY_PALETTE[0]);
+  const [icon, setIcon] = useState(DEFAULT_ICON);
 
   const createMutation = useMutation({
     mutationFn: CategoriesApi.create,
@@ -34,22 +37,26 @@ export default function Categories() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    createMutation.mutate({ name, colorHex });
+    createMutation.mutate({ name, colorHex, icon });
   };
 
   const handleAddClick = () => {
     if (!showForm) {
       const usedColors = categories.map((c) => c.colorHex).filter(Boolean);
       setColorHex(pickNextColor(usedColors));
+      setIcon(DEFAULT_ICON);
       setShowPalette(false);
+      setShowIconPicker(false);
     }
     setShowForm((s) => !s);
   };
 
   const [editingId, setEditingId] = useState(null);
   const [showEditPalette, setShowEditPalette] = useState(false);
+  const [showEditIconPicker, setShowEditIconPicker] = useState(false);
   const [editName, setEditName] = useState('');
   const [editColorHex, setEditColorHex] = useState(CATEGORY_PALETTE[0]);
+  const [editIcon, setEditIcon] = useState(DEFAULT_ICON);
 
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }) => CategoriesApi.update(id, payload),
@@ -63,14 +70,16 @@ export default function Categories() {
     setConfirmingId(null);
     setBlockedId(null);
     setShowEditPalette(false);
+    setShowEditIconPicker(false);
     setEditingId(c.id);
     setEditName(c.name || '');
     setEditColorHex(c.colorHex || CATEGORY_PALETTE[0]);
+    setEditIcon(c.icon || DEFAULT_ICON);
   };
 
   const handleEditSubmit = (e, id) => {
     e.preventDefault();
-    updateMutation.mutate({ id, payload: { name: editName, colorHex: editColorHex } });
+    updateMutation.mutate({ id, payload: { name: editName, colorHex: editColorHex, icon: editIcon } });
   };
 
   const [confirmingId, setConfirmingId] = useState(null);
@@ -142,7 +151,7 @@ export default function Categories() {
                   autoFocus
                 />
               </div>
-              <div className="col-md-5">
+              <div className="col-md-4">
                 <label className="eyebrow d-block mb-2">Color</label>
                 <div className="d-flex align-items-center gap-3">
                   <span
@@ -184,8 +193,48 @@ export default function Categories() {
                   </div>
                 )}
               </div>
-              <div className="col-md-3">
-                <button type="submit" className="btn btn-jade btn-sm w-100" disabled={createMutation.isPending}>
+              <div className="col-md-4">
+                <label className="eyebrow d-block mb-2">Icon</label>
+                <div className="d-flex align-items-center gap-3">
+                  <span
+                    className="txn-icon"
+                    style={{ color: colorHex }}
+                  >
+                    <i className={iconClassName(icon)} />
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => setShowIconPicker((s) => !s)}
+                  >
+                    {showIconPicker ? 'Hide icons' : 'Choose icon'}
+                  </button>
+                </div>
+              </div>
+            </div>
+            {showIconPicker && (
+              <div className="row g-3 mt-1">
+                <div className="col-12 d-flex gap-2 flex-wrap">
+                  {ICON_OPTIONS.map((opt) => (
+                    <button
+                      type="button"
+                      key={opt.value}
+                      title={opt.label}
+                      onClick={() => setIcon(opt.value)}
+                      className="icon-btn icon-btn-lg"
+                      style={{
+                        border: icon === opt.value ? '2px solid var(--text)' : '1px solid var(--border)',
+                      }}
+                    >
+                      <i className={iconClassName(opt.value)} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="row g-3 mt-1">
+              <div className="col-12 d-flex justify-content-end">
+                <button type="submit" className="btn btn-jade btn-sm" disabled={createMutation.isPending}>
                   {createMutation.isPending ? 'Adding…' : 'Add'}
                 </button>
               </div>
@@ -255,6 +304,36 @@ export default function Categories() {
                   onChange={(e) => setEditName(e.target.value)}
                   required
                 />
+                <div className="d-flex align-items-center gap-2">
+                  <span className="txn-icon" style={{ color: editColorHex, width: 30, height: 30 }}>
+                    <i className={iconClassName(editIcon)} />
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => setShowEditIconPicker((s) => !s)}
+                  >
+                    {showEditIconPicker ? 'Hide icons' : 'Choose icon'}
+                  </button>
+                </div>
+                {showEditIconPicker && (
+                  <div className="d-flex gap-2 flex-wrap w-100">
+                    {ICON_OPTIONS.map((opt) => (
+                      <button
+                        type="button"
+                        key={opt.value}
+                        title={opt.label}
+                        onClick={() => setEditIcon(opt.value)}
+                        className="icon-btn icon-btn-lg"
+                        style={{
+                          border: editIcon === opt.value ? '2px solid var(--text)' : '1px solid var(--border)',
+                        }}
+                      >
+                        <i className={iconClassName(opt.value)} />
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <div className="d-flex gap-2 ms-auto">
                   <button type="submit" className="btn btn-jade btn-sm" disabled={updateMutation.isPending}>
                     {updateMutation.isPending ? 'Saving…' : 'Save'}
@@ -296,14 +375,11 @@ export default function Categories() {
             ) : (
               <>
                 <span
-                  style={{
-                    width: 12,
-                    height: 12,
-                    borderRadius: '50%',
-                    background: c.colorHex || 'var(--text-faint)',
-                    flexShrink: 0,
-                  }}
-                />
+                  className="txn-icon"
+                  style={{ color: c.colorHex || 'var(--text-faint)', width: 30, height: 30 }}
+                >
+                  <i className={iconClassName(c.icon)} />
+                </span>
                 <span style={{ fontWeight: 500 }}>{c.name}</span>
                 {blockedId === c.id && (
                   <span style={{ fontSize: 11.5, color: 'var(--red)' }}>

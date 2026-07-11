@@ -35,6 +35,7 @@ public class CategoryResource {
         category.user = currentUser.require();
         category.name = request.name;
         category.colorHex = request.colorHex;
+        category.icon = request.icon;
         category.persist();
         return category;
     }
@@ -46,6 +47,7 @@ public class CategoryResource {
         Category category = requireOwnedCategory(id);
         category.name = request.name;
         category.colorHex = request.colorHex;
+        category.icon = request.icon;
         return category;
     }
 
@@ -84,6 +86,7 @@ public class CategoryResource {
         @NotBlank
         public String name;
         public String colorHex;
+        public String icon;
     }
 
     public static class CategoryUsage {

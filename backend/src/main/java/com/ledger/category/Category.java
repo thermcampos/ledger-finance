@@ -23,6 +23,8 @@ public class Category extends PanacheEntityBase {
     @Column(name = "color_hex")
     public String colorHex;
 
+    public String icon;
+
     public static List<Category> findByUser(Long userId) {
         return list("user.id", userId);
     }

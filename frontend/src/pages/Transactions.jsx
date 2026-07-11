@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AccountsApi, CategoriesApi, TransactionsApi } from '../api/ledger';
+import { iconClassName } from '../constants/categoryIcons';
 import { parseLocalDate, startOfDay } from '../utils/date';
 import { balanceAsOf, sortChronologically } from '../utils/balance';
 
@@ -42,6 +43,10 @@ function formatSignedAmount(amount) {
   return num >= 0 ? `+${num}` : `${num}`;
 }
 
+// DRY RUN — hardcoded, not wired to category creation yet. Covers common
+// household categories so we can eyeball icon coverage before building a
+// real icon picker. See CLAUDE.md discussion: bootstrap-icons has no
+// dedicated Pets or Kids glyph — those two fall back to a generic pick.
 const categoryColors = {
   Groceries: '#4FA98A',
   Housing: '#C9A227',
@@ -51,6 +56,32 @@ const categoryColors = {
   Subscriptions: '#8B92A0',
   Transfer: '#8B92A0',
   Salary: '#4FA98A',
+  Gasoline: '#6B8FC9',
+  Kids: '#C9A227',
+  Fun: '#C9A227',
+  Entertainment: '#C9A227',
+  Pets: '#6B8FC9',
+  Trips: '#4FA98A',
+  Travel: '#4FA98A',
+  Utilities: '#8B92A0',
+  Health: '#C75450',
+  Medical: '#C75450',
+  Insurance: '#8B92A0',
+  Shopping: '#C9A227',
+  Gifts: '#C75450',
+  Education: '#6B8FC9',
+  Fitness: '#4FA98A',
+  Gym: '#4FA98A',
+  Phone: '#8B92A0',
+  Internet: '#8B92A0',
+  Savings: '#4FA98A',
+  Investments: '#4FA98A',
+  Charity: '#C75450',
+  Donations: '#C75450',
+  Clothing: '#C9A227',
+  Electronics: '#6B8FC9',
+  'Personal care': '#C9A227',
+  Taxes: '#8B92A0',
 };
 const categoryIcons = {
   Groceries: 'bi-basket2',
@@ -61,6 +92,32 @@ const categoryIcons = {
   Subscriptions: 'bi-repeat',
   Transfer: 'bi-arrow-left-right',
   Salary: 'bi-arrow-down-left',
+  Gasoline: 'bi-fuel-pump',
+  Kids: 'bi-balloon', // gap — no dedicated child/kid icon in bootstrap-icons
+  Fun: 'bi-controller',
+  Entertainment: 'bi-film',
+  Pets: 'bi-heart', // gap — no dog/cat/paw icon in bootstrap-icons
+  Trips: 'bi-airplane',
+  Travel: 'bi-airplane',
+  Utilities: 'bi-lightning-charge',
+  Health: 'bi-heart-pulse',
+  Medical: 'bi-heart-pulse',
+  Insurance: 'bi-shield-check',
+  Shopping: 'bi-bag',
+  Gifts: 'bi-gift',
+  Education: 'bi-mortarboard',
+  Fitness: 'bi-activity', // no dumbbell icon in bootstrap-icons
+  Gym: 'bi-activity',
+  Phone: 'bi-phone',
+  Internet: 'bi-wifi',
+  Savings: 'bi-piggy-bank',
+  Investments: 'bi-graph-up-arrow',
+  Charity: 'bi-heart-fill',
+  Donations: 'bi-heart-fill',
+  Clothing: 'bi-bag-plus', // no shirt icon in bootstrap-icons
+  Electronics: 'bi-laptop',
+  'Personal care': 'bi-droplet',
+  Taxes: 'bi-file-earmark-text',
 };
 
 function money(amount, { signed = false } = {}) {
@@ -805,7 +862,7 @@ export default function Transactions() {
             </div>
             {items.map((t) => {
               const catName = t.category?.name;
-              const icon = categoryIcons[catName] || 'bi-dot';
+              const icon = t.category?.icon || categoryIcons[catName] || 'bi-dot';
               const color = t.category?.colorHex || categoryColors[catName] || '#8B92A0';
               const rowKind = dayLabelKind(t.occurredOn);
               return (
@@ -897,11 +954,16 @@ export default function Transactions() {
                   ) : (
                     <>
                       <div className="txn-icon" style={{ color }}>
-                        <i className={`bi ${icon}`} />
+                        <i className={iconClassName(icon)} />
                       </div>
                       <div className="txn-main">
                         <div className="txn-desc">
                           {t.description}
+                          {rowKind === 'future' && (
+                            <span className="tag ms-2" style={{ verticalAlign: 'middle', color: 'var(--jade)', borderColor: 'var(--jade)' }}>
+                              Upcoming
+                            </span>
+                          )}
                           {t.seriesInfo && (
                             <span className="tag ms-2" style={{ verticalAlign: 'middle' }}>
                               {t.seriesInfo}
