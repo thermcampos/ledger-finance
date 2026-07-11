@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CategoriesApi } from '../api/ledger';
 import { DEFAULT_ICON, ICON_OPTIONS, iconClassName } from '../constants/categoryIcons';
@@ -14,10 +14,44 @@ function pickNextColor(usedColors) {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
+// Starter set offered from "Add pre-set" — reuses the same curated icon
+// list as the picker, so every preset category already has a sensible icon.
+const PRESET_CATEGORIES = ICON_OPTIONS.map((opt) => ({ name: opt.label, icon: opt.value }));
+
 export default function Categories() {
   const queryClient = useQueryClient();
   const categoriesQuery = useQuery({ queryKey: ['categories'], queryFn: CategoriesApi.list });
   const categories = [...(categoriesQuery.data || [])].sort((a, b) => a.name.localeCompare(b.name));
+
+  const [showAddMenu, setShowAddMenu] = useState(false);
+  const addMenuRef = useRef(null);
+
+  useEffect(() => {
+    function onClickOutside(e) {
+      if (addMenuRef.current && !addMenuRef.current.contains(e.target)) setShowAddMenu(false);
+    }
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
+  }, []);
+
+  const existingNames = new Set(categories.map((c) => c.name.trim().toLowerCase()));
+  const missingPresets = PRESET_CATEGORIES.filter((p) => !existingNames.has(p.name.toLowerCase()));
+
+  const addPresetsMutation = useMutation({
+    mutationFn: () => {
+      const usedColors = categories.map((c) => c.colorHex).filter(Boolean);
+      const payloads = missingPresets.map((preset) => {
+        const color = pickNextColor(usedColors);
+        usedColors.push(color);
+        return { name: preset.name, colorHex: color, icon: preset.icon };
+      });
+      return Promise.all(payloads.map((payload) => CategoriesApi.create(payload)));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      setShowAddMenu(false);
+    },
+  });
 
   const [showForm, setShowForm] = useState(false);
   const [showPalette, setShowPalette] = useState(false);
@@ -131,10 +165,38 @@ export default function Categories() {
           </div>
           <div className="page-title">Categories</div>
         </div>
-        <button className="btn btn-jade btn-sm" onClick={handleAddClick}>
-          <i className="bi bi-plus-lg me-1" />
-          Add category
-        </button>
+        <div className="dropdown-custom d-flex align-items-center" ref={addMenuRef}>
+          <button className="btn btn-jade btn-sm" onClick={handleAddClick}>
+            <i className="bi bi-plus-lg me-1" />
+            Add category
+          </button>
+          <button
+            type="button"
+            className="btn btn-jade btn-sm px-2 ms-1"
+            title="More ways to add"
+            onClick={() => setShowAddMenu((s) => !s)}
+          >
+            <i className="bi bi-chevron-down" />
+          </button>
+          {showAddMenu && (
+            <div className="dropdown-menu-custom">
+              <button
+                type="button"
+                className="dropdown-item-custom"
+                disabled={missingPresets.length === 0 || addPresetsMutation.isPending}
+                style={missingPresets.length === 0 ? { opacity: 0.5, cursor: 'default' } : undefined}
+                onClick={() => addPresetsMutation.mutate()}
+              >
+                <i className="bi bi-magic me-2" />
+                {addPresetsMutation.isPending
+                  ? 'Adding…'
+                  : missingPresets.length === 0
+                    ? 'Starter categories already added'
+                    : 'Add starter categories'}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {showForm && (

@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Added
 - Icons in the categories to improve viewing and usage.
+- Pre-set of categories to help users get started.
 
 ### Docker images
 - `docker.io/rmcampos/ledger-backend:v2026.07.11.?`

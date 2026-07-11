@@ -40,7 +40,7 @@ export default function Budgets() {
     queryFn: () => BudgetsApi.spendForMonth(yearMonth),
   });
   const categoriesQuery = useQuery({ queryKey: ['categories'], queryFn: CategoriesApi.list });
-  const categories = categoriesQuery.data || [];
+  const categories = [...(categoriesQuery.data || [])].sort((a, b) => a.name.localeCompare(b.name));
 
   const budgets = budgetsQuery.data || [];
   const spendByCategory = Object.fromEntries(
