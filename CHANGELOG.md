@@ -21,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Account and navigation bar in Transactions and Card Bills pages to stick when scrolling.
 - Backend classes and packages, renamed to use record and simple MVC-based layers.
 
+## Fixed
+- Wrong order in the transactions page when multiple accounts were added.
+
 ## frontend:v2026.07.11.87 & backend:v2026.07.11.86 - 2026-07-11
 
 ## Added
