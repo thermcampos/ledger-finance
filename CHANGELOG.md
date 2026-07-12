@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Added
 - Predicted balances for the next three months in the transactions page.
+- Transfer feature between accounts (credit card not included).
 
 ## Changed
 - Build version link updated to follow app's styling.

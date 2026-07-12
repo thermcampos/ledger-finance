@@ -300,6 +300,43 @@ export default function Transactions() {
     });
   };
 
+  const [showTransferForm, setShowTransferForm] = useState(false);
+  const [transferSourceId, setTransferSourceId] = useState('');
+  const [transferTargetId, setTransferTargetId] = useState('');
+  const [transferDescription, setTransferDescription] = useState('Transfer');
+  const [transferAmount, setTransferAmount] = useState('');
+  const [transferOccurredOn, setTransferOccurredOn] = useState(todayIso());
+
+  const resetTransferForm = () => {
+    setShowTransferForm(false);
+    setTransferSourceId('');
+    setTransferTargetId('');
+    setTransferDescription('Transfer');
+    setTransferAmount('');
+    setTransferOccurredOn(todayIso());
+  };
+
+  const createTransferMutation = useMutation({
+    mutationFn: TransactionsApi.createTransfer,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      resetTransferForm();
+    },
+  });
+
+  const handleTransferSubmit = (e) => {
+    e.preventDefault();
+    createTransferMutation.mutate({
+      sourceAccountId: Number(transferSourceId),
+      targetAccountId: Number(transferTargetId),
+      description: transferDescription,
+      amount: Math.abs(parseSignedAmount(transferAmount)),
+      occurredOn: transferOccurredOn,
+    });
+  };
+
   const [editingId, setEditingId] = useState(null);
   const [editCategoryId, setEditCategoryId] = useState('');
   const [editDescription, setEditDescription] = useState('');
@@ -335,21 +372,23 @@ export default function Transactions() {
     setEditingId(t.id);
     setEditCategoryId(t.category?.id ? String(t.category.id) : '');
     setEditDescription(t.description);
-    setEditAmount(formatSignedAmount(t.amount));
+    setEditAmount(t.transferPeer ? String(Math.abs(Number(t.amount))) : formatSignedAmount(t.amount));
     setEditOccurredOn(t.occurredOn);
     setEditScope('THIS');
   };
 
   const handleEditSubmit = (e, t) => {
     e.preventDefault();
+    const isTransfer = !!t.transferPeer;
     updateMutation.mutate({
       id: t.id,
       payload: {
-        categoryId: editCategoryId ? Number(editCategoryId) : null,
+        categoryId: isTransfer ? null : (editCategoryId ? Number(editCategoryId) : null),
         description: editDescription,
-        amount: parseSignedAmount(editAmount),
+        // Transfer edits always send a positive magnitude — the backend re-derives each side's sign.
+        amount: isTransfer ? Math.abs(parseSignedAmount(editAmount)) : parseSignedAmount(editAmount),
         occurredOn: editOccurredOn,
-        scope: t.seriesId ? editScope : undefined,
+        scope: !isTransfer && t.seriesId ? editScope : undefined,
       },
     });
   };
@@ -504,7 +543,11 @@ export default function Transactions() {
         <div className="dropdown-custom d-flex align-items-center" ref={addMenuRef}>
           <button
             className="btn btn-jade btn-sm"
-            onClick={() => { if (!showForm && filterAccountId) setAccountId(filterAccountId); setShowForm((s) => !s); }}
+            onClick={() => {
+              if (!showForm && filterAccountId) setAccountId(filterAccountId);
+              setShowTransferForm(false);
+              setShowForm((s) => !s);
+            }}
           >
             <i className="bi bi-plus-lg me-1" />
             Add transaction
@@ -526,6 +569,14 @@ export default function Transactions() {
               >
                 <i className="bi bi-credit-card me-2" />
                 Add credit card transaction
+              </button>
+              <button
+                type="button"
+                className="dropdown-item-custom"
+                onClick={() => { setShowAddMenu(false); setShowForm(false); setShowTransferForm(true); }}
+              >
+                <i className="bi bi-arrow-left-right me-2" />
+                Add transfer transaction
               </button>
               <button
                 type="button"
@@ -809,6 +860,99 @@ export default function Transactions() {
         </div>
       )}
 
+      {showTransferForm && (
+        <div className="panel p-4 mb-4">
+          <form onSubmit={handleTransferSubmit}>
+            <div className="row g-3 align-items-end">
+              <div className="col-md-3">
+                <label className="eyebrow d-block mb-2">From account</label>
+                <select
+                  className="form-select form-select-sm"
+                  value={transferSourceId}
+                  onChange={(e) => setTransferSourceId(e.target.value)}
+                  required
+                >
+                  <option value="" disabled>
+                    Select…
+                  </option>
+                  {accounts.map((a) => (
+                    <option key={a.id} value={a.id} disabled={String(a.id) === transferTargetId}>
+                      {a.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="col-md-3">
+                <label className="eyebrow d-block mb-2">To account</label>
+                <select
+                  className="form-select form-select-sm"
+                  value={transferTargetId}
+                  onChange={(e) => setTransferTargetId(e.target.value)}
+                  required
+                >
+                  <option value="" disabled>
+                    Select…
+                  </option>
+                  {accounts.map((a) => (
+                    <option key={a.id} value={a.id} disabled={String(a.id) === transferSourceId}>
+                      {a.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="col-md-3">
+                <label className="eyebrow d-block mb-2">Description</label>
+                <input
+                  className="form-control form-control-sm"
+                  value={transferDescription}
+                  onChange={(e) => setTransferDescription(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="col-md-3">
+                <label className="eyebrow d-block mb-2">Amount</label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  className="form-control form-control-sm"
+                  placeholder="12.50"
+                  value={transferAmount}
+                  onChange={(e) => setTransferAmount(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+            <div className="row g-3 align-items-end mt-1">
+              <div className="col-md-6">
+                <label className="eyebrow d-block mb-2">Date</label>
+                <input
+                  type="date"
+                  className="form-control form-control-sm"
+                  value={transferOccurredOn}
+                  onChange={(e) => setTransferOccurredOn(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+            <div className="row mt-3">
+              <div className="col-12 d-flex justify-content-end gap-2">
+                <button type="button" className="btn btn-ghost btn-sm" onClick={resetTransferForm}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-jade btn-sm" disabled={createTransferMutation.isPending}>
+                  {createTransferMutation.isPending ? 'Adding…' : 'Add'}
+                </button>
+              </div>
+            </div>
+            {createTransferMutation.isError && (
+              <div className="mt-2" style={{ fontSize: 11.5, color: 'var(--red)' }}>
+                Could not create transfer.
+              </div>
+            )}
+          </form>
+        </div>
+      )}
+
       <div className="d-flex align-items-center justify-content-between mb-3">
         <button
           type="button"
@@ -876,10 +1020,22 @@ export default function Transactions() {
               </div>
             </div>
             {items.map((t) => {
-              const catName = t.linkedCard ? 'Card payment' : t.category?.name;
-              const icon = t.linkedCard ? 'bi-credit-card' : (t.category?.icon || categoryIcons[catName] || 'bi-dot');
+              const isTransfer = !!t.transferPeer;
+              const catName = t.linkedCard ? 'Card payment' : isTransfer ? 'Transfer' : t.category?.name;
+              const icon = t.linkedCard
+                ? 'bi-credit-card'
+                : isTransfer
+                ? 'bi-arrow-left-right'
+                : (t.category?.icon || categoryIcons[catName] || 'bi-dot');
               const color = t.category?.colorHex || categoryColors[catName] || '#8B92A0';
               const rowKind = dayLabelKind(t.occurredOn);
+              // Same direction label regardless of which side of the transfer this row is —
+              // negative amount means this row is the leaving/source side.
+              const transferDirectionLabel = isTransfer
+                ? Number(t.amount) < 0
+                  ? `${accountById[t.account?.id]?.name || 'Account'} → ${accountById[t.transferPeer.account?.id]?.name || t.transferPeer.account?.name || 'Account'}`
+                  : `${accountById[t.transferPeer.account?.id]?.name || t.transferPeer.account?.name || 'Account'} → ${accountById[t.account?.id]?.name || 'Account'}`
+                : null;
               return (
                 <div
                   className={`txn-row ${rowKind}`}
@@ -891,19 +1047,21 @@ export default function Transactions() {
                       onSubmit={(e) => handleEditSubmit(e, t)}
                       className="d-flex align-items-center gap-2 flex-wrap w-100"
                     >
-                      <select
-                        className="form-select form-select-sm"
-                        style={{ maxWidth: 150 }}
-                        value={editCategoryId}
-                        onChange={(e) => setEditCategoryId(e.target.value)}
-                      >
-                        <option value="">Uncategorized</option>
-                        {categories.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name}
-                          </option>
-                        ))}
-                      </select>
+                      {!isTransfer && (
+                        <select
+                          className="form-select form-select-sm"
+                          style={{ maxWidth: 150 }}
+                          value={editCategoryId}
+                          onChange={(e) => setEditCategoryId(e.target.value)}
+                        >
+                          <option value="">Uncategorized</option>
+                          {categories.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.name}
+                            </option>
+                          ))}
+                        </select>
+                      )}
                       <input
                         className="form-control form-control-sm"
                         style={{ maxWidth: 180 }}
@@ -971,9 +1129,11 @@ export default function Transactions() {
                     </form>
                   ) : confirmingId === t.id ? (
                     <div className="d-flex align-items-center gap-3 flex-wrap w-100">
-                      <span style={{ fontWeight: 500, fontSize: 13.5 }}>Delete this transaction?</span>
+                      <span style={{ fontWeight: 500, fontSize: 13.5 }}>
+                        {isTransfer ? 'Delete this transfer?' : 'Delete this transaction?'}
+                      </span>
                       <span className="text-faint" style={{ fontSize: 12.5 }}>
-                        This cannot be undone.
+                        {isTransfer ? 'Removes both sides of the transfer. This cannot be undone.' : 'This cannot be undone.'}
                       </span>
                       <div className="d-flex gap-2 ms-auto">
                         {t.seriesId ? (
@@ -1039,7 +1199,7 @@ export default function Transactions() {
                         <div className="txn-meta">
                           <span>{catName || 'Uncategorized'}</span>
                           <span className="dot-sep" />
-                          <span>{accountById[t.account?.id]?.name || 'Account'}</span>
+                          <span>{isTransfer ? transferDirectionLabel : (accountById[t.account?.id]?.name || 'Account')}</span>
                         </div>
                       </div>
                       <div className="txn-right">
@@ -1063,9 +1223,11 @@ export default function Transactions() {
                             <button className="icon-btn" title="Edit transaction" onClick={() => startEdit(t)}>
                               <i className="bi bi-pencil" />
                             </button>
-                            <button className="icon-btn" title="Clone transaction" onClick={() => startClone(t)}>
-                              <i className="bi bi-copy" />
-                            </button>
+                            {!isTransfer && (
+                              <button className="icon-btn" title="Clone transaction" onClick={() => startClone(t)}>
+                                <i className="bi bi-copy" />
+                              </button>
+                            )}
                             <button className="icon-btn" title="Delete transaction" onClick={() => setConfirmingId(t.id)}>
                               <i className="bi bi-trash" />
                             </button>

@@ -31,6 +31,7 @@ export const TransactionsApi = {
   listByAccount: (accountId) =>
     client.get(`/transactions/account/${accountId}`).then((r) => r.data),
   create: (payload) => client.post('/transactions', payload).then((r) => r.data),
+  createTransfer: (payload) => client.post('/transactions/transfer', payload).then((r) => r.data),
   update: (id, payload) => client.put(`/transactions/${id}`, payload).then((r) => r.data), // payload may include scope: 'THIS' | 'FUTURE'
   remove: (id, scope = 'THIS') =>
     client.delete(`/transactions/${id}`, { params: { scope } }).then((r) => r.data),

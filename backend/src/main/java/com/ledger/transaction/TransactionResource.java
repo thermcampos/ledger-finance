@@ -80,6 +80,64 @@ public class TransactionResource {
     }
 
     @POST
+    @Path("/transfer")
+    @Transactional
+    public List<Transaction> createTransfer(@Valid CreateTransferRequest request) {
+        Account source = requireOwnedAccount(request.sourceAccountId);
+        Account target = requireOwnedAccount(request.targetAccountId);
+        if (source.id.equals(target.id)) {
+            throw new WebApplicationException("Source and target account must differ", 400);
+        }
+        if (source.kind == AccountKind.CREDIT_CARD || target.kind == AccountKind.CREDIT_CARD) {
+            throw new WebApplicationException("Credit card accounts cannot be used in a transfer", 400);
+        }
+        if (request.amount.signum() <= 0) {
+            throw new WebApplicationException("Amount must be positive", 400);
+        }
+        Category transferCategory = findOrCreateTransferCategory();
+        LocalDate date = request.occurredOn != null ? request.occurredOn : LocalDate.now();
+
+        Transaction sourceTxn = new Transaction();
+        sourceTxn.account = source;
+        sourceTxn.category = transferCategory;
+        sourceTxn.description = request.description;
+        sourceTxn.amount = request.amount.negate();
+        sourceTxn.occurredOn = date;
+        sourceTxn.persist();
+
+        Transaction targetTxn = new Transaction();
+        targetTxn.account = target;
+        targetTxn.category = transferCategory;
+        targetTxn.description = request.description;
+        targetTxn.amount = request.amount;
+        targetTxn.occurredOn = date;
+        targetTxn.transferPeer = sourceTxn;
+        targetTxn.persist();
+
+        sourceTxn.transferPeer = targetTxn;
+
+        billSync.recomputeAccountBalance(source);
+        billSync.recomputeAccountBalance(target);
+        return List.of(sourceTxn, targetTxn);
+    }
+
+    /** Every user gets their own "Transfer" category lazily, on first transfer — categories aren't a global/system table in this app. */
+    private Category findOrCreateTransferCategory() {
+        User user = currentUser.require();
+        Category existing = Category.find("user.id = ?1 and name = ?2", user.id, "Transfer").firstResult();
+        if (existing != null) {
+            return existing;
+        }
+        Category category = new Category();
+        category.user = user;
+        category.name = "Transfer";
+        category.colorHex = "#8B92A0";
+        category.icon = "bi-arrow-left-right";
+        category.persist();
+        return category;
+    }
+
+    @POST
     @Path("/batch")
     @Transactional
     public List<Transaction> batchCreate(@Valid BatchImportRequest request) {
@@ -117,6 +175,12 @@ public class TransactionResource {
         if (txn.linkedCard != null) {
             throw new WebApplicationException("Cannot directly edit a credit card bill transaction", 400);
         }
+        if (txn.transferPeer != null) {
+            applyToTransfer(txn, request);
+            billSync.recomputeAccountBalance(txn.account);
+            billSync.recomputeAccountBalance(txn.transferPeer.account);
+            return txn;
+        }
 
         EditScope scope = request.scope != null ? request.scope : EditScope.THIS;
         if (scope == EditScope.FUTURE && txn.seriesId != null) {
@@ -138,6 +202,27 @@ public class TransactionResource {
         txn.occurredOn = request.occurredOn != null ? request.occurredOn : txn.occurredOn;
         txn.category = request.categoryId != null ? Category.findById(request.categoryId) : null;
         txn.billDueDate = request.billDueDate;
+    }
+
+    /**
+     * Transfer rows are edited on either side and mirror to the other —
+     * category is fixed ("Transfer") and there's no series, so only
+     * description/date/amount apply. request.amount is always the positive
+     * magnitude; sign is re-derived per row from its existing sign so
+     * editing from the target side doesn't need to know it must negate.
+     */
+    private void applyToTransfer(Transaction txn, UpdateTransactionRequest request) {
+        Transaction peer = txn.transferPeer;
+        LocalDate date = request.occurredOn != null ? request.occurredOn : txn.occurredOn;
+        BigDecimal magnitude = request.amount.abs();
+
+        txn.description = request.description;
+        txn.occurredOn = date;
+        txn.amount = txn.amount.signum() < 0 ? magnitude.negate() : magnitude;
+
+        peer.description = request.description;
+        peer.occurredOn = date;
+        peer.amount = peer.amount.signum() < 0 ? magnitude.negate() : magnitude;
     }
 
     /**
@@ -212,6 +297,21 @@ public class TransactionResource {
         Transaction txn = requireOwnedTransaction(id);
         if (txn.linkedCard != null) {
             throw new WebApplicationException("Cannot directly delete a credit card bill transaction", 400);
+        }
+        if (txn.transferPeer != null) {
+            Transaction peer = txn.transferPeer;
+            Account account = txn.account;
+            Account peerAccount = peer.account;
+            // Break the mutual FK reference before deleting either row —
+            // Hibernate flushes pending updates before deletes, so this
+            // avoids a self-referential FK violation on transfer_peer_id.
+            txn.transferPeer = null;
+            peer.transferPeer = null;
+            txn.delete();
+            peer.delete();
+            billSync.recomputeAccountBalance(account);
+            billSync.recomputeAccountBalance(peerAccount);
+            return;
         }
         Account account = txn.account;
         String seriesId = txn.seriesId;
@@ -336,6 +436,19 @@ public class TransactionResource {
          * TransactionResource#billOffsetMonths.
          */
         public LocalDate billDueDate;
+    }
+
+    public static class CreateTransferRequest {
+        @NotNull
+        public Long sourceAccountId;
+        @NotNull
+        public Long targetAccountId;
+        @NotBlank
+        public String description;
+        /** Always positive — the magnitude moved. Sign is derived per-row (negative on source, positive on target). */
+        @NotNull
+        public BigDecimal amount;
+        public LocalDate occurredOn;
     }
 
     public static class BatchImportRequest {

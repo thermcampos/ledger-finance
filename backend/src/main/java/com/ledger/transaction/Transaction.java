@@ -1,5 +1,6 @@
 package com.ledger.transaction;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.ledger.account.Account;
 import com.ledger.category.Category;
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
@@ -69,6 +70,23 @@ public class Transaction extends PanacheEntityBase {
     @ManyToOne
     @JoinColumn(name = "linked_card_id")
     public Account linkedCard;
+
+    /**
+     * Set on both rows of a transfer — the other side of the pair (source
+     * row's peer is the target row and vice versa). A negative amount marks
+     * this row as the source (money left this account, moved to
+     * peer.account); positive marks it as the target. Maintained by
+     * TransactionResource: an edit or delete on either side propagates to
+     * the peer instead of being blocked like linkedCard is.
+     *
+     * transferPeer.transferPeer would point straight back at this row —
+     * @JsonIgnoreProperties breaks that cycle so serialization terminates
+     * one level deep (peer's own account/description/etc. still included).
+     */
+    @ManyToOne
+    @JoinColumn(name = "transfer_peer_id")
+    @JsonIgnoreProperties("transferPeer")
+    public Transaction transferPeer;
 
     /** When this row was inserted — drives "latest added" ordering (e.g. Overview's Recent Activity). */
     @Column(name = "created_at", nullable = false, columnDefinition = "TIMESTAMPTZ NOT NULL DEFAULT now()")
