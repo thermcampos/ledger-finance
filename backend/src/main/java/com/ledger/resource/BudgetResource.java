@@ -52,7 +52,7 @@ public class BudgetResource {
     }
 
     return em.createQuery(
-            "SELECT new com.ledger.budget.CategorySpend(t.category.id, t.category.name, SUM(t.amount)) "
+            "SELECT new com.ledger.dto.response.CategorySpendResponse(t.category.id, t.category.name, SUM(t.amount)) "
                 + "FROM Transaction t "
                 + "WHERE t.account.user.id = :userId "
                 + "AND t.category IS NOT NULL "

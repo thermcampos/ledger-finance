@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Fixed
 - Wrong order in the transactions page when multiple accounts were added.
+- Amount spent in the budgets endpoint giving 500 when quering from DB.
 
 ## frontend:v2026.07.11.87 & backend:v2026.07.11.86 - 2026-07-11
 
