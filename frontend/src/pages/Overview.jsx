@@ -272,6 +272,7 @@ export default function Overview() {
                 const limit = Number(b.limitAmount);
                 const st = statusColor(spent, limit);
                 const pct = Math.min((spent / limit) * 100, 100);
+                const rawPct = limit > 0 ? Math.round((spent / limit) * 100) : 0;
                 return (
                   <div key={b.id} className="mb-3">
                     <div className="d-flex justify-content-between align-items-center mb-1" style={{ fontSize: 12.5 }}>
@@ -279,8 +280,13 @@ export default function Overview() {
                         <span className="cat-tick" style={{ background: b.category?.colorHex || '#8B92A0' }} />
                         {b.category?.name}
                       </span>
-                      <span className="mono text-muted-c" style={{ fontSize: 12 }}>
-                        {money(spent, { hidden: hideValues })} / {money(limit, { hidden: hideValues })}
+                      <span className="d-flex align-items-center gap-2">
+                        <span className="mono text-muted-c" style={{ fontSize: 12 }}>
+                          {rawPct}%
+                        </span>
+                        <span className="mono text-muted-c" style={{ fontSize: 12 }}>
+                          {money(spent, { hidden: hideValues })} / {money(limit, { hidden: hideValues })}
+                        </span>
                       </span>
                     </div>
                     <div className="track">
