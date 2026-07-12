@@ -13,11 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Predicted balances for the next three months in the transactions page.
 - Transfer feature between accounts (credit card not included).
 - Percentage reached for budgets in the overview page.
+- USD/BRL exchange rate in the overview page getting from BCB PTAX.
 
 ## Changed
 - Build version link updated to follow app's styling.
 - Credit Card bill projection to display an icon and proper category.
 - Account and navigation bar in Transactions and Card Bills pages to stick when scrolling.
+- Backend classes and packages, renamed to use record and simple MVC-based layers.
 
 ## frontend:v2026.07.11.87 & backend:v2026.07.11.86 - 2026-07-11
 

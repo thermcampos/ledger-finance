@@ -235,7 +235,7 @@ change, maintain one real `Transaction` per open bill on the card's
 
 - Backend: new nullable `Transaction.linkedCard` FK
   (`V4__transaction_linked_card.sql`) marks a row as system-generated. New
-  `CreditCardBillSyncService` (`com.ledger.transaction`,
+  `CreditCardBillSyncService` (`com.ledger.anthropic`,
   `@ApplicationScoped`) owns `recomputeAccountBalance` (moved out of
   `TransactionResource`, same algorithm, now has two callers) and
   `sync(Account card)` — the single entry point, safe to call

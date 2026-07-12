@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
-import { useQueries, useQuery } from '@tanstack/react-query';
+import { useMutation, useQueries, useQuery } from '@tanstack/react-query';
 import { AccountsApi, BudgetsApi, TransactionsApi } from '../api/ledger';
-import { localYearMonth, startOfDay, dueLabel } from '../utils/date';
+import { localYearMonth, startOfDay, isoDate, dueLabel } from '../utils/date';
 import { nextBillFor } from '../utils/creditCard';
 import { balanceAsOf, sortChronologically } from '../utils/balance';
 
@@ -23,6 +23,25 @@ const categoryColors = {
   Salary: '#4FA98A',
 };
 
+function toBcbDate(isoDate) {
+  const [y, m, d] = isoDate.split('-');
+  return `${m}-${d}-${y}`;
+}
+
+async function fetchPtaxRate(isoDate) {
+  const bcbDate = toBcbDate(isoDate);
+  const url =
+    `https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/CotacaoDolarDia(dataCotacao=@dataCotacao)` +
+    `?@dataCotacao='${bcbDate}'&$format=json`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Could not reach Banco Central.');
+  const data = await res.json();
+  if (!data.value || data.value.length === 0) {
+    throw new Error('No rate published for this date (weekend or holiday).');
+  }
+  return data.value[0];
+}
+
 function money(amount, { signed = false, hidden = false } = {}) {
   if (hidden) return '••••';
   const value = Math.abs(amount).toLocaleString('en-US', {
@@ -35,6 +54,8 @@ function money(amount, { signed = false, hidden = false } = {}) {
 
 export default function Overview() {
   const [hideValues, setHideValues] = useState(false);
+  const [rateDate, setRateDate] = useState(() => isoDate(new Date()));
+  const rateMutation = useMutation({ mutationFn: fetchPtaxRate });
 
   const accountsQuery = useQuery({ queryKey: ['accounts'], queryFn: AccountsApi.list });
   const accounts = useMemo(() => accountsQuery.data || [], [accountsQuery.data]);
@@ -155,6 +176,45 @@ export default function Overview() {
                 across {investmentAccounts.length} account{investmentAccounts.length === 1 ? '' : 's'}
               </div>
             </div>
+          </div>
+        )}
+      </div>
+
+      <div className="panel p-4 mb-4">
+        <div className="panel-title mb-3">USD/BRL exchange rate (PTAX)</div>
+        <div className="row g-3 align-items-end">
+          <div className="col-6 col-md-3">
+            <label className="eyebrow d-block mb-2">Date</label>
+            <input
+              type="date"
+              className="form-control form-control-sm"
+              value={rateDate}
+              max={isoDate(new Date())}
+              onChange={(e) => setRateDate(e.target.value)}
+            />
+          </div>
+          <div className="col-6 col-md-2">
+            <button
+              type="button"
+              className="btn btn-jade btn-sm"
+              disabled={rateMutation.isPending || !rateDate}
+              onClick={() => rateMutation.mutate(rateDate)}
+            >
+              {rateMutation.isPending ? 'Fetching…' : 'Get rates'}
+            </button>
+          </div>
+          {rateMutation.isSuccess && (
+            <div className="col-12 col-md-7" style={{ textAlign: 'right' }}>
+              <div className="eyebrow mb-1">Buy rate (BID)</div>
+              <div className="mono" style={{ fontSize: 19, fontWeight: 500 }}>
+                R$ {Number(rateMutation.data.cotacaoCompra).toFixed(4)}
+              </div>
+            </div>
+          )}
+        </div>
+        {rateMutation.isError && (
+          <div className="mt-2" style={{ fontSize: 11.5, color: 'var(--red)' }}>
+            {rateMutation.error.message}
           </div>
         )}
       </div>
