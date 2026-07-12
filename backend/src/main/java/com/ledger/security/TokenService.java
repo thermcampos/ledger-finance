@@ -1,7 +1,7 @@
 package com.ledger.security;
 
-import com.ledger.auth.dto.AuthResponse;
-import com.ledger.user.User;
+import com.ledger.dto.response.AuthResponse;
+import com.ledger.entity.User;
 import io.smallrye.jwt.build.Jwt;
 import jakarta.enterprise.context.ApplicationScoped;
 

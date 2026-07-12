@@ -1,6 +1,6 @@
 package com.ledger.security;
 
-import com.ledger.user.User;
+import com.ledger.entity.User;
 import jakarta.enterprise.context.RequestScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.NotAuthorizedException;
