@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## frontend:v2026.07.12.? & backend:v2026.07.12.? - 2026-07-12
+
+## Added
+- Predicted balances for the next three months in the transactions page.
+
+## Changed
+- Build version link updated to follow app's styling.
+- Credit Card bill projection to display an icon and proper category.
+
 ## frontend:v2026.07.11.87 & backend:v2026.07.11.86 - 2026-07-11
 
 ## Added

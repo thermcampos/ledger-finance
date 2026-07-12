@@ -90,6 +90,7 @@ export default function Sidebar({ isOpen, onClose }) {
             href="https://lightroasted.vps-kinghost.net/rmcampos/ledger-finance/src/branch/main/CHANGELOG.md"
             target="_blank"
             rel="noopener noreferrer"
+            className="release-link"
           >
               {import.meta.env.VITE_BUILD_NUMBER || 'nightly'}
           </a>

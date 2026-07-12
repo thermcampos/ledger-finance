@@ -96,6 +96,15 @@ body {
   color: var(--text);
   border-color: var(--border);
 }
+.release-link {
+  color: var(--text-faint);
+  text-decoration: none;
+  transition: color 0.12s ease;
+}
+.release-link:hover {
+  color: var(--jade);
+  text-decoration: underline;
+}
 .main {
   margin-left: 220px;
   padding: 32px 40px 60px 40px;

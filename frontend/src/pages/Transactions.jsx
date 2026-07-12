@@ -432,20 +432,25 @@ export default function Transactions() {
     : liquidAccounts.reduce((sum, a) => sum + accountBalanceAsOf(a, today), 0);
   const isOwing = currentBalanceTotal < 0;
 
-  const { end: periodEnd } = rangeBounds(filterRange, filterStartDate, filterEndDate, monthOffset);
-  const hasFuturePeriod = periodEnd != null && periodEnd > today;
-  const futureBalanceRaw = hasFuturePeriod
-    ? filterAccountId
-      ? (accountById[filterAccountId] ? accountBalanceAsOf(accountById[filterAccountId], periodEnd) : 0)
-      : liquidAccounts.reduce((sum, a) => sum + accountBalanceAsOf(a, periodEnd), 0)
-    : null;
-  const showFutureBalance = futureBalanceRaw !== null && Math.abs(futureBalanceRaw - currentBalanceTotal) > 0.005;
-
-  function periodEndLabel() {
-    if (filterRange === 'custom') return `${periodEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
-    const { start } = monthBounds(monthOffset);
-    return start.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-  }
+  // Predicted end-of-month balances for the selected month plus the two
+  // following it — always relative to monthOffset, not today's real date.
+  // Only meaningful in "this-month" mode; custom ranges have no single
+  // selected month to walk forward from.
+  const predictedMonths = filterRange === 'this-month'
+    ? [0, 1, 2].map((i) => {
+        const { start, end } = monthBounds(monthOffset + i);
+        const balance = filterAccountId
+          ? (accountById[filterAccountId] ? accountBalanceAsOf(accountById[filterAccountId], end) : 0)
+          : liquidAccounts.reduce((sum, a) => sum + accountBalanceAsOf(a, end), 0);
+        return { label: start.toLocaleDateString('en-US', { month: 'long' }), balance };
+      })
+    : [];
+  const showPredicted = predictedMonths.length > 0;
+  const balanceColClass = showPredicted
+    ? (filterCategoryId ? 'col-md-5' : 'col-md-8')
+    : (filterCategoryId ? 'col-md-7' : 'col-md-12');
+  const predictedColClass = filterCategoryId ? 'col-md-3' : 'col-md-4';
+  const categoryColClass = showPredicted ? 'col-md-4' : 'col-md-5';
 
   const filteredCategoryName = categories.find((c) => String(c.id) === filterCategoryId)?.name;
 
@@ -634,7 +639,7 @@ export default function Transactions() {
 
       <div className="panel p-4 mb-4">
         <div className="row g-3">
-          <div className={filterCategoryId ? 'col-md-7' : 'col-md-12'}>
+          <div className={balanceColClass}>
             <div className="eyebrow mb-2 d-flex align-items-center gap-2">
               <span>
                 Current balance
@@ -644,22 +649,29 @@ export default function Transactions() {
             <div className="hero-balance md" style={{ color: isOwing ? 'var(--red)' : undefined }}>
               {money(currentBalanceTotal)}
             </div>
-            {showFutureBalance && (
-              <div className="text-faint mt-1" style={{ fontSize: 11.5 }}>
-                {periodEndLabel()}:{' '}
-                <span className="mono" style={{ color: futureBalanceRaw < 0 ? 'var(--red)' : undefined }}>
-                  {money(futureBalanceRaw)}
-                </span>
-              </div>
-            )}
             {(filterCategoryId || search) && (
               <div className="text-faint mt-1" style={{ fontSize: 11.5 }}>
                 Your real balance — not limited to the category/search filter below.
               </div>
             )}
           </div>
+          {showPredicted && (
+            <div className={predictedColClass}>
+              <div className="eyebrow mb-2">Predicted</div>
+              <div className="d-flex flex-column gap-1">
+                {predictedMonths.map((m) => (
+                  <div key={m.label} className="d-flex justify-content-between align-items-baseline gap-2" style={{ fontSize: 12.5 }}>
+                    <span className="text-faint">{m.label}</span>
+                    <span className="mono" style={{ color: m.balance < 0 ? 'var(--red)' : undefined }}>
+                      {money(m.balance)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {filterCategoryId && (
-            <div className="col-md-5">
+            <div className={categoryColClass}>
               <div className="eyebrow mb-2">{filteredCategoryName || 'Category'} total</div>
               <div
                 className="mono"
@@ -864,8 +876,8 @@ export default function Transactions() {
               </div>
             </div>
             {items.map((t) => {
-              const catName = t.category?.name;
-              const icon = t.category?.icon || categoryIcons[catName] || 'bi-dot';
+              const catName = t.linkedCard ? 'Card payment' : t.category?.name;
+              const icon = t.linkedCard ? 'bi-credit-card' : (t.category?.icon || categoryIcons[catName] || 'bi-dot');
               const color = t.category?.colorHex || categoryColors[catName] || '#8B92A0';
               const rowKind = dayLabelKind(t.occurredOn);
               return (
