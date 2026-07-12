@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Changed
 - Build version link updated to follow app's styling.
 - Credit Card bill projection to display an icon and proper category.
+- Account and navigation bar in Transactions and Card Bills pages to stick when scrolling.
 
 ## frontend:v2026.07.11.87 & backend:v2026.07.11.86 - 2026-07-11
 

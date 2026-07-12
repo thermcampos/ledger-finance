@@ -535,6 +535,7 @@ export default function Transactions() {
 
   return (
     <div>
+      <div className="sticky-page-header">
       <div className="page-header">
         <div>
           <div className="eyebrow mb-1">All accounts</div>
@@ -686,6 +687,7 @@ export default function Transactions() {
             </div>
           );
         })()}
+      </div>
       </div>
 
       <div className="panel p-4 mb-4">

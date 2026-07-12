@@ -115,6 +115,12 @@ body {
   justify-content: space-between;
   margin-bottom: 28px;
 }
+.sticky-page-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--bg);
+}
 .page-title {
   font-family: 'Fraunces', Georgia, serif;
   font-size: 24px;

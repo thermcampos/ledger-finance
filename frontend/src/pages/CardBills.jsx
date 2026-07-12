@@ -379,6 +379,7 @@ export default function CardBills() {
 
   return (
     <div>
+      <div className="sticky-page-header">
       <div className="page-header">
         <div>
           <div className="eyebrow mb-1">{selectedCard ? selectedCard.name : 'Credit card'}</div>
@@ -400,6 +401,55 @@ export default function CardBills() {
         )}
       </div>
 
+      {selectedCard && (eligibleCards.length > 1 || dueDateObj) && (
+        <div className="nav-toolbar">
+          {eligibleCards.length > 1 && (
+            <select
+              className="form-select form-select-lg"
+              style={{ width: 'auto', minWidth: 220 }}
+              value={selectedCardId}
+              onChange={(e) => setSelectedCardId(e.target.value)}
+            >
+              {eligibleCards.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {dueDateObj && (
+            <div className="d-flex align-items-center gap-2">
+              <button
+                type="button"
+                className="icon-btn icon-btn-lg"
+                title="Previous bill"
+                disabled={billDates.indexOf(selectedBillDueDate) <= 0}
+                onClick={() => stepBill('prev')}
+              >
+                <i className="bi bi-chevron-left" />
+              </button>
+              <span className="nav-toolbar-label" style={{ minWidth: 180, textAlign: 'center' }}>
+                {dueDateObj.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} bill
+              </span>
+              <button
+                type="button"
+                className="icon-btn icon-btn-lg"
+                title="Next bill"
+                disabled={
+                  billDates.indexOf(selectedBillDueDate) === -1 ||
+                  billDates.indexOf(selectedBillDueDate) >= billDates.length - 1
+                }
+                onClick={() => stepBill('next')}
+              >
+                <i className="bi bi-chevron-right" />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+      </div>
+
       {!accountsQuery.isLoading && allCards.length === 0 && (
         <div className="panel p-4 text-center text-muted-c" style={{ padding: 40, fontSize: 13 }}>
           No credit card accounts yet.
@@ -419,54 +469,6 @@ export default function CardBills() {
 
       {selectedCard && (
         <>
-          {(eligibleCards.length > 1 || dueDateObj) && (
-            <div className="nav-toolbar">
-              {eligibleCards.length > 1 && (
-                <select
-                  className="form-select form-select-lg"
-                  style={{ width: 'auto', minWidth: 220 }}
-                  value={selectedCardId}
-                  onChange={(e) => setSelectedCardId(e.target.value)}
-                >
-                  {eligibleCards.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-
-              {dueDateObj && (
-                <div className="d-flex align-items-center gap-2">
-                  <button
-                    type="button"
-                    className="icon-btn icon-btn-lg"
-                    title="Previous bill"
-                    disabled={billDates.indexOf(selectedBillDueDate) <= 0}
-                    onClick={() => stepBill('prev')}
-                  >
-                    <i className="bi bi-chevron-left" />
-                  </button>
-                  <span className="nav-toolbar-label" style={{ minWidth: 180, textAlign: 'center' }}>
-                    {dueDateObj.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} bill
-                  </span>
-                  <button
-                    type="button"
-                    className="icon-btn icon-btn-lg"
-                    title="Next bill"
-                    disabled={
-                      billDates.indexOf(selectedBillDueDate) === -1 ||
-                      billDates.indexOf(selectedBillDueDate) >= billDates.length - 1
-                    }
-                    onClick={() => stepBill('next')}
-                  >
-                    <i className="bi bi-chevron-right" />
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
           <div className="panel p-4 mb-4">
             <div className="eyebrow mb-2">Amount owed</div>
             <div className="hero-balance md" style={{ color: amountOwed > 0 ? 'var(--red)' : undefined }}>
