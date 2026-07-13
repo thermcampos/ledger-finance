@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## frontend:v2026.07.12.? & backend:v2026.07.12.? - 2026-07-12
+## frontend:v2026.07.12.102 & backend:v2026.07.12.104 - 2026-07-12
 
 ## Added
 - Predicted balances for the next three months in the transactions page.
@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Fixed
 - Wrong order in the transactions page when multiple accounts were added.
 - Amount spent in the budgets endpoint giving 500 when quering from DB.
+
+### Docker images
+- `docker.io/rmcampos/ledger-backend:v2026.07.12.104`
+- `docker.io/rmcampos/ledger-frontend:v2026.07.12.102`
 
 ## frontend:v2026.07.11.87 & backend:v2026.07.11.86 - 2026-07-11
 
