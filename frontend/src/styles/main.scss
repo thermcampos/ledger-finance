@@ -120,6 +120,15 @@ body {
   top: 0;
   z-index: 5;
   background: var(--bg);
+  padding: 8px 0;
+  transition: box-shadow 0.18s ease, padding 0.18s ease, background-color 0.18s ease;
+}
+.sticky-page-header.is-stuck {
+  padding: 4px 0;
+  background: rgba(14, 17, 22, 0.82);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 .page-title {
   font-family: 'Fraunces', Georgia, serif;

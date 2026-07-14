@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BudgetsApi, CategoriesApi } from '../api/ledger';
 import { localYearMonth } from '../utils/date';
+import { useStickyHeader } from '../hooks/useStickyHeader';
 
 function shiftMonth(yearMonth, delta) {
   const [year, month] = yearMonth.split('-').map(Number);
@@ -30,6 +31,7 @@ function money(amount) {
 
 export default function Budgets() {
   const queryClient = useQueryClient();
+  const { sentinelRef, isStuck } = useStickyHeader();
   const [yearMonth, setYearMonth] = useState(localYearMonth);
   const budgetsQuery = useQuery({
     queryKey: ['budgets', yearMonth],
@@ -104,6 +106,8 @@ export default function Budgets() {
 
   return (
     <div>
+      <div ref={sentinelRef} />
+      <div className={`sticky-page-header${isStuck ? ' is-stuck' : ''}`}>
       <div className="page-header">
         <div>
           <div className="eyebrow mb-1 d-flex align-items-center gap-2">
@@ -131,6 +135,7 @@ export default function Budgets() {
           <i className="bi bi-plus-lg me-1" />
           Set budget
         </button>
+      </div>
       </div>
 
       {showForm && (

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CategoriesApi } from '../api/ledger';
 import { DEFAULT_ICON, ICON_OPTIONS, iconClassName } from '../constants/categoryIcons';
+import { useStickyHeader } from '../hooks/useStickyHeader';
 
 const CATEGORY_PALETTE = [
   '#4FA98A', '#6B8FC9', '#9B7FD4', '#C9A227', '#C75450',
@@ -20,6 +21,7 @@ const PRESET_CATEGORIES = ICON_OPTIONS.map((opt) => ({ name: opt.label, icon: op
 
 export default function Categories() {
   const queryClient = useQueryClient();
+  const { sentinelRef, isStuck } = useStickyHeader();
   const categoriesQuery = useQuery({ queryKey: ['categories'], queryFn: CategoriesApi.list });
   const categories = [...(categoriesQuery.data || [])].sort((a, b) => a.name.localeCompare(b.name));
 
@@ -158,6 +160,8 @@ export default function Categories() {
 
   return (
     <div>
+      <div ref={sentinelRef} />
+      <div className={`sticky-page-header${isStuck ? ' is-stuck' : ''}`}>
       <div className="page-header">
         <div>
           <div className="eyebrow mb-1">
@@ -197,6 +201,7 @@ export default function Categories() {
             </div>
           )}
         </div>
+      </div>
       </div>
 
       {showForm && (

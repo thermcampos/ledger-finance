@@ -5,6 +5,7 @@ import { AccountsApi, TransactionsApi } from '../api/ledger';
 import { startOfDay } from '../utils/date';
 import { balanceAsOf, sortChronologically } from '../utils/balance';
 import { nextBillFor } from '../utils/creditCard';
+import { useStickyHeader } from '../hooks/useStickyHeader';
 
 const kindIcons = {
   CHECKING: 'bi-wallet2',
@@ -23,6 +24,7 @@ function money(amount) {
 
 export default function Accounts() {
   const queryClient = useQueryClient();
+  const { sentinelRef, isStuck } = useStickyHeader();
   const accountsQuery = useQuery({ queryKey: ['accounts'], queryFn: AccountsApi.list });
   const accounts = useMemo(() => accountsQuery.data || [], [accountsQuery.data]);
 
@@ -172,6 +174,8 @@ export default function Accounts() {
 
   return (
     <div>
+      <div ref={sentinelRef} />
+      <div className={`sticky-page-header${isStuck ? ' is-stuck' : ''}`}>
       <div className="page-header">
         <div>
           <div className="eyebrow mb-1">
@@ -183,6 +187,7 @@ export default function Accounts() {
           <i className="bi bi-plus-lg me-1" />
           Add account
         </button>
+      </div>
       </div>
 
       {showForm && (

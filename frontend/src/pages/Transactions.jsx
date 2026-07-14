@@ -5,6 +5,7 @@ import { AccountsApi, CategoriesApi, TransactionsApi } from '../api/ledger';
 import { iconClassName } from '../constants/categoryIcons';
 import { parseLocalDate, startOfDay } from '../utils/date';
 import { balanceAsOf, sortChronologically } from '../utils/balance';
+import { useStickyHeader } from '../hooks/useStickyHeader';
 
 function todayIso() {
   const d = new Date();
@@ -202,6 +203,7 @@ export default function Transactions() {
   const [search, setSearch] = useState('');
   const [showAddMenu, setShowAddMenu] = useState(false);
   const addMenuRef = useRef(null);
+  const { sentinelRef, isStuck } = useStickyHeader();
 
   useEffect(() => {
     function onClickOutside(e) {
@@ -533,7 +535,8 @@ export default function Transactions() {
 
   return (
     <div>
-      <div className="sticky-page-header">
+      <div ref={sentinelRef} />
+      <div className={`sticky-page-header${isStuck ? ' is-stuck' : ''}`}>
       <div className="page-header">
         <div>
           <div className="eyebrow mb-1">All accounts</div>

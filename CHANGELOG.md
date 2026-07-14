@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## frontend:v2026.07.14.? & backend:v2026.07.14.? - 2026-07-14
+
+## Changed
+- Headers in all pages to scroll smoothier [Issue #3](https://lightroasted.vps-kinghost.net/rmcampos/ledger-finance/issues/3).
+
+### Docker images
+- `docker.io/rmcampos/ledger-backend:v2026.07.14.?`
+- `docker.io/rmcampos/ledger-frontend:v2026.07.14.?`
+
 ## frontend:v2026.07.12.102 & backend:v2026.07.12.104 - 2026-07-12
 
 ## Added
