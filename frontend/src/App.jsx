@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { flushSync } from 'react-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useAuth } from './context/useAuth';
 import Sidebar from './components/Sidebar';
 import Landing from './pages/Landing';
@@ -16,6 +17,30 @@ import CreditCards from './pages/CreditCards';
 import CardBills from './pages/CardBills';
 import Categories from './pages/Categories';
 import Profile from './pages/Profile';
+
+// Defers the location Routes renders against until inside a view
+// transition, so the DOM swap (and its before/after snapshots) happens
+// as part of document.startViewTransition(). Falls back to an instant
+// update when the API isn't supported.
+function useTransitionLocation() {
+  const location = useLocation();
+  const [displayLocation, setDisplayLocation] = useState(location);
+
+  useEffect(() => {
+    if (location.key === displayLocation.key) return;
+
+    if (typeof document.startViewTransition !== 'function') {
+      setDisplayLocation(location);
+      return;
+    }
+
+    document.startViewTransition(() => {
+      flushSync(() => setDisplayLocation(location));
+    });
+  }, [location, displayLocation]);
+
+  return displayLocation;
+}
 
 function ProtectedLayout({ children }) {
   const { isAuthenticated } = useAuth();
@@ -72,8 +97,10 @@ function Root() {
 }
 
 export default function App() {
+  const displayLocation = useTransitionLocation();
+
   return (
-    <Routes>
+    <Routes location={displayLocation}>
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/privacy" element={<Privacy />} />

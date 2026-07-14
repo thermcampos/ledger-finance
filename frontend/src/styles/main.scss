@@ -108,6 +108,27 @@ body {
 .main {
   margin-left: 220px;
   padding: 32px 40px 60px 40px;
+  view-transition-name: main-content;
+}
+
+/* --- Page transitions (View Transitions API, no-op where unsupported) --- */
+@keyframes page-fade-out {
+  to {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+@keyframes page-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+::view-transition-old(main-content) {
+  animation: 140ms ease-in both page-fade-out;
+}
+::view-transition-new(main-content) {
+  animation: 180ms ease-out both page-fade-in;
 }
 .page-header {
   display: flex;
