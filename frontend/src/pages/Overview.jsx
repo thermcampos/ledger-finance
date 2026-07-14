@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQueries, useQuery } from '@tanstack/react-query';
 import { AccountsApi, BudgetsApi, TransactionsApi } from '../api/ledger';
-import { localYearMonth, startOfDay, isoDate, dueLabel } from '../utils/date';
+import { localYearMonth, startOfDay, isoDate, dueLabel, parseLocalDate } from '../utils/date';
 import { nextBillFor } from '../utils/creditCard';
 import { balanceAsOf, sortChronologically } from '../utils/balance';
 
@@ -54,6 +54,7 @@ function money(amount, { signed = false, hidden = false } = {}) {
 
 export default function Overview() {
   const [hideValues, setHideValues] = useState(false);
+  const [dueSoonOpen, setDueSoonOpen] = useState(true);
   const [rateDate, setRateDate] = useState(() => isoDate(new Date()));
   const rateMutation = useMutation({ mutationFn: fetchPtaxRate });
 
@@ -128,6 +129,24 @@ export default function Overview() {
     })
     .slice(0, 5);
 
+  // Due soon — transactions (including credit card bill rows, which carry
+  // their own real due date via occurredOn) landing from today through two
+  // days out. No "overdue" bucket: ordinary transactions have no
+  // paid/pending status, so a past occurredOn can't be distinguished from
+  // one that's already settled.
+  const dueSoonEnd = new Date(today);
+  dueSoonEnd.setDate(dueSoonEnd.getDate() + 2);
+  const dueSoon = txnQueries
+    .flatMap((q) => q.data || [])
+    .filter((t) => {
+      const d = parseLocalDate(t.occurredOn);
+      return d >= today && d <= dueSoonEnd;
+    })
+    .sort((a, b) => {
+      const diff = parseLocalDate(a.occurredOn) - parseLocalDate(b.occurredOn);
+      return diff !== 0 ? diff : a.id - b.id;
+    });
+
   return (
     <div>
       <div className="page-header">
@@ -148,6 +167,7 @@ export default function Overview() {
         </button>
       </div>
 
+      {/* Current balance panel */}
       <div className="panel p-4 mb-4">
         {accountsQuery.isLoading ? (
           <div className="text-muted-c">Loading…</div>
@@ -180,6 +200,64 @@ export default function Overview() {
         )}
       </div>
 
+      {/* Due soon panel */}
+      <div className="panel mb-4">
+        <div
+          className="panel-header"
+          role="button"
+          tabIndex={0}
+          onClick={() => setDueSoonOpen((v) => !v)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setDueSoonOpen((v) => !v);
+            }
+          }}
+          style={{ cursor: 'pointer' }}
+          title={dueSoonOpen ? 'Collapse' : 'Expand'}
+          aria-expanded={dueSoonOpen}
+        >
+          <div className="panel-title">Due soon</div>
+          <button
+            type="button"
+            className="btn btn-sm btn-ghost"
+            tabIndex={-1}
+            aria-hidden="true"
+          >
+            <i className={`bi ${dueSoonOpen ? 'bi-chevron-up' : 'bi-chevron-down'}`} />
+          </button>
+        </div>
+        {!dueSoonOpen ? null : dueSoon.length === 0 ? (
+          <div className="p-4 text-muted-c" style={{ fontSize: 13 }}>
+            No transactions in the next two days.
+          </div>
+        ) : (
+          dueSoon.map((t) => {
+            const catName = t.linkedCard ? 'Card payment' : t.category?.name || 'Uncategorized';
+            return (
+              <div className="feed-row" key={t.id}>
+                <div className="feed-left">
+                  <span
+                    className="cat-tick"
+                    style={{ background: t.linkedCard ? '#8B92A0' : categoryColors[t.category?.name] || '#8B92A0' }}
+                  />
+                  <div style={{ minWidth: 0 }}>
+                    <div className="feed-desc">{t.description}</div>
+                    <div className="text-faint" style={{ fontSize: 11.5 }}>
+                      {catName} · {dueLabel(parseLocalDate(t.occurredOn), today)}
+                    </div>
+                  </div>
+                </div>
+                <span className={`cell-amount ${t.amount < 0 ? 'neg' : 'pos'}`}>
+                  {money(Number(t.amount), { signed: true, hidden: hideValues })}
+                </span>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* USD BRL exchange rate panel */}
       <div className="panel p-4 mb-4">
         <div className="panel-title mb-3">USD/BRL exchange rate (PTAX)</div>
         <div className="row g-3 align-items-end">
@@ -219,6 +297,7 @@ export default function Overview() {
         )}
       </div>
 
+      {/* Checking and Saving accounts cards */}
       <div className="row g-3 mb-4">
         <div className="eyebrow mb-2">Checking & Savings accounts</div>
         {liquidAccounts.map((a) => {
@@ -242,6 +321,7 @@ export default function Overview() {
         )}
       </div>
 
+      {/* Investments accounts cards */}
       {investmentAccounts.length > 0 && (
         <div className="row g-3 mb-4">
           <div className="eyebrow mb-2">Investments</div>
@@ -262,6 +342,7 @@ export default function Overview() {
         </div>
       )}
 
+      {/* Credit-cards account cards */}
       {ccAccounts.length > 0 && (
         <div className="mb-4">
           <div className="eyebrow mb-2">Credit cards</div>
@@ -287,6 +368,7 @@ export default function Overview() {
         </div>
       )}
 
+      {/* Recent activity and budgets panels */}
       <div className="row g-3">
         <div className="col-lg-7">
           <div className="panel">
