@@ -15,7 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Sidebar active-link indicator now slide instead of snap. [Issue #6](https://lightroasted.vps-kinghost.net/rmcampos/ledger-finance/issues/6)
 
 ## Changed
-- Headers in all pages to scroll smoothier [Issue #3](https://lightroasted.vps-kinghost.net/rmcampos/ledger-finance/issues/3).
+- Headers in all pages to scroll smoothier. [Issue #3](https://lightroasted.vps-kinghost.net/rmcampos/ledger-finance/issues/3).
+
+## Fixed
+- Apple and iOS PWA icon when installed at Home Screen. [Issue #2](https://lightroasted.vps-kinghost.net/rmcampos/ledger-finance/issues/2)
 
 ### Docker images
 - `docker.io/rmcampos/ledger-backend:v2026.07.14.?`
