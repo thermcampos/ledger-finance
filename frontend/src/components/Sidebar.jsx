@@ -1,4 +1,5 @@
-import { NavLink } from 'react-router-dom';
+import { useLayoutEffect, useRef, useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
 
 const links = [
@@ -14,12 +15,28 @@ const links = [
 
 export default function Sidebar({ isOpen, onClose }) {
   const { user, logout } = useAuth();
+  const location = useLocation();
+  const navRef = useRef(null);
+  const [indicatorStyle, setIndicatorStyle] = useState({ opacity: 0 });
   const initials = (user?.displayName || user?.email || '?')
     .split(' ')
     .map((s) => s[0])
     .join('')
     .slice(0, 2)
     .toUpperCase();
+
+  useLayoutEffect(() => {
+    const activeEl = navRef.current?.querySelector('.nav-link-custom.active');
+    if (!activeEl) {
+      setIndicatorStyle((s) => ({ ...s, opacity: 0 }));
+      return;
+    }
+    setIndicatorStyle({
+      transform: `translateY(${activeEl.offsetTop}px)`,
+      height: `${activeEl.offsetHeight}px`,
+      opacity: 1,
+    });
+  }, [location.pathname]);
 
   return (
     <div className={`sidebar${isOpen ? ' open' : ''}`}>
@@ -46,7 +63,8 @@ export default function Sidebar({ isOpen, onClose }) {
           <i className="bi bi-x" style={{ fontSize: 20 }} />
         </button>
       </div>
-      <nav>
+      <nav ref={navRef} style={{ position: 'relative' }}>
+        <div className="nav-indicator" style={indicatorStyle} aria-hidden="true" />
         {links.map((link) => (
           <NavLink
             key={link.to}

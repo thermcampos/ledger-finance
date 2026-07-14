@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Added
 - Scroll-linked header shrink effect in a progressive style. [Issue #4](https://lightroasted.vps-kinghost.net/rmcampos/ledger-finance/issues/4)
 - Page transition on route change. [Issue #5](https://lightroasted.vps-kinghost.net/rmcampos/ledger-finance/issues/5)
+- Sidebar active-link indicator now slide instead of snap. [Issue #6](https://lightroasted.vps-kinghost.net/rmcampos/ledger-finance/issues/6)
 
 ## Changed
 - Headers in all pages to scroll smoothier [Issue #3](https://lightroasted.vps-kinghost.net/rmcampos/ledger-finance/issues/3).

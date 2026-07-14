@@ -42,6 +42,18 @@ body {
   display: flex;
   flex-direction: column;
   padding: 24px 16px;
+  view-transition-name: sidebar;
+}
+/* Keep the sidebar out of the page-level crossfade (see main-content
+   transition below) so its own live transitions — e.g. the nav
+   indicator — aren't frozen into a snapshot mid-animation. */
+::view-transition-group(sidebar) {
+  animation-duration: 0.01ms;
+}
+::view-transition-old(sidebar),
+::view-transition-new(sidebar) {
+  animation: none;
+  mix-blend-mode: normal;
 }
 .sidebar-brand-row {
   display: flex;
@@ -73,7 +85,21 @@ body {
   background: var(--jade);
   display: inline-block;
 }
+.nav-indicator {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  z-index: 0;
+  pointer-events: none;
+  transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1), height 0.22s ease, opacity 0.15s ease;
+}
 .nav-link-custom {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -92,9 +118,7 @@ body {
   color: var(--text);
 }
 .nav-link-custom.active {
-  background: var(--surface-2);
   color: var(--text);
-  border-color: var(--border);
 }
 .release-link {
   color: var(--text-faint);

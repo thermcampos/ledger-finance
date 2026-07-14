@@ -42,11 +42,17 @@ function useTransitionLocation() {
   return displayLocation;
 }
 
-function ProtectedLayout({ children }) {
+// unauthenticatedFallback lets "/" show the public Landing page instead of
+// redirecting to /login. It must still render via ProtectedLayout itself
+// (not a separate wrapper component) so React sees the same element type
+// across every protected route — swapping component types at the <Routes>
+// position unmounts and remounts everything underneath, including Sidebar,
+// which resets its nav-indicator transition state.
+function ProtectedLayout({ children, unauthenticatedFallback = <Navigate to="/login" replace /> }) {
   const { isAuthenticated } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (!isAuthenticated) return unauthenticatedFallback;
   return (
     <>
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
@@ -83,19 +89,6 @@ function ProtectedLayout({ children }) {
   );
 }
 
-// Logged-in visitors go straight into the app at "/", same as before this
-// page existed; logged-out visitors see the public landing page instead of
-// being redirected straight to /login.
-function Root() {
-  const { isAuthenticated } = useAuth();
-  if (!isAuthenticated) return <Landing />;
-  return (
-    <ProtectedLayout>
-      <Overview />
-    </ProtectedLayout>
-  );
-}
-
 export default function App() {
   const displayLocation = useTransitionLocation();
 
@@ -106,7 +99,14 @@ export default function App() {
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/terms" element={<Terms />} />
 
-      <Route path="/" element={<Root />} />
+      <Route
+        path="/"
+        element={
+          <ProtectedLayout unauthenticatedFallback={<Landing />}>
+            <Overview />
+          </ProtectedLayout>
+        }
+      />
       <Route
         path="/transactions"
         element={
