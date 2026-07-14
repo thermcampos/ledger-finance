@@ -21,7 +21,7 @@ const PRESET_CATEGORIES = ICON_OPTIONS.map((opt) => ({ name: opt.label, icon: op
 
 export default function Categories() {
   const queryClient = useQueryClient();
-  const { sentinelRef, isStuck } = useStickyHeader();
+  const { sentinelRef, progress, isStuck } = useStickyHeader();
   const categoriesQuery = useQuery({ queryKey: ['categories'], queryFn: CategoriesApi.list });
   const categories = [...(categoriesQuery.data || [])].sort((a, b) => a.name.localeCompare(b.name));
 
@@ -161,7 +161,10 @@ export default function Categories() {
   return (
     <div>
       <div ref={sentinelRef} />
-      <div className={`sticky-page-header${isStuck ? ' is-stuck' : ''}`}>
+      <div
+        className={`sticky-page-header${isStuck ? ' is-stuck' : ''}`}
+        style={{ '--header-scale': progress }}
+      >
       <div className="page-header">
         <div>
           <div className="eyebrow mb-1">

@@ -24,7 +24,7 @@ function money(amount) {
 
 export default function Accounts() {
   const queryClient = useQueryClient();
-  const { sentinelRef, isStuck } = useStickyHeader();
+  const { sentinelRef, progress, isStuck } = useStickyHeader();
   const accountsQuery = useQuery({ queryKey: ['accounts'], queryFn: AccountsApi.list });
   const accounts = useMemo(() => accountsQuery.data || [], [accountsQuery.data]);
 
@@ -175,7 +175,10 @@ export default function Accounts() {
   return (
     <div>
       <div ref={sentinelRef} />
-      <div className={`sticky-page-header${isStuck ? ' is-stuck' : ''}`}>
+      <div
+        className={`sticky-page-header${isStuck ? ' is-stuck' : ''}`}
+        style={{ '--header-scale': progress }}
+      >
       <div className="page-header">
         <div>
           <div className="eyebrow mb-1">

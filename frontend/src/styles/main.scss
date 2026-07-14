@@ -120,15 +120,20 @@ body {
   top: 0;
   z-index: 5;
   background: var(--bg);
-  padding: 8px 0;
-  transition: box-shadow 0.18s ease, padding 0.18s ease, background-color 0.18s ease;
+  padding: calc(8px - 4px * var(--header-scale, 0)) 0;
+  box-shadow: 0
+    calc(8px * var(--header-scale, 0))
+    calc(24px * var(--header-scale, 0))
+    rgba(0, 0, 0, calc(0.35 * var(--header-scale, 0)));
+  transition: background-color 0.18s ease;
+}
+.sticky-page-header .page-title {
+  font-size: calc(24px - 4px * var(--header-scale, 0));
 }
 .sticky-page-header.is-stuck {
-  padding: 4px 0;
   background: rgba(14, 17, 22, 0.82);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 .page-title {
   font-family: 'Fraunces', Georgia, serif;

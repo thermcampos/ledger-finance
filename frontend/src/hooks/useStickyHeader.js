@@ -1,23 +1,42 @@
 import { useEffect, useRef, useState } from 'react';
 
-// Tracks whether a sticky-positioned element is currently "stuck" to the
-// top of the viewport, via a zero-height sentinel placed just before it.
-// Usage: const { sentinelRef, isStuck } = useStickyHeader();
+// Distance, in px, over which the header transitions from flat to stuck.
+const SCROLL_RANGE = 48;
+
+// Tracks scroll progress (0-1) of a sticky-positioned element becoming
+// "stuck" to the top of the viewport, via a zero-height sentinel placed
+// just before it. `progress` climbs smoothly over SCROLL_RANGE px so
+// callers can drive continuous styles (e.g. --header-scale) instead of
+// snapping at a single breakpoint.
+// Usage: const { sentinelRef, progress, isStuck } = useStickyHeader();
 export function useStickyHeader() {
   const sentinelRef = useRef(null);
-  const [isStuck, setIsStuck] = useState(false);
+  const [progress, setProgress] = useState(0);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
-    if (!sentinel || typeof IntersectionObserver === 'undefined') return undefined;
+    if (!sentinel) return undefined;
 
-    const observer = new IntersectionObserver(
-      ([entry]) => setIsStuck(!entry.isIntersecting),
-      { threshold: 0, rootMargin: '-1px 0px 0px 0px' }
-    );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
+    let frame = null;
+    const measure = () => {
+      frame = null;
+      const distance = -sentinel.getBoundingClientRect().top;
+      const clamped = Math.min(Math.max(distance, 0), SCROLL_RANGE);
+      setProgress(clamped / SCROLL_RANGE);
+    };
+    const onScroll = () => {
+      if (frame === null) frame = requestAnimationFrame(measure);
+    };
+
+    measure();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    return () => {
+      if (frame !== null) cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+    };
   }, []);
 
-  return { sentinelRef, isStuck };
+  return { sentinelRef, progress, isStuck: progress > 0 };
 }

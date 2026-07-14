@@ -203,7 +203,7 @@ export default function Transactions() {
   const [search, setSearch] = useState('');
   const [showAddMenu, setShowAddMenu] = useState(false);
   const addMenuRef = useRef(null);
-  const { sentinelRef, isStuck } = useStickyHeader();
+  const { sentinelRef, progress, isStuck } = useStickyHeader();
 
   useEffect(() => {
     function onClickOutside(e) {
@@ -536,7 +536,10 @@ export default function Transactions() {
   return (
     <div>
       <div ref={sentinelRef} />
-      <div className={`sticky-page-header${isStuck ? ' is-stuck' : ''}`}>
+      <div
+        className={`sticky-page-header${isStuck ? ' is-stuck' : ''}`}
+        style={{ '--header-scale': progress }}
+      >
       <div className="page-header">
         <div>
           <div className="eyebrow mb-1">All accounts</div>

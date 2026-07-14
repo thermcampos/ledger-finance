@@ -31,7 +31,7 @@ function money(amount) {
 
 export default function Budgets() {
   const queryClient = useQueryClient();
-  const { sentinelRef, isStuck } = useStickyHeader();
+  const { sentinelRef, progress, isStuck } = useStickyHeader();
   const [yearMonth, setYearMonth] = useState(localYearMonth);
   const budgetsQuery = useQuery({
     queryKey: ['budgets', yearMonth],
@@ -107,7 +107,10 @@ export default function Budgets() {
   return (
     <div>
       <div ref={sentinelRef} />
-      <div className={`sticky-page-header${isStuck ? ' is-stuck' : ''}`}>
+      <div
+        className={`sticky-page-header${isStuck ? ' is-stuck' : ''}`}
+        style={{ '--header-scale': progress }}
+      >
       <div className="page-header">
         <div>
           <div className="eyebrow mb-1 d-flex align-items-center gap-2">
