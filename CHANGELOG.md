@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Category and input filter in the transactions page now show the sum of all matching transactions.
+- Overview and Transactions page to match the app styling fonts and grouping hero headers.
 
 ### Fixed
 - Missing cancel button when editing a budget value.

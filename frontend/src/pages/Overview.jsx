@@ -182,7 +182,7 @@ export default function Overview() {
             </div>
             <div className="col-md-4">
               <div className="eyebrow mb-2">Credit card debt</div>
-              <div className="hero-balance md" style={{ color: totalCardDebt > 0 ? 'var(--red)' : undefined }}>
+              <div className="mono stat-figure" style={{ color: totalCardDebt > 0 ? 'var(--red)' : undefined }}>
                 {money(totalCardDebt, { hidden: hideValues })}
               </div>
               <div className="text-muted-c mt-2" style={{ fontSize: 12.5 }}>
@@ -191,7 +191,7 @@ export default function Overview() {
             </div>
             <div className="col-md-4">
               <div className="eyebrow mb-2">Total investments</div>
-              <div className="hero-balance md">{money(totalInvestments, { hidden: hideValues })}</div>
+              <div className="mono stat-figure">{money(totalInvestments, { hidden: hideValues })}</div>
               <div className="text-muted-c mt-2" style={{ fontSize: 12.5 }}>
                 across {investmentAccounts.length} account{investmentAccounts.length === 1 ? '' : 's'}
               </div>

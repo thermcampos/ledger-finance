@@ -196,6 +196,24 @@ function dayLabelKind(dateStr) {
   return 'past';
 }
 
+// Two-value stat card body (Monthly totals, Predicted): value on top in the
+// same size as a single-value card's figure, label below — mirrors the
+// caption-below-the-number pattern used by Current balance / Filtered total.
+function StatPair({ items }) {
+  return (
+    <div className="stat-pair">
+      {items.map((item) => (
+        <div key={item.label} className="stat-pair-item">
+          <div className="mono stat-figure" style={{ color: item.color }}>
+            {item.value}
+          </div>
+          <div className="stat-pair-label">{item.label}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function Transactions() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -473,12 +491,12 @@ export default function Transactions() {
     : liquidAccounts.reduce((sum, a) => sum + accountBalanceAsOf(a, today), 0);
   const isOwing = currentBalanceTotal < 0;
 
-  // Predicted end-of-month balances for the selected month plus the two
-  // following it — always relative to monthOffset, not today's real date.
-  // Only meaningful in "this-month" mode; custom ranges have no single
-  // selected month to walk forward from.
+  // Predicted end-of-month balances for the selected month plus the next
+  // one — always relative to monthOffset, not today's real date. Only
+  // meaningful in "this-month" mode; custom ranges have no single selected
+  // month to walk forward from.
   const predictedMonths = filterRange === 'this-month'
-    ? [0, 1, 2].map((i) => {
+    ? [0, 1].map((i) => {
         const { start, end } = monthBounds(monthOffset + i);
         const balance = filterAccountId
           ? (accountById[filterAccountId] ? accountBalanceAsOf(accountById[filterAccountId], end) : 0)
@@ -739,35 +757,24 @@ export default function Transactions() {
           {showMonthlyTotals && (
             <div className={topCardClass}>
               <div className="eyebrow mb-2">Monthly totals</div>
-              <div className="d-flex flex-column gap-1">
-                <div className="d-flex justify-content-between align-items-baseline gap-2" style={{ fontSize: 12.5 }}>
-                  <span className="text-faint">Credits</span>
-                  <span className="mono" style={{ color: 'var(--jade)' }}>
-                    {money(monthlyCredits, { signed: true })}
-                  </span>
-                </div>
-                <div className="d-flex justify-content-between align-items-baseline gap-2" style={{ fontSize: 12.5 }}>
-                  <span className="text-faint">Debits</span>
-                  <span className="mono" style={{ color: 'var(--red)' }}>
-                    {money(monthlyDebits, { signed: true })}
-                  </span>
-                </div>
-              </div>
+              <StatPair
+                items={[
+                  { label: 'Credits', value: money(monthlyCredits, { signed: true }), color: 'var(--jade)' },
+                  { label: 'Debits', value: money(monthlyDebits, { signed: true }), color: 'var(--red)' },
+                ]}
+              />
             </div>
           )}
           {showPredicted && (
             <div className={topCardClass}>
               <div className="eyebrow mb-2">Predicted</div>
-              <div className="d-flex flex-column gap-1">
-                {predictedMonths.map((m) => (
-                  <div key={m.label} className="d-flex justify-content-between align-items-baseline gap-2" style={{ fontSize: 12.5 }}>
-                    <span className="text-faint">{m.label}</span>
-                    <span className="mono" style={{ color: m.balance < 0 ? 'var(--red)' : undefined }}>
-                      {money(m.balance)}
-                    </span>
-                  </div>
-                ))}
-              </div>
+              <StatPair
+                items={predictedMonths.map((m) => ({
+                  label: m.label,
+                  value: money(m.balance),
+                  color: m.balance < 0 ? 'var(--red)' : undefined,
+                }))}
+              />
             </div>
           )}
           {hasActiveFilter && (
@@ -776,8 +783,8 @@ export default function Transactions() {
                 {filterCategoryId ? `${filteredCategoryName} total` : 'Filtered total'}
               </div>
               <div
-                className="mono"
-                style={{ fontSize: 26, color: filteredTotal < 0 ? 'var(--red)' : 'var(--jade)' }}
+                className="mono stat-figure"
+                style={{ color: filteredTotal < 0 ? 'var(--red)' : 'var(--jade)' }}
               >
                 {money(filteredTotal, { signed: true })}
               </div>

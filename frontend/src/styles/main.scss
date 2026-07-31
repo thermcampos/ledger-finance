@@ -212,6 +212,42 @@ body {
 .hero-balance.md {
   font-size: 38px;
 }
+/* Secondary stat cards (Transactions summary panel): one shared type-scale
+   below the hero-balance, so Current balance / Monthly totals / Predicted /
+   Filtered total read as one system instead of four ad-hoc sizes. */
+.stat-figure {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 24px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.stat-pair {
+  display: flex;
+  gap: 28px;
+  max-width: 220px;
+}
+.stat-pair-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: relative;
+}
+.stat-pair-item:not(:last-child) {
+  padding-right: 28px;
+}
+.stat-pair-item:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 15%;
+  bottom: 15%;
+  right: 0;
+  width: 1px;
+  background: var(--border);
+}
+.stat-pair-label {
+  font-size: 11px;
+  color: var(--text-faint);
+}
 .delta-pill {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 12px;
