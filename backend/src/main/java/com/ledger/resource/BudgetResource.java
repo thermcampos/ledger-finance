@@ -3,8 +3,10 @@ package com.ledger.resource;
 import com.ledger.entity.Budget;
 import com.ledger.dto.response.CategorySpendResponse;
 import com.ledger.entity.Category;
+import com.ledger.entity.Transaction;
 import com.ledger.security.CurrentUserService;
 import com.ledger.entity.User;
+import io.quarkus.panache.common.Sort;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
@@ -40,6 +42,22 @@ public class BudgetResource {
    * Budget row — so it always reflects the live ledger. Only negative (expense) transactions are
    * summed; positive amounts (income, transfers in) are excluded from "spent".
    */
+  @GET
+  @Path("/month/{yearMonth}/category/{categoryId}/transactions")
+  public List<Transaction> transactionsForCategory(
+      @PathParam("yearMonth") String yearMonth, @PathParam("categoryId") Long categoryId) {
+    User user = currentUser.require();
+    LocalDate start = LocalDate.parse(yearMonth + "-01");
+    LocalDate end = start.plusMonths(1).minusDays(1);
+    return Transaction.list(
+        "account.user.id = ?1 and category.id = ?2 and occurredOn between ?3 and ?4",
+        Sort.descending("occurredOn").and("id"),
+        user.id,
+        categoryId,
+        start,
+        end);
+  }
+
   @GET
   @Path("/month/{yearMonth}/spend")
   public List<CategorySpendResponse> spendForMonth(@PathParam("yearMonth") String yearMonth) {

@@ -56,6 +56,8 @@ export const BudgetsApi = {
     client.get(`/budgets/month/${yearMonth}`).then((r) => r.data),
   spendForMonth: (yearMonth) =>
     client.get(`/budgets/month/${yearMonth}/spend`).then((r) => r.data),
+  transactionsForBudget: (yearMonth, categoryId) =>
+    client.get(`/budgets/month/${yearMonth}/category/${categoryId}/transactions`).then((r) => r.data),
   upsert: (payload) => client.post('/budgets', payload).then((r) => r.data),
   remove: (id) => client.delete(`/budgets/${id}`),
 };

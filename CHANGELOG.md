@@ -7,25 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## frontend:v2026.07.14.? & backend:v2026.07.14.? - 2026-07-14
+## 2026-07-31
 
-## Added
+### Added
+- Monthly totals in the transactions page.
+- Click to load transactions in the budgets page.
+
+### Changed
+- Category and input filter in the transactions page now show the sum of all matching transactions.
+
+### Fixed
+- Missing cancel button when editing a budget value.
+
+---
+
+## 2026-07-14
+
+### Added
 - Scroll-linked header shrink effect in a progressive style. [Issue #4](https://lightroasted.vps-kinghost.net/rmcampos/ledger-finance/issues/4)
 - Page transition on route change. [Issue #5](https://lightroasted.vps-kinghost.net/rmcampos/ledger-finance/issues/5)
 - Sidebar active-link indicator now slide instead of snap. [Issue #6](https://lightroasted.vps-kinghost.net/rmcampos/ledger-finance/issues/6)
 - Today and Next two days transactions in the overview page. [Issue #1](https://lightroasted.vps-kinghost.net/rmcampos/ledger-finance/issues/1)
 
-## Changed
+### Changed
 - Headers in all pages to scroll smoothier. [Issue #3](https://lightroasted.vps-kinghost.net/rmcampos/ledger-finance/issues/3).
 
-## Fixed
+### Fixed
 - Apple and iOS PWA icon when installed at Home Screen. [Issue #2](https://lightroasted.vps-kinghost.net/rmcampos/ledger-finance/issues/2)
 
-### Docker images
-- `docker.io/rmcampos/ledger-backend:v2026.07.14.?`
-- `docker.io/rmcampos/ledger-frontend:v2026.07.14.?`
+```bash
+# Docker images
+docker.io/rmcampos/ledger-backend:v2026.07.14.?
+docker.io/rmcampos/ledger-frontend:v2026.07.14.?
+```
 
-## frontend:v2026.07.12.102 & backend:v2026.07.12.104 - 2026-07-12
+---
+
+## 2026-07-12
 
 ## Added
 - Predicted balances for the next three months in the transactions page.

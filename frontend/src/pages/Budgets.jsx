@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BudgetsApi, CategoriesApi } from '../api/ledger';
 import { localYearMonth } from '../utils/date';
 import { useStickyHeader } from '../hooks/useStickyHeader';
+import BudgetTransactionList from '../components/BudgetTransactionList';
 
 function shiftMonth(yearMonth, delta) {
   const [year, month] = yearMonth.split('-').map(Number);
@@ -84,6 +85,7 @@ export default function Budgets() {
   };
 
   const [confirmingId, setConfirmingId] = useState(null);
+  const [selectedBudgetId, setSelectedBudgetId] = useState(null);
 
   const deleteMutation = useMutation({
     mutationFn: BudgetsApi.remove,
@@ -91,6 +93,7 @@ export default function Budgets() {
       queryClient.invalidateQueries({ queryKey: ['budgets', yearMonth] });
       queryClient.invalidateQueries({ queryKey: ['budgets-spend', yearMonth] });
       setConfirmingId(null);
+      if (selectedBudgetId) setSelectedBudgetId(null);
     },
   });
 
@@ -98,6 +101,8 @@ export default function Budgets() {
     setConfirmingId(null);
     deleteMutation.reset();
   };
+
+  const selectedBudget = budgets.find((b) => b.id === selectedBudgetId);
 
   const monthLabel = new Date(`${yearMonth}-01T00:00:00`).toLocaleDateString('en-US', {
     month: 'long',
@@ -180,6 +185,19 @@ export default function Budgets() {
                   {upsertMutation.isPending ? 'Saving…' : 'Save'}
                 </button>
               </div>
+              <div className="col-md-2">
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm w-100"
+                  onClick={() => {
+                    setShowForm(false);
+                    setCategoryId('');
+                    setLimitAmount('');
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </form>
         </div>
@@ -235,7 +253,14 @@ export default function Budgets() {
           const color = b.category?.colorHex || categoryColors[b.category?.name] || '#8B92A0';
           return (
             <div className="col-md-6 col-lg-4" key={b.id}>
-              <div className="budget-card">
+              <div
+                className="budget-card"
+                style={{ cursor: spent === 0 ? 'default' : 'pointer' }}
+                onClick={() => {
+                  if (spent === 0) return;
+                  setSelectedBudgetId(b.id);
+                }}
+              >
                 {confirmingId === b.id ? (
                   <div>
                     <div className="budget-name mb-2">Delete budget for &ldquo;{b.category?.name}&rdquo;?</div>
@@ -268,13 +293,17 @@ export default function Budgets() {
                         {b.category?.name}
                       </div>
                       <div className="d-flex gap-1">
-                        <button className="icon-btn" title="Edit budget" onClick={() => startEdit(b)}>
+                        <button
+                          className="icon-btn"
+                          title="Edit budget"
+                          onClick={(e) => { e.stopPropagation(); startEdit(b); }}
+                        >
                           <i className="bi bi-pencil" />
                         </button>
                         <button
                           className="icon-btn"
                           title="Delete budget"
-                          onClick={() => setConfirmingId(b.id)}
+                          onClick={(e) => { e.stopPropagation(); setConfirmingId(b.id); }}
                         >
                           <i className="bi bi-trash" />
                         </button>
@@ -294,6 +323,26 @@ export default function Budgets() {
           );
         })}
       </div>
+
+      {selectedBudget && (
+        <div className="panel p-4 mt-4">
+          <div className="d-flex justify-content-between align-items-center mb-3">
+            <div className="eyebrow">{selectedBudget.category?.name} transactions</div>
+            <button
+              type="button"
+              className="icon-btn"
+              title="Close"
+              onClick={() => setSelectedBudgetId(null)}
+            >
+              <i className="bi bi-x-lg" />
+            </button>
+          </div>
+          <BudgetTransactionList
+            yearMonth={yearMonth}
+            categoryId={selectedBudget.category?.id}
+          />
+        </div>
+      )}
     </div>
   );
 }

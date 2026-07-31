@@ -487,11 +487,16 @@ export default function Transactions() {
       })
     : [];
   const showPredicted = predictedMonths.length > 0;
-  const balanceColClass = showPredicted
-    ? (filterCategoryId ? 'col-md-5' : 'col-md-8')
-    : (filterCategoryId ? 'col-md-7' : 'col-md-12');
-  const predictedColClass = filterCategoryId ? 'col-md-3' : 'col-md-4';
-  const categoryColClass = showPredicted ? 'col-md-4' : 'col-md-5';
+  const hasActiveFilter = Boolean(filterCategoryId || search.trim());
+  const showMonthlyTotals = filterRange === 'this-month';
+
+  const visibleCardCount =
+    1 + (showMonthlyTotals ? 1 : 0) + (showPredicted ? 1 : 0) + (hasActiveFilter ? 1 : 0);
+  const topCardClass =
+    visibleCardCount === 4 ? 'col-md-3' :
+    visibleCardCount === 3 ? 'col-md-4' :
+    visibleCardCount === 2 ? 'col-md-6' :
+    'col-md-12';
 
   const filteredCategoryName = categories.find((c) => String(c.id) === filterCategoryId)?.name;
 
@@ -525,7 +530,26 @@ export default function Transactions() {
     return Array.from(map.entries());
   }, [filteredFlat]);
 
-  const filteredCategoryTotal = filteredFlat.reduce((sum, t) => sum + Number(t.amount), 0);
+  const filteredTotal = filteredFlat.reduce((sum, t) => sum + Number(t.amount), 0);
+
+  const monthlyFlat = useMemo(() => {
+    const { start, end } = rangeBounds(filterRange, filterStartDate, filterEndDate, monthOffset);
+    return txnQueries
+      .flatMap((q) => q.data || [])
+      .filter((t) => !filterAccountId || String(t.account?.id) === filterAccountId)
+      .filter((t) => !start || parseLocalDate(t.occurredOn) >= start)
+      .filter((t) => !end || parseLocalDate(t.occurredOn) <= end)
+      .sort((a, b) => parseLocalDate(b.occurredOn) - parseLocalDate(a.occurredOn));
+  }, [txnQueries, filterAccountId, filterRange, filterStartDate, filterEndDate, monthOffset]);
+
+  const monthlyCredits = monthlyFlat.reduce(
+    (sum, t) => sum + (Number(t.amount) > 0 ? Number(t.amount) : 0),
+    0
+  );
+  const monthlyDebits = monthlyFlat.reduce(
+    (sum, t) => sum + (Number(t.amount) < 0 ? Number(t.amount) : 0),
+    0
+  );
 
   const handleExport = () => {
     downloadCsv(toCsv(filteredFlat), `transactions-${todayIso()}.csv`);
@@ -696,7 +720,7 @@ export default function Transactions() {
 
       <div className="panel p-4 mb-4">
         <div className="row g-3">
-          <div className={balanceColClass}>
+          <div className={topCardClass}>
             <div className="eyebrow mb-2 d-flex align-items-center gap-2">
               <span>
                 Current balance
@@ -712,8 +736,27 @@ export default function Transactions() {
               </div>
             )}
           </div>
+          {showMonthlyTotals && (
+            <div className={topCardClass}>
+              <div className="eyebrow mb-2">Monthly totals</div>
+              <div className="d-flex flex-column gap-1">
+                <div className="d-flex justify-content-between align-items-baseline gap-2" style={{ fontSize: 12.5 }}>
+                  <span className="text-faint">Credits</span>
+                  <span className="mono" style={{ color: 'var(--jade)' }}>
+                    {money(monthlyCredits, { signed: true })}
+                  </span>
+                </div>
+                <div className="d-flex justify-content-between align-items-baseline gap-2" style={{ fontSize: 12.5 }}>
+                  <span className="text-faint">Debits</span>
+                  <span className="mono" style={{ color: 'var(--red)' }}>
+                    {money(monthlyDebits, { signed: true })}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
           {showPredicted && (
-            <div className={predictedColClass}>
+            <div className={topCardClass}>
               <div className="eyebrow mb-2">Predicted</div>
               <div className="d-flex flex-column gap-1">
                 {predictedMonths.map((m) => (
@@ -727,14 +770,16 @@ export default function Transactions() {
               </div>
             </div>
           )}
-          {filterCategoryId && (
-            <div className={categoryColClass}>
-              <div className="eyebrow mb-2">{filteredCategoryName || 'Category'} total</div>
+          {hasActiveFilter && (
+            <div className={topCardClass}>
+              <div className="eyebrow mb-2">
+                {filterCategoryId ? `${filteredCategoryName} total` : 'Filtered total'}
+              </div>
               <div
                 className="mono"
-                style={{ fontSize: 26, color: filteredCategoryTotal < 0 ? 'var(--red)' : 'var(--jade)' }}
+                style={{ fontSize: 26, color: filteredTotal < 0 ? 'var(--red)' : 'var(--jade)' }}
               >
-                {money(filteredCategoryTotal, { signed: true })}
+                {money(filteredTotal, { signed: true })}
               </div>
               <div className="text-faint mt-1" style={{ fontSize: 11.5 }}>
                 Sum of currently filtered transactions.
