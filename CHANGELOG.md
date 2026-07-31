@@ -19,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Missing cancel button when editing a budget value.
 
+```bash
+# Docker images
+- rmcampos/ledger-backend:v2026.07.31.110
+- rmcampos/ledger-frontend:v2026.07.31.119
+```
+
 ---
 
 ## 2026-07-14
@@ -37,8 +43,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ```bash
 # Docker images
-docker.io/rmcampos/ledger-backend:v2026.07.14.?
-docker.io/rmcampos/ledger-frontend:v2026.07.14.?
+- docker.io/rmcampos/ledger-backend:v2026.07.14.?
+- docker.io/rmcampos/ledger-frontend:v2026.07.14.?
 ```
 
 ---
