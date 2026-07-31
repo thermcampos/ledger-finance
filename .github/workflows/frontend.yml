@@ -61,7 +61,9 @@ jobs:
           VITE_BACKEND_SERVER: ${{ vars.BACKEND_SERVER_URL }}
 
       - name: Set up Docker Buildx
-        run: docker buildx inspect --bootstrap
+        run: |
+          docker buildx create --name container-builder --driver docker-container --use --bootstrap || \
+            docker buildx use container-builder
 
       - name: Setup Doppler CLI
         uses: dopplerhq/cli-action@v4
