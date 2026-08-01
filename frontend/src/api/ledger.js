@@ -52,8 +52,7 @@ export const ImportApi = {
 };
 
 export const BudgetsApi = {
-  listForMonth: (yearMonth) =>
-    client.get(`/budgets/month/${yearMonth}`).then((r) => r.data),
+  list: () => client.get('/budgets').then((r) => r.data),
   spendForMonth: (yearMonth) =>
     client.get(`/budgets/month/${yearMonth}/spend`).then((r) => r.data),
   transactionsForBudget: (yearMonth, categoryId) =>

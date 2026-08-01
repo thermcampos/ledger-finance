@@ -5,12 +5,6 @@ import { localYearMonth } from '../utils/date';
 import { useStickyHeader } from '../hooks/useStickyHeader';
 import BudgetTransactionList from '../components/BudgetTransactionList';
 
-function shiftMonth(yearMonth, delta) {
-  const [year, month] = yearMonth.split('-').map(Number);
-  const date = new Date(year, month - 1 + delta, 1);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-}
-
 const categoryColors = {
   Groceries: '#4FA98A',
   Housing: '#C9A227',
@@ -33,10 +27,10 @@ function money(amount) {
 export default function Budgets() {
   const queryClient = useQueryClient();
   const { sentinelRef, progress, isStuck } = useStickyHeader();
-  const [yearMonth, setYearMonth] = useState(localYearMonth);
+  const yearMonth = localYearMonth();
   const budgetsQuery = useQuery({
-    queryKey: ['budgets', yearMonth],
-    queryFn: () => BudgetsApi.listForMonth(yearMonth),
+    queryKey: ['budgets'],
+    queryFn: () => BudgetsApi.list(),
   });
   const spendQuery = useQuery({
     queryKey: ['budgets-spend', yearMonth],
@@ -60,7 +54,7 @@ export default function Budgets() {
   const upsertMutation = useMutation({
     mutationFn: BudgetsApi.upsert,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['budgets', yearMonth] });
+      queryClient.invalidateQueries({ queryKey: ['budgets'] });
       queryClient.invalidateQueries({ queryKey: ['budgets-spend', yearMonth] });
       setShowForm(false);
       setCategoryId('');
@@ -72,7 +66,6 @@ export default function Budgets() {
     e.preventDefault();
     upsertMutation.mutate({
       categoryId: Number(categoryId),
-      month: `${yearMonth}-01`,
       limitAmount: Number(limitAmount),
     });
   };
@@ -90,7 +83,7 @@ export default function Budgets() {
   const deleteMutation = useMutation({
     mutationFn: BudgetsApi.remove,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['budgets', yearMonth] });
+      queryClient.invalidateQueries({ queryKey: ['budgets'] });
       queryClient.invalidateQueries({ queryKey: ['budgets-spend', yearMonth] });
       setConfirmingId(null);
       if (selectedBudgetId) setSelectedBudgetId(null);
@@ -109,6 +102,8 @@ export default function Budgets() {
     year: 'numeric',
   });
 
+  const daysLeft = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate() - new Date().getDate();
+
   return (
     <div>
       <div ref={sentinelRef} />
@@ -118,25 +113,7 @@ export default function Budgets() {
       >
       <div className="page-header">
         <div>
-          <div className="eyebrow mb-1 d-flex align-items-center gap-2">
-            <button
-              className="btn btn-ghost btn-sm"
-              style={{ padding: '2px 8px' }}
-              onClick={() => setYearMonth((m) => shiftMonth(m, -1))}
-              aria-label="Previous month"
-            >
-              <i className="bi bi-chevron-left" />
-            </button>
-            {monthLabel}
-            <button
-              className="btn btn-ghost btn-sm"
-              style={{ padding: '2px 8px' }}
-              onClick={() => setYearMonth((m) => shiftMonth(m, 1))}
-              aria-label="Next month"
-            >
-              <i className="bi bi-chevron-right" />
-            </button>
-          </div>
+          <div className="eyebrow mb-1">{monthLabel}</div>
           <div className="page-title">Budgets</div>
         </div>
         <button className="btn btn-jade btn-sm" onClick={() => setShowForm((s) => !s)}>
@@ -226,10 +203,7 @@ export default function Budgets() {
               <div className="col-4">
                 <div className="eyebrow mb-1">Days left</div>
                 <div className="mono" style={{ fontSize: 16 }}>
-                  {yearMonth === localYearMonth()
-                    ? new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate() -
-                      new Date().getDate()
-                    : '—'}
+                  {daysLeft}
                 </div>
               </div>
             </div>

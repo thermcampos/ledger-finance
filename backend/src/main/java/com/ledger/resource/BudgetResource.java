@@ -30,11 +30,9 @@ public class BudgetResource {
   @Inject EntityManager em;
 
   @GET
-  @Path("/month/{yearMonth}")
-  public List<Budget> listForMonth(@PathParam("yearMonth") String yearMonth) {
+  public List<Budget> list() {
     User user = currentUser.require();
-    LocalDate month = LocalDate.parse(yearMonth + "-01");
-    return Budget.list("user.id = ?1 and month = ?2", user.id, month);
+    return Budget.list("user.id = ?1", user.id);
   }
 
   /**
@@ -94,18 +92,13 @@ public class BudgetResource {
     }
 
     Budget budget =
-        Budget.find(
-                "user.id = ?1 and category.id = ?2 and month = ?3",
-                user.id,
-                request.categoryId,
-                request.month)
+        Budget.find("user.id = ?1 and category.id = ?2", user.id, request.categoryId)
             .firstResult();
 
     if (budget == null) {
       budget = new Budget();
       budget.user = user;
       budget.category = category;
-      budget.month = request.month;
     }
     budget.limitAmount = request.limitAmount;
     budget.persist();
@@ -126,7 +119,6 @@ public class BudgetResource {
 
   public static class UpsertBudgetRequest {
     @NotNull public Long categoryId;
-    @NotNull public LocalDate month;
     @NotNull public BigDecimal limitAmount;
   }
 }

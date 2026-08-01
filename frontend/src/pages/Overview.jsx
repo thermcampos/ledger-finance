@@ -63,8 +63,8 @@ export default function Overview() {
 
   const yearMonth = localYearMonth();
   const budgetsQuery = useQuery({
-    queryKey: ['budgets', yearMonth],
-    queryFn: () => BudgetsApi.listForMonth(yearMonth),
+    queryKey: ['budgets'],
+    queryFn: () => BudgetsApi.list(),
   });
   const spendQuery = useQuery({
     queryKey: ['budgets-spend', yearMonth],
