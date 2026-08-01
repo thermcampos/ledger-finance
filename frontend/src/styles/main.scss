@@ -1,11 +1,21 @@
 @import './tokens';
 @import 'bootstrap/scss/bootstrap';
 
+html,
 body {
-  background: var(--bg);
+  background: #0e1116;
   color: var(--text);
   font-size: 14px;
   -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  view-transition-name: root;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  background: #0e1116;
 }
 
 .serif {
@@ -444,6 +454,10 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+.txn-meta .txn-date {
+  color: var(--text);
+  font-size: 13px;
 }
 .txn-meta .dot-sep {
   width: 2px;

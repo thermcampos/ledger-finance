@@ -33,7 +33,10 @@ export default function Import() {
   const fileInputRef = useRef(null);
 
   const accountsQuery = useQuery({ queryKey: ['accounts'], queryFn: AccountsApi.list });
-  const accounts = useMemo(() => accountsQuery.data || [], [accountsQuery.data]);
+  const accounts = useMemo(
+    () => [...(accountsQuery.data || [])].sort((a, b) => a.name.localeCompare(b.name)),
+    [accountsQuery.data]
+  );
   const categoriesQuery = useQuery({ queryKey: ['categories'], queryFn: CategoriesApi.list });
   const categories = useMemo(
     () => [...(categoriesQuery.data || [])].sort((a, b) => a.name.localeCompare(b.name)),

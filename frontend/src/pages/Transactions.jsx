@@ -269,7 +269,10 @@ export default function Transactions() {
   const accountsQuery = useQuery({ queryKey: ['accounts'], queryFn: AccountsApi.list });
   // Credit cards are handled entirely on the dedicated Card Bills page.
   const accounts = useMemo(
-    () => (accountsQuery.data || []).filter((a) => a.kind !== 'CREDIT_CARD'),
+    () =>
+      (accountsQuery.data || [])
+        .filter((a) => a.kind !== 'CREDIT_CARD')
+        .sort((a, b) => a.name.localeCompare(b.name)),
     [accountsQuery.data]
   );
   const categoriesQuery = useQuery({ queryKey: ['categories'], queryFn: CategoriesApi.list });
@@ -535,7 +538,11 @@ export default function Transactions() {
       .filter((t) => !filterCategoryId || String(t.category?.id) === filterCategoryId)
       .filter((t) => !start || parseLocalDate(t.occurredOn) >= start)
       .filter((t) => !end || parseLocalDate(t.occurredOn) <= end)
-      .sort((a, b) => parseLocalDate(b.occurredOn) - parseLocalDate(a.occurredOn));
+      .sort((a, b) => {
+        const dateDiff = parseLocalDate(b.occurredOn) - parseLocalDate(a.occurredOn);
+        if (dateDiff !== 0) return dateDiff;
+        return b.id - a.id;
+      });
   }, [txnQueries, search, filterAccountId, filterCategoryId, filterRange, filterStartDate, filterEndDate, monthOffset]);
 
   const grouped = useMemo(() => {
@@ -557,7 +564,11 @@ export default function Transactions() {
       .filter((t) => !filterAccountId || String(t.account?.id) === filterAccountId)
       .filter((t) => !start || parseLocalDate(t.occurredOn) >= start)
       .filter((t) => !end || parseLocalDate(t.occurredOn) <= end)
-      .sort((a, b) => parseLocalDate(b.occurredOn) - parseLocalDate(a.occurredOn));
+      .sort((a, b) => {
+        const dateDiff = parseLocalDate(b.occurredOn) - parseLocalDate(a.occurredOn);
+        if (dateDiff !== 0) return dateDiff;
+        return b.id - a.id;
+      });
   }, [txnQueries, filterAccountId, filterRange, filterStartDate, filterEndDate, monthOffset]);
 
   const monthlyCredits = monthlyFlat.reduce(

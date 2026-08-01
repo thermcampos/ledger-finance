@@ -39,7 +39,9 @@ export default function Budgets() {
   const categoriesQuery = useQuery({ queryKey: ['categories'], queryFn: CategoriesApi.list });
   const categories = [...(categoriesQuery.data || [])].sort((a, b) => a.name.localeCompare(b.name));
 
-  const budgets = budgetsQuery.data || [];
+  const budgets = [...(budgetsQuery.data || [])].sort((a, b) =>
+    (a.category?.name || '').localeCompare(b.category?.name || '')
+  );
   const spendByCategory = Object.fromEntries(
     (spendQuery.data || []).map((s) => [s.categoryId, Number(s.spent)])
   );

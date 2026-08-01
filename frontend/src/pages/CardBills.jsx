@@ -92,7 +92,10 @@ export default function CardBills() {
   const { sentinelRef, progress, isStuck } = useStickyHeader();
 
   const accountsQuery = useQuery({ queryKey: ['accounts'], queryFn: AccountsApi.list });
-  const accounts = useMemo(() => accountsQuery.data || [], [accountsQuery.data]);
+  const accounts = useMemo(
+    () => [...(accountsQuery.data || [])].sort((a, b) => a.name.localeCompare(b.name)),
+    [accountsQuery.data]
+  );
   const allCards = useMemo(() => accounts.filter((a) => a.kind === 'CREDIT_CARD'), [accounts]);
   const eligibleCards = useMemo(() => allCards.filter((c) => c.dueDayOfMonth != null), [allCards]);
 
@@ -792,7 +795,12 @@ export default function CardBills() {
                         <div className="txn-meta">
                           <span>{catName || 'Uncategorized'}</span>
                           <span className="dot-sep" />
-                          <span>{t.occurredOn}</span>
+                          <span className="txn-date">
+                            {parseLocalDate(t.occurredOn).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                            })}
+                          </span>
                         </div>
                       </div>
                       <div className="txn-right">

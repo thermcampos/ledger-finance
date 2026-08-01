@@ -12,6 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Budgets now survives months and years, allowing to set a budget for a category and have it applied to the next months.
 - `.state-figure` now changes its size on mobile.
+- Date format in the credit-bills page from 2026-08-1 to Aug 1.
+- Categories in budgets page are now sorted alphabetically.
+- All account dropdowns to display sorted accounts.
+
+### Fixed
+- Bug making transactions change place after editing.
+- Bug making the page flash a white screen during page transition.
 
 ---
 
