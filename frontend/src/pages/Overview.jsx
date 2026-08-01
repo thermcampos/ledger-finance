@@ -138,6 +138,7 @@ export default function Overview() {
   dueSoonEnd.setDate(dueSoonEnd.getDate() + 2);
   const dueSoon = txnQueries
     .flatMap((q) => q.data || [])
+    .filter((t) => !t.linkedCard)
     .filter((t) => {
       const d = parseLocalDate(t.occurredOn);
       return d >= today && d <= dueSoonEnd;

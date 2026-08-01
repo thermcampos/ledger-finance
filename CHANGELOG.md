@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Bug making transactions change place after editing.
 - Bug making the page flash a white screen during page transition.
+- Do not display credit-card transactions in the due soon panel in the overview page.
 
 ---
 
