@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Budgets now survives months and years, allowing to set a budget for a category and have it applied to the next months.
+- `.state-figure` now changes its size on mobile.
 
 ---
 

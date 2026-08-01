@@ -221,6 +221,11 @@ body {
   font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
+@media (max-width: 768px) {
+  .stat-figure {
+    font-size: 18px;
+  }
+}
 .stat-pair {
   display: flex;
   gap: 28px;
