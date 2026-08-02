@@ -129,8 +129,8 @@ export default function Overview() {
     })
     .slice(0, 5);
 
-  // Due soon — transactions (including credit card bill rows, which carry
-  // their own real due date via occurredOn) landing from today through two
+  // Due soon — transactions (including only checking account transactions)
+  // landing from today through two
   // days out. No "overdue" bucket: ordinary transactions have no
   // paid/pending status, so a past occurredOn can't be distinguished from
   // one that's already settled.
@@ -138,7 +138,7 @@ export default function Overview() {
   dueSoonEnd.setDate(dueSoonEnd.getDate() + 2);
   const dueSoon = txnQueries
     .flatMap((q) => q.data || [])
-    .filter((t) => !t.linkedCard)
+    .filter((t) => t.kind === 'CHECKING')
     .filter((t) => {
       const d = parseLocalDate(t.occurredOn);
       return d >= today && d <= dueSoonEnd;
@@ -245,7 +245,7 @@ export default function Overview() {
                   <div style={{ minWidth: 0 }}>
                     <div className="feed-desc">{t.description}</div>
                     <div className="text-faint" style={{ fontSize: 11.5 }}>
-                      {catName} · {dueLabel(parseLocalDate(t.occurredOn), today)}
+                      {catName} · {dueLabel(parseLocalDate(t.occurredOn), today)} in {t.account.name}
                     </div>
                   </div>
                 </div>
