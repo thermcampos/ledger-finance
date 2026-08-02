@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## 2026-08-02
+
+### Changed
+- Due soon panel to include the next seven transactions regardless of the day.
+
 ## 2026-08-01
 
 ### Changed
