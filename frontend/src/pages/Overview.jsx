@@ -129,16 +129,16 @@ export default function Overview() {
     })
     .slice(0, 5);
 
-  // Due soon — transactions (including only checking account transactions)
-  // landing from today through two
-  // days out. No "overdue" bucket: ordinary transactions have no
-  // paid/pending status, so a past occurredOn can't be distinguished from
-  // one that's already settled.
+  // Due soon — checking-account transactions only (excludes credit card bill
+  // projection rows, which land on the payment account but carry linkedCard)
+  // landing from today through two days out. No "overdue" bucket: ordinary
+  // transactions have no paid/pending status, so a past occurredOn can't be
+  // distinguished from one that's already settled.
   const dueSoonEnd = new Date(today);
   dueSoonEnd.setDate(dueSoonEnd.getDate() + 2);
   const dueSoon = txnQueries
     .flatMap((q) => q.data || [])
-    .filter((t) => t.kind === 'CHECKING')
+    .filter((t) => t.account?.kind === 'CHECKING' && !t.linkedCard)
     .filter((t) => {
       const d = parseLocalDate(t.occurredOn);
       return d >= today && d <= dueSoonEnd;
