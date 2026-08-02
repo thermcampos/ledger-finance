@@ -221,7 +221,18 @@ export default function Transactions() {
   const [search, setSearch] = useState('');
   const [showAddMenu, setShowAddMenu] = useState(false);
   const addMenuRef = useRef(null);
+  const addFormRef = useRef(null);
+  const transferFormRef = useRef(null);
+  const stickyHeaderRef = useRef(null);
   const { sentinelRef, progress, isStuck } = useStickyHeader();
+
+  const scrollFormIntoView = (formRef) => {
+    if (!formRef.current) return;
+    const headerHeight = stickyHeaderRef.current?.getBoundingClientRect().height || 0;
+    const top = formRef.current.getBoundingClientRect().top + window.scrollY - headerHeight - 12;
+    window.scrollTo({ top, behavior: 'smooth' });
+    formRef.current.querySelector('select, input, textarea')?.focus({ preventScroll: true });
+  };
 
   useEffect(() => {
     function onClickOutside(e) {
@@ -282,6 +293,11 @@ export default function Transactions() {
   );
 
   const [showForm, setShowForm] = useState(false);
+
+  useEffect(() => {
+    if (showForm) scrollFormIntoView(addFormRef);
+  }, [showForm]);
+
   const [accountId, setAccountId] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [description, setDescription] = useState('');
@@ -324,6 +340,11 @@ export default function Transactions() {
   };
 
   const [showTransferForm, setShowTransferForm] = useState(false);
+
+  useEffect(() => {
+    if (showTransferForm) scrollFormIntoView(transferFormRef);
+  }, [showTransferForm]);
+
   const [transferSourceId, setTransferSourceId] = useState('');
   const [transferTargetId, setTransferTargetId] = useState('');
   const [transferDescription, setTransferDescription] = useState('Transfer');
@@ -590,6 +611,7 @@ export default function Transactions() {
     <div>
       <div ref={sentinelRef} />
       <div
+        ref={stickyHeaderRef}
         className={`sticky-page-header${isStuck ? ' is-stuck' : ''}`}
         style={{ '--header-scale': progress }}
       >
@@ -808,7 +830,7 @@ export default function Transactions() {
       </div>
 
       {showForm && (
-        <div className="panel p-4 mb-4">
+        <div className="panel p-4 mb-4" ref={addFormRef}>
           <form onSubmit={handleSubmit}>
             <div className="row g-3 align-items-end">
               <div className="col-md-3">
@@ -930,7 +952,7 @@ export default function Transactions() {
       )}
 
       {showTransferForm && (
-        <div className="panel p-4 mb-4">
+        <div className="panel p-4 mb-4" ref={transferFormRef}>
           <form onSubmit={handleTransferSubmit}>
             <div className="row g-3 align-items-end">
               <div className="col-md-3">
@@ -1242,33 +1264,33 @@ export default function Transactions() {
                       )}
                     </div>
                   ) : (
-                    <>
+                    <div className="txn-body">
                       <div className="txn-icon" style={{ color }}>
                         <i className={iconClassName(icon)} />
                       </div>
                       <div className="txn-main">
                         <div className="txn-desc">
-                          {t.description}
+                          <span className="txn-desc-text">{t.description}</span>
                           {rowKind === 'future' && (
-                            <span className="tag ms-2" style={{ verticalAlign: 'middle', color: 'var(--jade)', borderColor: 'var(--jade)' }}>
+                            <span className="tag" style={{ color: 'var(--jade)', borderColor: 'var(--jade)' }}>
                               Upcoming
                             </span>
                           )}
                           {t.seriesInfo && (
-                            <span className="tag ms-2" style={{ verticalAlign: 'middle' }}>
+                            <span className="tag">
                               {t.seriesInfo}
                             </span>
                           )}
                           {t.linkedCard && (
-                            <span className="tag ms-2" style={{ verticalAlign: 'middle' }}>
+                            <span className="tag">
                               Card bill
                             </span>
                           )}
                         </div>
                         <div className="txn-meta">
-                          <span>{catName || 'Uncategorized'}</span>
+                          <span className="txn-meta-cat">{catName || 'Uncategorized'}</span>
                           <span className="dot-sep" />
-                          <span>{isTransfer ? transferDirectionLabel : (accountById[t.account?.id]?.name || 'Account')}</span>
+                          <span className="txn-meta-value">{isTransfer ? transferDirectionLabel : (accountById[t.account?.id]?.name || 'Account')}</span>
                         </div>
                       </div>
                       <div className="txn-right">
@@ -1279,7 +1301,7 @@ export default function Transactions() {
                           {money(Number(t.runningBalance))}
                         </div>
                       </div>
-                      <div className="d-flex gap-1 ms-2">
+                      <div className="txn-actions">
                         {t.linkedCard ? (
                           <Link
                             to={`/card-bills?account=${t.linkedCard.id}&bill=${t.occurredOn}`}
@@ -1303,7 +1325,7 @@ export default function Transactions() {
                           </>
                         )}
                       </div>
-                    </>
+                    </div>
                   )}
                 </div>
               );

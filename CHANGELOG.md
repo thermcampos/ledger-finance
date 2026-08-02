@@ -9,8 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 2026-08-02
 
+### Added
+- Effect to scroll to form when adding transactions on mobile.
+
 ### Changed
 - Due soon panel to include the next seven transactions regardless of the day.
+
+### Fixed
+- Transactions view on mobile.
+- Login view on mobile, right size and paddings.
 
 ## 2026-08-01
 
