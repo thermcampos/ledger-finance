@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## 2026-08-03
+
+### Added
+- Export button to the card-bills page.
+
+---
+
 ## 2026-08-02
 
 ### Added

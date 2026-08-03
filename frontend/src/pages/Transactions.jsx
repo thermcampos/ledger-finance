@@ -6,6 +6,7 @@ import { iconClassName } from '../constants/categoryIcons';
 import { parseLocalDate, startOfDay } from '../utils/date';
 import { balanceAsOf, sortChronologically } from '../utils/balance';
 import { useStickyHeader } from '../hooks/useStickyHeader';
+import { toCsv, downloadCsv } from '../utils/export';
 
 function todayIso() {
   const d = new Date();
@@ -147,31 +148,6 @@ function rangeBounds(range, customStart, customEnd, monthOffset) {
     };
   }
   return monthBounds(monthOffset);
-}
-
-function toCsv(rows) {
-  const header = ['Date', 'Description', 'Category', 'Account', 'Amount', 'Running balance'];
-  const lines = rows.map((t) => [
-    t.occurredOn,
-    t.description,
-    t.category?.name || 'Uncategorized',
-    t.account?.name || '',
-    t.amount,
-    t.runningBalance,
-  ]);
-  return [header, ...lines]
-    .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-    .join('\n');
-}
-
-function downloadCsv(csv, filename) {
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
 }
 
 function dayLabel(dateStr) {

@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AccountsApi, CategoriesApi, TransactionsApi } from '../api/ledger';
 import { parseLocalDate, startOfDay, isoDate } from '../utils/date';
+import { toCsv, downloadCsv } from '../utils/export';
 import { iconClassName } from '../constants/categoryIcons';
 import { useStickyHeader } from '../hooks/useStickyHeader';
 import {
@@ -230,6 +231,11 @@ export default function CardBills() {
   );
 
   const [search, setSearch] = useState('');
+
+  const handleExport = () => {
+    const cardName = selectedCard ? selectedCard.name.replace(/\s+/g, '_') : 'card';
+    downloadCsv(toCsv(filteredBillTransactions), `card-bills-${cardName}.csv`);
+  };
 
   const filteredBillTransactions = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -490,7 +496,7 @@ export default function CardBills() {
             )}
           </div>
 
-          <div className="mb-3">
+          <div className="d-flex align-items-center justify-content-between mb-3">
             <input
               type="text"
               className="form-control form-control-sm"
@@ -498,6 +504,10 @@ export default function CardBills() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
+            <button className="btn btn-ghost btn-sm ms-2" onClick={handleExport}>
+              <i className="bi bi-download me-1" />
+              Export
+            </button>
           </div>
 
           {showForm && (
