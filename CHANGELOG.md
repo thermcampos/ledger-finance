@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Export button to the card-bills page.
 - Option and button to review and consolidate credit card bills.
 
+```bash
+# Docker images
+- rmcampos/ledger-frontend:v2026.08.03.146
+- rmcampos/ledger-backend:v2026.08.03.145
+```
+
 ---
 
 ## 2026-08-02
