@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AccountsApi, CategoriesApi, TransactionsApi } from '../api/ledger';
+import {
+  AccountsApi,
+  CategoriesApi,
+  CreditCardBillsApi,
+  TransactionsApi,
+} from '../api/ledger';
 import { parseLocalDate, startOfDay, isoDate } from '../utils/date';
 import { toCsv, downloadCsv } from '../utils/export';
 import { iconClassName } from '../constants/categoryIcons';
@@ -231,6 +236,35 @@ export default function CardBills() {
   );
 
   const [search, setSearch] = useState('');
+  const [isReviewing, setIsReviewing] = useState(false);
+  const [markedIds, setMarkedIds] = useState(new Set());
+
+  const creditCardBillQuery = useQuery({
+    queryKey: ['credit-card-bills', selectedCard?.id, selectedBillDueDate],
+    queryFn: () => CreditCardBillsApi.find(selectedCard.id, selectedBillDueDate),
+    enabled: !!selectedCard && !!selectedBillDueDate,
+  });
+
+  useEffect(() => {
+    if (!isReviewing) {
+      setMarkedIds(new Set());
+    }
+  }, [isReviewing, selectedCard, selectedBillDueDate]);
+
+  const consolidateMutation = useMutation({
+    mutationFn: () =>
+      CreditCardBillsApi.consolidate({
+        accountId: selectedCard.id,
+        dueDate: selectedBillDueDate,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['credit-card-bills', selectedCard?.id, selectedBillDueDate],
+      });
+      setIsReviewing(false);
+      setMarkedIds(new Set());
+    },
+  });
 
   const handleExport = () => {
     const cardName = selectedCard ? selectedCard.name.replace(/\s+/g, '_') : 'card';
@@ -401,10 +435,27 @@ export default function CardBills() {
           <div className="page-title">Card Bills</div>
         </div>
         {selectedCard ? (
-          <button className="btn btn-jade btn-sm" onClick={openForm}>
-            <i className="bi bi-plus-lg me-1" />
-            Add transaction
-          </button>
+          <div className="d-flex align-items-center gap-2">
+            {selectedCard?.dueDayOfMonth != null && (
+              <button
+                className="btn btn-jade btn-sm"
+                onClick={() => {
+                  if (isReviewing) {
+                    consolidateMutation.mutate();
+                  } else {
+                    setIsReviewing(true);
+                  }
+                }}
+                disabled={consolidateMutation.isPending}
+              >
+                {isReviewing ? 'Finish review' : 'Start review'}
+              </button>
+            )}
+            <button className="btn btn-jade btn-sm" onClick={openForm}>
+              <i className="bi bi-plus-lg me-1" />
+              Add transaction
+            </button>
+          </div>
         ) : (
           !accountsQuery.isLoading &&
           allCards.length === 0 && (
@@ -492,6 +543,12 @@ export default function CardBills() {
             {dueDateObj && (
               <div className="text-faint mt-1" style={{ fontSize: 11.5 }}>
                 {dueDateLine(dueDateObj, today)}
+              </div>
+            )}
+            {creditCardBillQuery.data?.consolidated && (
+              <div className="mt-2 d-inline-flex align-items-center gap-1" style={{ color: 'var(--jade)', fontSize: 13, fontWeight: 500 }}>
+                <i className="bi bi-check-circle-fill" />
+                Consolidated
               </div>
             )}
           </div>
@@ -648,8 +705,26 @@ export default function CardBills() {
               const catName = t.category?.name;
               const icon = t.category?.icon || categoryIcons[catName] || 'bi-dot';
               const color = t.category?.colorHex || categoryColors[catName] || '#8B92A0';
+              const isMarked = markedIds.has(t.id);
+              const toggleMarked = () => {
+                if (!isReviewing) return;
+                setMarkedIds((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(t.id)) {
+                    next.delete(t.id);
+                  } else {
+                    next.add(t.id);
+                  }
+                  return next;
+                });
+              };
               return (
-                <div className="txn-row" key={t.id}>
+                <div
+                  className={`txn-row ${isReviewing ? 'reviewable' : ''} ${isMarked ? 'marked' : ''}`}
+                  key={t.id}
+                  onClick={toggleMarked}
+                  style={{ cursor: isReviewing ? 'pointer' : undefined }}
+                >
                   {editingId === t.id ? (
                     <form
                       onSubmit={(e) => handleEditSubmit(e, t)}
@@ -819,6 +894,11 @@ export default function CardBills() {
                         </div>
                       </div>
                       <div className="d-flex gap-1 ms-2">
+                        {isReviewing && isMarked && (
+                          <span className="badge-marked" title="Marked">
+                            <i className="bi bi-check-lg" />
+                          </span>
+                        )}
                         <button className="icon-btn" title="Edit transaction" onClick={() => startEdit(t)}>
                           <i className="bi bi-pencil" />
                         </button>

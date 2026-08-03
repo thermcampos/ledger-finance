@@ -413,6 +413,34 @@ body {
   border-color: rgba(79, 169, 138, 0.45);
   background: var(--surface);
 }
+.txn-row.reviewable {
+  cursor: pointer;
+}
+.txn-row.marked {
+  border-left: 3px solid var(--jade);
+  background: var(--jade-dim);
+}
+.txn-row.marked:hover {
+  background: var(--jade-dim);
+  border-color: #39414f;
+  border-left-color: var(--jade);
+}
+.txn-row.marked .txn-icon {
+  border-color: rgba(79, 169, 138, 0.45);
+  background: var(--surface);
+}
+.badge-marked {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--jade);
+  color: var(--surface);
+  font-size: 12px;
+  flex-shrink: 0;
+}
 .txn-row {
   padding: 16px 18px;
   background: var(--surface);

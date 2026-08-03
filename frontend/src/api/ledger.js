@@ -51,6 +51,12 @@ export const ImportApi = {
   batch: (payload) => client.post('/transactions/batch', payload).then((r) => r.data),
 };
 
+export const CreditCardBillsApi = {
+  find: (accountId, dueDate) =>
+    client.get('/credit-card-bills', { params: { accountId, dueDate } }).then((r) => r.data),
+  consolidate: (payload) => client.post('/credit-card-bills', payload).then((r) => r.data),
+};
+
 export const BudgetsApi = {
   list: () => client.get('/budgets').then((r) => r.data),
   spendForMonth: (yearMonth) =>
