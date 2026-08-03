@@ -19,6 +19,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Transactions view on mobile.
 - Login view on mobile, right size and paddings.
 
+```bash
+# Docker images
+- rmcampos/ledger-frontend:v2026.08.02.141
+```
+
+---
+
 ## 2026-08-01
 
 ### Changed
@@ -32,6 +39,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bug making transactions change place after editing.
 - Bug making the page flash a white screen during page transition.
 - Do not display credit-card transactions in the due soon panel in the overview page.
+
+```bash
+# Docker images
+- rmcampos/ledger-backend:v2026.08.01.125
+- rmcampos/ledger-frontend:v2026.08.01.133
+```
 
 ---
 
