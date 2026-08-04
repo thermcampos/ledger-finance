@@ -69,6 +69,8 @@ public class TransactionResource {
       txn.seriesRepeat = seriesRepeat;
       txn.billDueDate =
           offsetMonths != null ? shiftedBillDueDate(account, date, offsetMonths) : null;
+      txn.completed = request.completed;
+      txn.debitAuthorized = request.debitAuthorized;
       txn.persist();
       created.add(txn);
       date = advance(date, repeat);
@@ -105,6 +107,8 @@ public class TransactionResource {
     sourceTxn.description = request.description;
     sourceTxn.amount = request.amount.negate();
     sourceTxn.occurredOn = date;
+    sourceTxn.completed = request.completed;
+    sourceTxn.debitAuthorized = request.debitAuthorized;
     sourceTxn.persist();
 
     Transaction targetTxn = new Transaction();
@@ -113,6 +117,8 @@ public class TransactionResource {
     targetTxn.description = request.description;
     targetTxn.amount = request.amount;
     targetTxn.occurredOn = date;
+    targetTxn.completed = request.completed;
+    targetTxn.debitAuthorized = request.debitAuthorized;
     targetTxn.transferPeer = sourceTxn;
     targetTxn.persist();
 
@@ -208,6 +214,8 @@ public class TransactionResource {
     txn.occurredOn = request.occurredOn != null ? request.occurredOn : txn.occurredOn;
     txn.category = request.categoryId != null ? Category.findById(request.categoryId) : null;
     txn.billDueDate = request.billDueDate;
+    txn.completed = request.completed;
+    txn.debitAuthorized = request.debitAuthorized;
   }
 
   /**
@@ -228,6 +236,10 @@ public class TransactionResource {
     peer.description = request.description;
     peer.occurredOn = date;
     peer.amount = peer.amount.signum() < 0 ? magnitude.negate() : magnitude;
+    txn.completed = request.completed;
+    txn.debitAuthorized = request.debitAuthorized;
+    peer.completed = request.completed;
+    peer.debitAuthorized = request.debitAuthorized;
   }
 
   /**
@@ -249,6 +261,8 @@ public class TransactionResource {
         t.billDueDate =
             offsetMonths != null ? shiftedBillDueDate(t.account, t.occurredOn, offsetMonths) : null;
         t.amount = amounts[i];
+        t.completed = request.completed;
+        t.debitAuthorized = request.debitAuthorized;
       }
     } else {
       for (Transaction t : rest) {
@@ -257,10 +271,14 @@ public class TransactionResource {
         t.billDueDate =
             offsetMonths != null ? shiftedBillDueDate(t.account, t.occurredOn, offsetMonths) : null;
         t.amount = request.amount;
+        t.completed = request.completed;
+        t.debitAuthorized = request.debitAuthorized;
       }
     }
 
     anchor.occurredOn = request.occurredOn != null ? request.occurredOn : anchor.occurredOn;
+    anchor.completed = request.completed;
+    anchor.debitAuthorized = request.debitAuthorized;
   }
 
   /**
@@ -449,6 +467,10 @@ public class TransactionResource {
      * TransactionResource#billOffsetMonths.
      */
     public LocalDate billDueDate;
+
+    public Boolean completed;
+
+    public Boolean debitAuthorized;
   }
 
   public static class CreateTransferRequest {
@@ -463,6 +485,10 @@ public class TransactionResource {
     @NotNull public BigDecimal amount;
 
     public LocalDate occurredOn;
+
+    public Boolean completed;
+
+    public Boolean debitAuthorized;
   }
 
   public static class BatchImportRequest {
@@ -490,6 +516,10 @@ public class TransactionResource {
     @NotNull public BigDecimal amount;
     public LocalDate occurredOn;
     public LocalDate billDueDate;
+
+    public Boolean completed;
+
+    public Boolean debitAuthorized;
 
     /**
      * THIS (default when omitted) or FUTURE. FUTURE is only honored when the target transaction has

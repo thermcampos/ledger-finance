@@ -281,6 +281,8 @@ export default function Transactions() {
   const [occurredOn, setOccurredOn] = useState(todayIso());
   const [repeat, setRepeat] = useState('NONE');
   const [occurrences, setOccurrences] = useState('');
+  const [completed, setCompleted] = useState(false);
+  const [debitAuthorized, setDebitAuthorized] = useState(false);
 
   const resetForm = () => {
     setShowForm(false);
@@ -291,6 +293,8 @@ export default function Transactions() {
     setOccurredOn(todayIso());
     setRepeat('NONE');
     setOccurrences('');
+    setCompleted(false);
+    setDebitAuthorized(false);
   };
 
   const createMutation = useMutation({
@@ -312,6 +316,8 @@ export default function Transactions() {
       occurredOn,
       repeat: repeat !== 'NONE' ? repeat : null,
       occurrences: repeat !== 'NONE' ? Number(occurrences) : null,
+      completed,
+      debitAuthorized,
     });
   };
 
@@ -363,6 +369,8 @@ export default function Transactions() {
   const [editAmount, setEditAmount] = useState('');
   const [editOccurredOn, setEditOccurredOn] = useState('');
   const [editScope, setEditScope] = useState('THIS');
+  const [editCompleted, setEditCompleted] = useState(false);
+  const [editDebitAuthorized, setEditDebitAuthorized] = useState(false);
 
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }) => TransactionsApi.update(id, payload),
@@ -395,6 +403,8 @@ export default function Transactions() {
     setEditAmount(t.transferPeer ? String(Math.abs(Number(t.amount))) : formatSignedAmount(t.amount));
     setEditOccurredOn(t.occurredOn);
     setEditScope('THIS');
+    setEditCompleted(!!t.completed);
+    setEditDebitAuthorized(!!t.debitAuthorized);
   };
 
   const handleEditSubmit = (e, t) => {
@@ -409,6 +419,8 @@ export default function Transactions() {
         amount: isTransfer ? Math.abs(parseSignedAmount(editAmount)) : parseSignedAmount(editAmount),
         occurredOn: editOccurredOn,
         scope: !isTransfer && t.seriesId ? editScope : undefined,
+        completed: editCompleted,
+        debitAuthorized: editDebitAuthorized,
       },
     });
   };
@@ -913,6 +925,28 @@ export default function Transactions() {
                 </div>
               )}
             </div>
+            <div className="row g-3 align-items-end mt-1">
+              <div className="col-md-4">
+                <label className="eyebrow d-block mb-2 d-flex align-items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={completed}
+                    onChange={(e) => setCompleted(e.target.checked)}
+                  />
+                  Completed
+                </label>
+              </div>
+              <div className="col-md-4">
+                <label className="eyebrow d-block mb-2 d-flex align-items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={debitAuthorized}
+                    onChange={(e) => setDebitAuthorized(e.target.checked)}
+                  />
+                  Debit authorized (DA)
+                </label>
+              </div>
+            </div>
             <div className="row mt-3">
               <div className="col-12 d-flex justify-content-end gap-2">
                 <button type="button" className="btn btn-ghost btn-sm" onClick={resetForm}>
@@ -1161,6 +1195,24 @@ export default function Transactions() {
                           Cancel
                         </button>
                       </div>
+                      <div className="d-flex gap-3 w-100" style={{ fontSize: 12 }}>
+                        <label className="d-flex align-items-center gap-1">
+                          <input
+                            type="checkbox"
+                            checked={editCompleted}
+                            onChange={(e) => setEditCompleted(e.target.checked)}
+                          />
+                          Completed
+                        </label>
+                        <label className="d-flex align-items-center gap-1">
+                          <input
+                            type="checkbox"
+                            checked={editDebitAuthorized}
+                            onChange={(e) => setEditDebitAuthorized(e.target.checked)}
+                          />
+                          Debit authorized (DA)
+                        </label>
+                      </div>
                       {t.seriesId && (
                         <div className="d-flex gap-3 w-100" style={{ fontSize: 12 }}>
                           <label className="d-flex align-items-center gap-1">
@@ -1260,6 +1312,22 @@ export default function Transactions() {
                           {t.linkedCard && (
                             <span className="tag">
                               Card bill
+                            </span>
+                          )}
+                          {t.completed && (
+                            <span title="Completed">
+                              <i
+                                className="bi bi-check-circle-fill"
+                                style={{ color: 'var(--jade)', fontSize: 14 }}
+                              />
+                            </span>
+                          )}
+                          {t.debitAuthorized && (
+                            <span title="Debit authorized">
+                              <i
+                                className="bi bi-shield-check"
+                                style={{ color: 'var(--gold)', fontSize: 14 }}
+                              />
                             </span>
                           )}
                         </div>

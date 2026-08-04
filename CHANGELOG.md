@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## 2026-08-04
+
+### Added
+- Optional to flag transactions as completed (check icon) and debit authorized (shield icon).
+
+### Changed
+- In Overview page in the Due Soon panel only pending transactions are displayed now.
+
+```bash
+# Docker images
+```
+
+---
+
 ## 2026-08-03
 
 ### Added

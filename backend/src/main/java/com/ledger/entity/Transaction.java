@@ -104,6 +104,11 @@ public class Transaction extends PanacheEntityBase {
       columnDefinition = "TIMESTAMPTZ NOT NULL DEFAULT now()")
   public Instant createdAt;
 
+  public Boolean completed;
+
+  @Column(name = "debit_authorized")
+  public Boolean debitAuthorized;
+
   public static List<Transaction> findByAccount(Long accountId) {
     return list("account.id", io.quarkus.panache.common.Sort.descending("occurredOn"), accountId);
   }

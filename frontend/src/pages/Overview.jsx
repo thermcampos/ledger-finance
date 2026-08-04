@@ -132,13 +132,12 @@ export default function Overview() {
   // Due soon — next 7 upcoming checking-account transactions (excludes
   // credit card bill projection rows, which land on the payment account but
   // carry linkedCard), merged across accounts and sorted chronologically.
-  // No "overdue" bucket: ordinary transactions have no paid/pending status,
-  // so a past occurredOn can't be distinguished from one that's already
-  // settled.
+  // Completed transactions are excluded because they're already settled.
   const dueSoon = txnQueries
     .flatMap((q) => q.data || [])
     .filter((t) => t.account?.kind === 'CHECKING' && !t.linkedCard)
     .filter((t) => parseLocalDate(t.occurredOn) >= today)
+    .filter((t) => !t.completed)
     .sort((a, b) => {
       const diff = parseLocalDate(a.occurredOn) - parseLocalDate(b.occurredOn);
       return diff !== 0 ? diff : a.id - b.id;
