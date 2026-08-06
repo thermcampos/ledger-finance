@@ -52,6 +52,7 @@ export const ImportApi = {
 };
 
 export const CreditCardBillsApi = {
+  list: (accountId) => client.get('/credit-card-bills', { params: { accountId } }).then((r) => r.data),
   find: (accountId, dueDate) =>
     client.get('/credit-card-bills', { params: { accountId, dueDate } }).then((r) => r.data),
   consolidate: (payload) => client.post('/credit-card-bills', payload).then((r) => r.data),

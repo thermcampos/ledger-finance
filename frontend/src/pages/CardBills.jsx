@@ -186,7 +186,29 @@ export default function CardBills() {
     if (nextBill?.dueDate) set.add(isoDate(nextBill.dueDate));
     return Array.from(set).sort();
   }, [billGroups, nextBill]);
-  const defaultBillDueDate = nextBill?.dueDate ? isoDate(nextBill.dueDate) : billDates[billDates.length - 1] || '';
+
+  const billsQuery = useQuery({
+    queryKey: ['credit-card-bills', selectedCard?.id],
+    queryFn: () => CreditCardBillsApi.list(selectedCard.id),
+    enabled: !!selectedCard,
+  });
+  const billsByDueDate = useMemo(() => {
+    const map = new Map();
+    for (const bill of billsQuery.data || []) {
+      if (bill.dueDate) map.set(bill.dueDate, bill);
+    }
+    return map;
+  }, [billsQuery.data]);
+
+  const defaultBillDueDate = useMemo(() => {
+    if (!billDates.length) return '';
+    for (const dueDate of billDates) {
+      if (!dueDate) continue;
+      const bill = billsByDueDate.get(dueDate);
+      if (!bill || (!bill.consolidated && !bill.paid)) return dueDate;
+    }
+    return nextBill?.dueDate ? isoDate(nextBill.dueDate) : billDates[billDates.length - 1] || '';
+  }, [billDates, billsByDueDate, nextBill]);
 
   const [selectedBillDueDate, setSelectedBillDueDate] = useState('');
   // A "View bill" link (e.g. from a synced bill row in Transactions) passes
@@ -220,6 +242,22 @@ export default function CardBills() {
       setSelectedBillDueDate(defaultBillDueDate);
     }
   }, [billDates, defaultBillDueDate, selectedBillDueDate, searchParams]);
+
+  // Once the list of bills is loaded, if the currently selected default is
+  // already consolidated/paid and a future bill exists, advance to that bill so
+  // the user doesn't have to click "Next bill" repeatedly on every visit.
+  useEffect(() => {
+    if (!selectedCard || !billDates.length || !billsQuery.isSuccess) return;
+    if (selectedBillDueDate && !userSteppedAway.current) {
+      const bill = billsByDueDate.get(selectedBillDueDate);
+      if (bill && (bill.consolidated || bill.paid)) {
+        const currentIdx = billDates.indexOf(selectedBillDueDate);
+        if (currentIdx >= 0 && currentIdx < billDates.length - 1) {
+          setSelectedBillDueDate(billDates[currentIdx + 1]);
+        }
+      }
+    }
+  }, [billsByDueDate, billDates, billsQuery.isSuccess, selectedBillDueDate, selectedCard]);
 
   function stepBill(direction) {
     if (!billDates.length) return;

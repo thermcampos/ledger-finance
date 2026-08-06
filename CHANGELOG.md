@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Payment feature to credit card bills.
 - Icon to display authorized or scheduled transactions in the due soon panel in Overview page.
 
+### Changed
+- When the current card bill is closed or consolidated, display the next bill automatically.
+
 ```bash
 # Docker images
 - rmcampos/ledger-frontend:v2026.08.06.154

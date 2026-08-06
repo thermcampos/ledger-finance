@@ -13,6 +13,7 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.time.LocalDate;
+import java.util.List;
 
 @Path("/credit-card-bills")
 @RolesAllowed("user")
@@ -27,6 +28,10 @@ public class CreditCardBillResource {
     Account account = requireOwnedAccount(accountId);
     if (account.kind != AccountKind.CREDIT_CARD) {
       throw new WebApplicationException("Account is not a credit card", 400);
+    }
+    if (dueDate == null || dueDate.isBlank()) {
+      List<CreditCardBill> bills = CreditCardBill.findByAccount(account.id);
+      return Response.ok(bills).build();
     }
     LocalDate date = parseDueDate(dueDate);
     CreditCardBill bill = CreditCardBill.findByAccountAndDueDate(account.id, date);
