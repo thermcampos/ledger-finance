@@ -84,6 +84,7 @@ const categoryColors = {
   Electronics: '#6B8FC9',
   'Personal care': '#C9A227',
   Taxes: '#8B92A0',
+  'Card payment': '#8B92A0',
 };
 const categoryIcons = {
   Groceries: 'bi-basket2',
@@ -120,6 +121,7 @@ const categoryIcons = {
   Electronics: 'bi-laptop',
   'Personal care': 'bi-droplet',
   Taxes: 'bi-file-earmark-text',
+  'Card payment': 'bi-credit-card',
 };
 
 function money(amount, { signed = false } = {}) {
@@ -1122,6 +1124,7 @@ export default function Transactions() {
             </div>
             {items.map((t) => {
               const isTransfer = !!t.transferPeer;
+              const isCardPayment = !!t.category?.internal;
               const catName = t.linkedCard ? 'Card payment' : isTransfer ? 'Transfer' : t.category?.name;
               const icon = t.linkedCard
                 ? 'bi-credit-card'
@@ -1154,6 +1157,7 @@ export default function Transactions() {
                           style={{ maxWidth: 150 }}
                           value={editCategoryId}
                           onChange={(e) => setEditCategoryId(e.target.value)}
+                          disabled={isCardPayment}
                         >
                           <option value="">Uncategorized</option>
                           {categories.map((c) => (
@@ -1168,6 +1172,7 @@ export default function Transactions() {
                         style={{ maxWidth: 180 }}
                         value={editDescription}
                         onChange={(e) => setEditDescription(e.target.value)}
+                        disabled={isCardPayment}
                         required
                       />
                       <input
@@ -1177,6 +1182,7 @@ export default function Transactions() {
                         style={{ maxWidth: 110 }}
                         value={editAmount}
                         onChange={(e) => setEditAmount(e.target.value)}
+                        disabled={isCardPayment}
                         required
                       />
                       <input
@@ -1249,10 +1255,18 @@ export default function Transactions() {
                   ) : confirmingId === t.id ? (
                     <div className="d-flex align-items-center gap-3 flex-wrap w-100">
                       <span style={{ fontWeight: 500, fontSize: 13.5 }}>
-                        {isTransfer ? 'Delete this transfer?' : 'Delete this transaction?'}
+                        {isCardPayment
+                          ? 'Unpay this bill?'
+                          : isTransfer
+                            ? 'Delete this transfer?'
+                            : 'Delete this transaction?'}
                       </span>
                       <span className="text-faint" style={{ fontSize: 12.5 }}>
-                        {isTransfer ? 'Removes both sides of the transfer. This cannot be undone.' : 'This cannot be undone.'}
+                        {isCardPayment
+                          ? 'Deletes this payment and restores the bill as unpaid on Card Bills.'
+                          : isTransfer
+                            ? 'Removes both sides of the transfer. This cannot be undone.'
+                            : 'This cannot be undone.'}
                       </span>
                       <div className="d-flex gap-2 ms-auto">
                         {t.seriesId ? (
@@ -1278,7 +1292,13 @@ export default function Transactions() {
                             disabled={deleteMutation.isPending}
                             onClick={() => deleteMutation.mutate({ id: t.id, scope: 'THIS' })}
                           >
-                            {deleteMutation.isPending ? 'Deleting…' : 'Delete'}
+                            {deleteMutation.isPending
+                              ? isCardPayment
+                                ? 'Unpaying…'
+                                : 'Deleting…'
+                              : isCardPayment
+                                ? 'Unpay'
+                                : 'Delete'}
                           </button>
                         )}
                         <button type="button" className="btn btn-ghost btn-sm" onClick={cancelDelete}>
@@ -1287,7 +1307,7 @@ export default function Transactions() {
                       </div>
                       {deleteMutation.isError && (
                         <div className="w-100" style={{ fontSize: 11.5, color: 'var(--red)' }}>
-                          Could not delete this transaction.
+                          {isCardPayment ? 'Could not unpay this bill.' : 'Could not delete this transaction.'}
                         </div>
                       )}
                     </div>

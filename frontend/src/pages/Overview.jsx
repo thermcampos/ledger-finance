@@ -21,6 +21,7 @@ const categoryColors = {
   Subscriptions: '#8B92A0',
   Transfer: '#8B92A0',
   Salary: '#4FA98A',
+  'Card payment': '#8B92A0',
 };
 
 function toBcbDate(isoDate) {

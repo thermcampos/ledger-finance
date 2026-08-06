@@ -25,7 +25,7 @@ public class CategoryResource {
 
   @GET
   public List<Category> list() {
-    return Category.findByUser(currentUser.require().id);
+    return Category.findVisibleByUser(currentUser.require().id);
   }
 
   @POST
@@ -45,6 +45,9 @@ public class CategoryResource {
   @Transactional
   public Category update(@PathParam("id") Long id, @Valid CreateCategoryRequest request) {
     Category category = requireOwnedCategory(id);
+    if (category.internal) {
+      throw new WebApplicationException("Cannot edit a system category", 400);
+    }
     category.name = request.name;
     category.colorHex = request.colorHex;
     category.icon = request.icon;
@@ -65,6 +68,9 @@ public class CategoryResource {
   @Transactional
   public void delete(@PathParam("id") Long id) {
     Category category = requireOwnedCategory(id);
+    if (category.internal) {
+      throw new WebApplicationException("Cannot delete a system category", 400);
+    }
     boolean used =
         Transaction.count("category.id", category.id) > 0
             || Budget.count("category.id", category.id) > 0;

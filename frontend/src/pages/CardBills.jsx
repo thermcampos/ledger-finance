@@ -7,7 +7,7 @@ import {
   CreditCardBillsApi,
   TransactionsApi,
 } from '../api/ledger';
-import { parseLocalDate, startOfDay, isoDate } from '../utils/date';
+import { parseLocalDate, startOfDay, isoDate, nextDueDate } from '../utils/date';
 import { toCsv, downloadCsv } from '../utils/export';
 import { iconClassName } from '../constants/categoryIcons';
 import { useStickyHeader } from '../hooks/useStickyHeader';
@@ -61,6 +61,7 @@ const categoryColors = {
   Subscriptions: '#8B92A0',
   Transfer: '#8B92A0',
   Salary: '#4FA98A',
+  'Card payment': '#8B92A0',
 };
 const categoryIcons = {
   Groceries: 'bi-basket2',
@@ -71,6 +72,7 @@ const categoryIcons = {
   Subscriptions: 'bi-repeat',
   Transfer: 'bi-arrow-left-right',
   Salary: 'bi-arrow-down-left',
+  'Card payment': 'bi-credit-card',
 };
 
 function money(amount, { signed = false } = {}) {
@@ -142,6 +144,14 @@ export default function CardBills() {
       // ignore storage errors
     }
   }, [selectedCard]);
+
+  // Keyed on the card's id, not the card object, so a background refetch
+  // that returns a new object reference for the same card (window focus,
+  // an unrelated mutation invalidating ['accounts']) doesn't clobber a
+  // payment account the user already picked in the still-open pay form.
+  useEffect(() => {
+    setPaymentAccountId(selectedCard?.paymentAccount?.id ? String(selectedCard.paymentAccount.id) : '');
+  }, [selectedCard?.id]);
 
   const transactionsQuery = useQuery({
     queryKey: ['transactions', selectedCard?.id],
@@ -291,10 +301,31 @@ export default function CardBills() {
   const [occurrences, setOccurrences] = useState('');
   const [billDueDate, setBillDueDate] = useState('');
 
+  const [showPayForm, setShowPayForm] = useState(false);
+  const [paymentAccountId, setPaymentAccountId] = useState('');
+  const [paymentDate, setPaymentDate] = useState(todayIso());
+  const [paymentCompleted, setPaymentCompleted] = useState(false);
+  const [paymentDebitAuthorized, setPaymentDebitAuthorized] = useState(false);
+
+  // If the bill currently in view is already paid, new transactions should
+  // default to the following bill instead of one that's guaranteed to be
+  // rejected on submit — the paid due date is still reachable manually via
+  // the form's "Bill" dropdown, it's just not what a fresh Add starts on.
+  const nextUnpaidBillDueDate = useMemo(() => {
+    if (!selectedCard || !selectedBillDueDate) return selectedBillDueDate;
+    if (!creditCardBillQuery.data?.paid) return selectedBillDueDate;
+    const paidDue = parseLocalDate(selectedBillDueDate);
+    const following = nextDueDate(
+      selectedCard.dueDayOfMonth,
+      new Date(paidDue.getFullYear(), paidDue.getMonth() + 1, 1)
+    );
+    return isoDate(following);
+  }, [selectedCard, selectedBillDueDate, creditCardBillQuery.data?.paid]);
+
   const openForm = () => {
     if (!showForm) {
       setOccurredOn(todayIso());
-      setBillDueDate(selectedBillDueDate);
+      setBillDueDate(nextUnpaidBillDueDate);
     }
     setShowForm((s) => !s);
   };
@@ -313,10 +344,10 @@ export default function CardBills() {
     ) {
       appliedAddParam.current = true;
       setOccurredOn(todayIso());
-      setBillDueDate(selectedBillDueDate);
+      setBillDueDate(nextUnpaidBillDueDate);
       setShowForm(true);
     }
-  }, [searchParams, selectedCard, selectedBillDueDate]);
+  }, [searchParams, selectedCard, selectedBillDueDate, nextUnpaidBillDueDate]);
 
   const resetForm = () => {
     setShowForm(false);
@@ -327,6 +358,14 @@ export default function CardBills() {
     setRepeat('NONE');
     setOccurrences('');
     setBillDueDate('');
+  };
+
+  const resetPayForm = () => {
+    setShowPayForm(false);
+    setPaymentAccountId(selectedCard?.paymentAccount?.id ? String(selectedCard.paymentAccount.id) : '');
+    setPaymentDate(todayIso());
+    setPaymentCompleted(false);
+    setPaymentDebitAuthorized(false);
   };
 
   const createMutation = useMutation({
@@ -358,6 +397,36 @@ export default function CardBills() {
     });
   };
 
+  const eligiblePaymentAccounts = useMemo(
+    () => accounts.filter((a) => a.kind === 'CHECKING' || a.kind === 'SAVINGS').sort((a, b) => a.name.localeCompare(b.name)),
+    [accounts]
+  );
+
+  const handlePaySubmit = (e) => {
+    e.preventDefault();
+    const payload = {
+      dueDate: selectedBillDueDate,
+      paymentDate,
+      paymentAccountId: paymentAccountId ? Number(paymentAccountId) : null,
+      completed: paymentCompleted,
+      debitAuthorized: paymentDebitAuthorized,
+    };
+    if (creditCardBillQuery.data?.paid) {
+      updatePaymentMutation.mutate({ accountId: selectedCard.id, payload });
+    } else {
+      payMutation.mutate({ accountId: selectedCard.id, payload });
+    }
+  };
+
+  const openEditPayment = () => {
+    const bill = creditCardBillQuery.data;
+    setPaymentAccountId(bill?.paymentAccount?.id ? String(bill.paymentAccount.id) : '');
+    setPaymentDate(bill?.paymentDate || todayIso());
+    setPaymentCompleted(!!bill?.paymentTransaction?.completed);
+    setPaymentDebitAuthorized(!!bill?.paymentTransaction?.debitAuthorized);
+    setShowPayForm(true);
+  };
+
   const [editingId, setEditingId] = useState(null);
   const [editCategoryId, setEditCategoryId] = useState('');
   const [editDescription, setEditDescription] = useState('');
@@ -372,6 +441,38 @@ export default function CardBills() {
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
       queryClient.invalidateQueries({ queryKey: ['transactions', selectedCard?.id] });
       setEditingId(null);
+    },
+  });
+
+  const payMutation = useMutation({
+    mutationFn: ({ accountId, payload }) => CreditCardBillsApi.pay(accountId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['credit-card-bills', selectedCard?.id, selectedBillDueDate] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      resetPayForm();
+    },
+  });
+
+  const updatePaymentMutation = useMutation({
+    mutationFn: ({ accountId, payload }) => CreditCardBillsApi.updatePayment(accountId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['credit-card-bills', selectedCard?.id, selectedBillDueDate] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      resetPayForm();
+    },
+  });
+
+  const [confirmingUnpay, setConfirmingUnpay] = useState(false);
+
+  const unpayMutation = useMutation({
+    mutationFn: ({ accountId, dueDate }) => CreditCardBillsApi.unpay(accountId, dueDate),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['credit-card-bills', selectedCard?.id, selectedBillDueDate] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      setConfirmingUnpay(false);
     },
   });
 
@@ -451,6 +552,38 @@ export default function CardBills() {
                 {isReviewing ? 'Finish review' : 'Start review'}
               </button>
             )}
+            {creditCardBillQuery.data?.paid ? (
+              <>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={openEditPayment}
+                  disabled={updatePaymentMutation.isPending}
+                >
+                  <i className="bi bi-pencil me-1" />
+                  Edit payment
+                </button>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => setConfirmingUnpay(true)}
+                  disabled={unpayMutation.isPending}
+                >
+                  <i className="bi bi-arrow-counterclockwise me-1" />
+                  Unpay
+                </button>
+              </>
+            ) : (
+              <button
+                className="btn btn-jade btn-sm"
+                onClick={() => setShowPayForm((s) => !s)}
+                disabled={payMutation.isPending}
+              >
+                <i className="bi bi-cash-coin me-1" />
+                Pay bill
+              </button>
+            )}
+            {/* Not gated on the viewed bill's paid status — a paid bill only
+                blocks adding to that specific due date (enforced server-side);
+                the form itself defaults to the following bill. */}
             <button className="btn btn-jade btn-sm" onClick={openForm}>
               <i className="bi bi-plus-lg me-1" />
               Add transaction
@@ -545,7 +678,31 @@ export default function CardBills() {
                 {dueDateLine(dueDateObj, today)}
               </div>
             )}
-            {creditCardBillQuery.data?.consolidated && (
+            {creditCardBillQuery.data?.paid && (
+              <div className="mt-2" style={{ fontSize: 13 }}>
+                <div className="d-inline-flex align-items-center gap-1" style={{ color: 'var(--jade)', fontWeight: 500 }}>
+                  <i className="bi bi-cash-coin" />
+                  Paid
+                  {creditCardBillQuery.data.paymentDate &&
+                    ` ${parseLocalDate(creditCardBillQuery.data.paymentDate).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })}`}
+                  {creditCardBillQuery.data.paymentAccount?.name &&
+                    ` from ${creditCardBillQuery.data.paymentAccount.name}`}
+                </div>
+                <div className="d-flex gap-2 mt-1">
+                  {creditCardBillQuery.data.paymentTransaction?.completed && (
+                    <span className="tag">Completed</span>
+                  )}
+                  {creditCardBillQuery.data.paymentTransaction?.debitAuthorized && (
+                    <span className="tag">Debit authorized</span>
+                  )}
+                </div>
+              </div>
+            )}
+            {creditCardBillQuery.data?.consolidated && !creditCardBillQuery.data?.paid && (
               <div className="mt-2 d-inline-flex align-items-center gap-1" style={{ color: 'var(--jade)', fontSize: 13, fontWeight: 500 }}>
                 <i className="bi bi-check-circle-fill" />
                 Consolidated
@@ -566,6 +723,118 @@ export default function CardBills() {
               Export
             </button>
           </div>
+
+          {confirmingUnpay && (
+            <div className="panel p-4 mb-4 d-flex align-items-center gap-3 flex-wrap">
+              <span style={{ fontWeight: 500, fontSize: 13.5 }}>Unpay this bill?</span>
+              <span className="text-faint" style={{ fontSize: 12.5 }}>
+                Deletes the payment transaction and restores the projected bill.
+              </span>
+              <div className="d-flex gap-2 ms-auto">
+                <button
+                  className="btn btn-red btn-sm"
+                  disabled={unpayMutation.isPending}
+                  onClick={() =>
+                    unpayMutation.mutate({ accountId: selectedCard.id, dueDate: selectedBillDueDate })
+                  }
+                >
+                  {unpayMutation.isPending ? 'Unpaying…' : 'Unpay'}
+                </button>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirmingUnpay(false)}>
+                  Cancel
+                </button>
+              </div>
+              {unpayMutation.isError && (
+                <div className="w-100" style={{ fontSize: 11.5, color: 'var(--red)' }}>
+                  Could not unpay this bill.
+                </div>
+              )}
+            </div>
+          )}
+
+          {showPayForm && (
+            <div className="panel p-4 mb-4">
+              <form onSubmit={handlePaySubmit}>
+                <div className="row g-3 align-items-end">
+                  <div className="col-md-3">
+                    <label className="eyebrow d-block mb-2">Payment account</label>
+                    <select
+                      className="form-select form-select-sm"
+                      value={paymentAccountId}
+                      onChange={(e) => setPaymentAccountId(e.target.value)}
+                      required
+                    >
+                      <option value="">Select account</option>
+                      {eligiblePaymentAccounts.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-md-3">
+                    <label className="eyebrow d-block mb-2">Payment date</label>
+                    <input
+                      type="date"
+                      className="form-control form-control-sm"
+                      value={paymentDate}
+                      onChange={(e) => setPaymentDate(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="col-md-3">
+                    <label className="eyebrow d-block mb-2">Amount</label>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm"
+                      value={money(amountOwed)}
+                      disabled
+                    />
+                  </div>
+                  <div className="col-md-3">
+                    <div className="d-flex gap-3" style={{ fontSize: 13 }}>
+                      <label className="d-flex align-items-center gap-1">
+                        <input
+                          type="checkbox"
+                          checked={paymentCompleted}
+                          onChange={(e) => setPaymentCompleted(e.target.checked)}
+                        />
+                        Completed
+                      </label>
+                      <label className="d-flex align-items-center gap-1">
+                        <input
+                          type="checkbox"
+                          checked={paymentDebitAuthorized}
+                          onChange={(e) => setPaymentDebitAuthorized(e.target.checked)}
+                        />
+                        Debit authorized
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                <div className="row mt-3">
+                  <div className="col-12 d-flex justify-content-end gap-2">
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowPayForm(false)}>
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn btn-jade btn-sm"
+                      disabled={payMutation.isPending || updatePaymentMutation.isPending || amountOwed <= 0}
+                    >
+                      {creditCardBillQuery.data?.paid
+                        ? updatePaymentMutation.isPending
+                          ? 'Saving…'
+                          : 'Save changes'
+                        : payMutation.isPending
+                          ? 'Paying…'
+                          : 'Pay'}
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          )}
 
           {showForm && (
             <div className="panel p-4 mb-4">
@@ -681,6 +950,12 @@ export default function CardBills() {
                       {createMutation.isPending ? 'Adding…' : 'Add'}
                     </button>
                   </div>
+                  {createMutation.isError && (
+                    <div className="col-12 text-end mt-1" style={{ fontSize: 11.5, color: 'var(--red)' }}>
+                      {createMutation.error?.response?.data?.message ||
+                        'That bill is already paid — pick a different one or unpay it first.'}
+                    </div>
+                  )}
                 </div>
               </form>
             </div>

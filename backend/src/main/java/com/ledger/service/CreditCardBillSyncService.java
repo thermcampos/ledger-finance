@@ -1,6 +1,7 @@
 package com.ledger.service;
 
 import com.ledger.entity.Account;
+import com.ledger.entity.CreditCardBill;
 import com.ledger.entity.Transaction;
 import com.ledger.enums.AccountKind;
 import io.quarkus.panache.common.Sort;
@@ -87,6 +88,9 @@ public class CreditCardBillSyncService {
 
     for (Map.Entry<LocalDate, BigDecimal> entry : groups.entrySet()) {
       LocalDate dueDate = entry.getKey();
+      if (isPaid(card, dueDate)) {
+        continue;
+      }
       BigDecimal total = entry.getValue();
       if (total.signum() == 0) {
         continue;
@@ -126,6 +130,15 @@ public class CreditCardBillSyncService {
       groups.merge(due, t.amount, BigDecimal::add);
     }
     return groups;
+  }
+
+  private boolean isPaid(Account card, LocalDate dueDate) {
+    CreditCardBill bill = CreditCardBill.findByAccountAndDueDate(card.id, dueDate);
+    return bill != null && bill.paid;
+  }
+
+  public BigDecimal billTotal(Account card, LocalDate dueDate) {
+    return groupByBillDueDate(card).getOrDefault(dueDate, BigDecimal.ZERO);
   }
 
   /**

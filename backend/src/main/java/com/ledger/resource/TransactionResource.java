@@ -2,6 +2,7 @@ package com.ledger.resource;
 
 import com.ledger.entity.Account;
 import com.ledger.entity.Category;
+import com.ledger.entity.CreditCardBill;
 import com.ledger.entity.Transaction;
 import com.ledger.enums.AccountKind;
 import com.ledger.enums.EditScope;
@@ -24,6 +25,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 @Path("/transactions")
 @RolesAllowed("user")
@@ -71,6 +73,7 @@ public class TransactionResource {
           offsetMonths != null ? shiftedBillDueDate(account, date, offsetMonths) : null;
       txn.completed = request.completed;
       txn.debitAuthorized = request.debitAuthorized;
+      assertNotPaidBill(account, txn);
       txn.persist();
       created.add(txn);
       date = advance(date, repeat);
@@ -159,6 +162,10 @@ public class TransactionResource {
     }
     LocalDate billDueDate = account.kind == AccountKind.CREDIT_CARD ? request.billDueDate : null;
 
+    if (account.kind == AccountKind.CREDIT_CARD) {
+      assertNotPaidBill(account, billDueDate);
+    }
+
     List<Transaction> created = new ArrayList<>();
     for (BatchRow row : request.rows) {
       Transaction txn = new Transaction();
@@ -194,6 +201,11 @@ public class TransactionResource {
       return txn;
     }
 
+    CreditCardBill paidBill = CreditCardBill.findByPaymentTransactionId(txn.id);
+    if (paidBill != null) {
+      return updatePaymentTransaction(txn, request, paidBill);
+    }
+
     EditScope scope = request.scope != null ? request.scope : EditScope.THIS;
     if (scope == EditScope.FUTURE && txn.seriesId != null) {
       applyToSeries(txn, request);
@@ -209,6 +221,10 @@ public class TransactionResource {
   }
 
   private void applyToSingle(Transaction txn, UpdateTransactionRequest request) {
+    if (txn.account.kind == AccountKind.CREDIT_CARD) {
+      assertNotPaidBillForEdit(txn, request);
+    }
+
     txn.description = request.description;
     txn.amount = request.amount;
     txn.occurredOn = request.occurredOn != null ? request.occurredOn : txn.occurredOn;
@@ -249,6 +265,17 @@ public class TransactionResource {
    */
   private void applyToSeries(Transaction anchor, UpdateTransactionRequest request) {
     List<Transaction> rest = seriesFrom(anchor);
+    if (anchor.account.kind == AccountKind.CREDIT_CARD) {
+      for (Transaction t : rest) {
+        LocalDate due = effectiveBillDueDate(anchor.account, t);
+        assertNotPaidBill(anchor.account, due);
+      }
+      if (request.billDueDate != null && isPaidBill(anchor.account, request.billDueDate)) {
+        throw new WebApplicationException(
+            "This bill has already been paid. Delete the payment to edit this transaction.", 400);
+      }
+    }
+
     Category category = request.categoryId != null ? Category.findById(request.categoryId) : null;
     Integer offsetMonths = billOffsetMonths(anchor.account, anchor.occurredOn, request.billDueDate);
 
@@ -332,6 +359,23 @@ public class TransactionResource {
       throw new WebApplicationException(
           "Cannot directly delete a credit card bill transaction", 400);
     }
+
+    CreditCardBill paidBill = CreditCardBill.findByPaymentTransactionId(txn.id);
+    if (paidBill != null) {
+      unpayBill(paidBill);
+      return;
+    }
+
+    if (txn.account.kind == AccountKind.CREDIT_CARD) {
+      if (scope == EditScope.FUTURE && txn.seriesId != null) {
+        for (Transaction t : seriesFrom(txn)) {
+          assertNotPaidBill(t.account, effectiveBillDueDate(t.account, t));
+        }
+      } else {
+        assertNotPaidBill(txn.account, effectiveBillDueDate(txn.account, txn));
+      }
+    }
+
     if (txn.transferPeer != null) {
       Transaction peer = txn.transferPeer;
       Account account = txn.account;
@@ -390,6 +434,100 @@ public class TransactionResource {
     for (int i = 0; i < total; i++) {
       remaining.get(i).seriesInfo = (i + 1) + "/" + total;
     }
+  }
+
+  private void assertNotPaidBill(Account account, Transaction txn) {
+    if (account.kind != AccountKind.CREDIT_CARD || account.dueDayOfMonth == null) {
+      return;
+    }
+    LocalDate dueDate =
+        txn.billDueDate != null
+            ? txn.billDueDate
+            : billSync.nextDueDate(account.dueDayOfMonth, txn.occurredOn);
+    assertNotPaidBill(account, dueDate);
+  }
+
+  private void assertNotPaidBill(Account account, LocalDate dueDate) {
+    if (dueDate == null || account.kind != AccountKind.CREDIT_CARD) {
+      return;
+    }
+    if (isPaidBill(account, dueDate)) {
+      throw new WebApplicationException(
+          "This bill has already been paid. Delete the payment to add more transactions.", 400);
+    }
+  }
+
+  private boolean isPaidBill(Account card, LocalDate dueDate) {
+    CreditCardBill bill = CreditCardBill.findByAccountAndDueDate(card.id, dueDate);
+    return bill != null && bill.paid;
+  }
+
+  private LocalDate effectiveBillDueDate(Account account, Transaction txn) {
+    if (account.dueDayOfMonth == null) {
+      return txn.billDueDate;
+    }
+    return txn.billDueDate != null
+        ? txn.billDueDate
+        : billSync.nextDueDate(account.dueDayOfMonth, txn.occurredOn);
+  }
+
+  private void assertNotPaidBillForEdit(Transaction txn, UpdateTransactionRequest request) {
+    LocalDate oldDue = effectiveBillDueDate(txn.account, txn);
+    LocalDate newDue =
+        request.billDueDate != null
+            ? request.billDueDate
+            : (request.occurredOn != null && txn.account.dueDayOfMonth != null
+                ? billSync.nextDueDate(txn.account.dueDayOfMonth, request.occurredOn)
+                : oldDue);
+    boolean changesBill =
+        !Objects.equals(txn.amount, request.amount)
+            || !Objects.equals(txn.occurredOn, request.occurredOn)
+            || !Objects.equals(txn.billDueDate, request.billDueDate);
+    if (changesBill && (isPaidBill(txn.account, oldDue) || isPaidBill(txn.account, newDue))) {
+      throw new WebApplicationException(
+          "This bill has already been paid. Delete the payment to edit this transaction.", 400);
+    }
+  }
+
+  private Transaction updatePaymentTransaction(
+      Transaction txn, UpdateTransactionRequest request, CreditCardBill bill) {
+    Long currentCategoryId = txn.category != null ? txn.category.id : null;
+    if (!Objects.equals(txn.amount, request.amount)
+        || !Objects.equals(currentCategoryId, request.categoryId)
+        || !Objects.equals(txn.description, request.description)) {
+      throw new WebApplicationException(
+          "Credit card payment transactions can only have their date and flags changed", 400);
+    }
+
+    if (request.occurredOn != null) {
+      txn.occurredOn = request.occurredOn;
+      bill.paymentDate = request.occurredOn;
+    }
+    txn.completed = request.completed;
+    txn.debitAuthorized = request.debitAuthorized;
+
+    billSync.recomputeAccountBalance(txn.account);
+    return txn;
+  }
+
+  private void unpayBill(CreditCardBill bill) {
+    Transaction payment = bill.paymentTransaction;
+    Account paymentAccount = bill.paymentAccount;
+    Account card = bill.account;
+
+    bill.paid = false;
+    bill.paymentDate = null;
+    bill.paymentAccount = null;
+    bill.paymentTransaction = null;
+
+    if (payment != null) {
+      payment.delete();
+    }
+
+    if (paymentAccount != null) {
+      billSync.recomputeAccountBalance(paymentAccount);
+    }
+    billSync.sync(card);
   }
 
   private Account requireOwnedAccount(Long accountId) {

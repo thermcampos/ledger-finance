@@ -55,6 +55,14 @@ export const CreditCardBillsApi = {
   find: (accountId, dueDate) =>
     client.get('/credit-card-bills', { params: { accountId, dueDate } }).then((r) => r.data),
   consolidate: (payload) => client.post('/credit-card-bills', payload).then((r) => r.data),
+  pay: (accountId, payload) =>
+    client.post(`/credit-cards-bills/${accountId}/payment`, payload).then((r) => r.data),
+  updatePayment: (accountId, payload) =>
+    client.put(`/credit-cards-bills/${accountId}/payment`, payload).then((r) => r.data),
+  unpay: (accountId, dueDate) =>
+    client
+      .delete(`/credit-cards-bills/${accountId}/payment`, { params: { dueDate } })
+      .then((r) => r.data),
 };
 
 export const BudgetsApi = {
