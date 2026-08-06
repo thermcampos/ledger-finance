@@ -575,7 +575,7 @@ export default function CardBills() {
         </div>
         {selectedCard ? (
           <div className="d-flex align-items-center gap-2">
-            {selectedCard?.dueDayOfMonth != null && (
+            {selectedCard?.dueDayOfMonth != null && !creditCardBillQuery.data?.paid && (
               <button
                 className="btn btn-jade btn-sm"
                 onClick={() => {

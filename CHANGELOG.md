@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - When the current card bill is closed or consolidated, display the next bill automatically.
+- Hide review button in credit-bills page when the bill is paid.
 
 ```bash
 # Docker images
