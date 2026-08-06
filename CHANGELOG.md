@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ```bash
 # Docker images
+- rmcampos/ledger-frontend:v2026.08.04.150
+- rmcampos/ledger-backend:v2026.08.04.149
 ```
 
 ---
