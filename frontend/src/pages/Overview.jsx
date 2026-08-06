@@ -240,7 +240,14 @@ export default function Overview() {
                     style={{ background: t.linkedCard ? '#8B92A0' : categoryColors[t.category?.name] || '#8B92A0' }}
                   />
                   <div style={{ minWidth: 0 }}>
-                    <div className="feed-desc">{t.description}</div>
+                    <div className="feed-desc">
+                      {t.description}
+                      {t.debitAuthorized && (
+                        <span title="Debit authorized" className="ms-1">
+                          <i className="bi bi-shield-check" style={{ color: 'var(--gold)', fontSize: 12 }} />
+                        </span>
+                      )}
+                    </div>
                     <div className="text-faint" style={{ fontSize: 11.5 }}>
                       {catName} · {dueLabel(parseLocalDate(t.occurredOn), today)} in {t.account.name}
                     </div>
