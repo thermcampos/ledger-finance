@@ -17,11 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Bug adding additional root element in scss causing error. (build 633)
 - Bug in useEffect dependency causing page empty state not render for credit-bills. (build 633)
-- Bug in installed PWA app on iOS not updating. (build )
+- Bug in installed PWA app on iOS not updating. (build 635)
 
 ```bash
 # Docker images
-- rmcampos/ledger-frontend:v2026.08.06.166
+- rmcampos/ledger-frontend:v2026.08.06.168
 ```
 
 ---
