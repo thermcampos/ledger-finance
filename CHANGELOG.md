@@ -10,13 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## 2026-08-07
 
 ### Changed
-- All deps at patch target bumped to latest.
-- All deps at minor target bumped to latest.
-- Scaled down the font-size for monthly totals and preditected in mobile.
+- All deps at patch target bumped to latest. (build 633)
+- All deps at minor target bumped to latest. (build 633)
+- Scaled down the font-size for monthly totals and preditected in mobile. (build 633)
 
 ### Fixed
-- Bug adding additional root element in scss causing error.
-- Bug in useEffect dependency causing page empty state not render for credit-bills.
+- Bug adding additional root element in scss causing error. (build 633)
+- Bug in useEffect dependency causing page empty state not render for credit-bills. (build 633)
+- Bug in installed PWA app on iOS not updating. (build )
 
 ```bash
 # Docker images

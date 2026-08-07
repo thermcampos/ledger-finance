@@ -32,11 +32,17 @@ RUN echo 'server { \
     index index.html; \
     location / { \
         try_files $uri $uri/ /index.html; \
+        add_header Cache-Control "no-cache" always; \
+        add_header X-Frame-Options "SAMEORIGIN" always; \
+        add_header X-Content-Type-Options "nosniff" always; \
+        add_header X-XSS-Protection "1; mode=block" always; \
     } \
-    # Security headers \
-    add_header X-Frame-Options "SAMEORIGIN" always; \
-    add_header X-Content-Type-Options "nosniff" always; \
-    add_header X-XSS-Protection "1; mode=block" always; \
+    location /assets/ { \
+        add_header Cache-Control "public, max-age=31536000, immutable" always; \
+        add_header X-Frame-Options "SAMEORIGIN" always; \
+        add_header X-Content-Type-Options "nosniff" always; \
+        add_header X-XSS-Protection "1; mode=block" always; \
+    } \
 }' > /etc/nginx/conf.d/default.conf
 
 # Copy built assets from build stage
