@@ -15,14 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Scaled down the font-size for monthly totals and preditected in mobile. (build 633)
 
 ### Fixed
-- Bug adding additional root element in scss causing error. (build 633)
-- Bug in useEffect dependency causing page empty state not render for credit-bills. (build 633)
-- Bug in installed PWA app on iOS not updating. (build 635)
-- Mobile word-wrapping in transactions view for monthly totals. (build ?)
+- Bug adding additional root element in scss causing error. (build [633](https://lightroasted.vps-kinghost.net/rmcampos/ledger-finance/actions/runs/633))
+- Bug in useEffect dependency causing page empty state not render for credit-bills. (build [633](https://lightroasted.vps-kinghost.net/rmcampos/ledger-finance/actions/runs/633))
+- Bug in installed PWA app on iOS not updating. (build [635](https://lightroasted.vps-kinghost.net/rmcampos/ledger-finance/actions/runs/635))
+- Mobile word-wrapping in transactions view for monthly totals. (build [641](https://lightroasted.vps-kinghost.net/rmcampos/ledger-finance/actions/runs/641))
 
 ```bash
 # Docker images
-- rmcampos/ledger-frontend:v2026.08.06.168
+- rmcampos/ledger-frontend:v2026.08.06.170
 ```
 
 ---
