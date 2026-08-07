@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## 2026-08-07
+
+### Changed
+- All deps at patch target bumped to latest.
+- All deps at minor target bumped to latest.
+
+---
+
 ## 2026-08-06
 
 ### Added
