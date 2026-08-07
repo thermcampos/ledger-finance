@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bug adding additional root element in scss causing error. (build 633)
 - Bug in useEffect dependency causing page empty state not render for credit-bills. (build 633)
 - Bug in installed PWA app on iOS not updating. (build 635)
+- Mobile word-wrapping in transactions view for monthly totals. (build ?)
 
 ```bash
 # Docker images
