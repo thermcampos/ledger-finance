@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bug adding additional root element in scss causing error.
 - Bug in useEffect dependency causing page empty state not render for credit-bills.
 
+```bash
+# Docker images
+- rmcampos/ledger-frontend:v2026.08.06.166
+```
+
 ---
 
 ## 2026-08-06
