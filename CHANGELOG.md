@@ -10,9 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## 2026-08-07
 
 ### Changed
-- All deps at patch target bumped to latest. (build 633)
-- All deps at minor target bumped to latest. (build 633)
-- Scaled down the font-size for monthly totals and preditected in mobile. (build 633)
+- All deps at patch target bumped to latest. (build [633](https://lightroasted.vps-kinghost.net/rmcampos/ledger-finance/actions/runs/633))
+- All deps at minor target bumped to latest. (build [633](https://lightroasted.vps-kinghost.net/rmcampos/ledger-finance/actions/runs/633))
+- Scaled down the font-size for monthly totals and preditected in mobile. (build [633](https://lightroasted.vps-kinghost.net/rmcampos/ledger-finance/actions/runs/633))
 
 ### Fixed
 - Bug adding additional root element in scss causing error. (build [633](https://lightroasted.vps-kinghost.net/rmcampos/ledger-finance/actions/runs/633))
