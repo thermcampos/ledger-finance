@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - All deps at patch target bumped to latest.
 - All deps at minor target bumped to latest.
+- Scaled down the font-size for monthly totals and preditected in mobile.
+
+### Fixed
+- Bug adding additional root element in scss causing error.
+- Bug in useEffect dependency causing page empty state not render for credit-bills.
 
 ---
 

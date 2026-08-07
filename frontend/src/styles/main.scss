@@ -9,10 +9,6 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-#root {
-  view-transition-name: root;
-}
-
 ::view-transition-old(root),
 ::view-transition-new(root) {
   background: #0e1116;
@@ -233,7 +229,7 @@ body {
 }
 @media (max-width: 768px) {
   .stat-figure {
-    font-size: 18px;
+    font-size: 14px;
   }
 }
 .stat-pair {

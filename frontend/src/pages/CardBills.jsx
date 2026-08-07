@@ -151,7 +151,7 @@ export default function CardBills() {
   // payment account the user already picked in the still-open pay form.
   useEffect(() => {
     setPaymentAccountId(selectedCard?.paymentAccount?.id ? String(selectedCard.paymentAccount.id) : '');
-  }, [selectedCard?.id, selectedCard.paymentAccount.id]);
+  }, [selectedCard?.id, selectedCard?.paymentAccount?.id]);
 
   const transactionsQuery = useQuery({
     queryKey: ['transactions', selectedCard?.id],
