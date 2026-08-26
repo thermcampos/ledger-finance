@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## 2026-08-26
+
+### Changed
+- Repo name on github and docker to match new username thermcampos.
+
+### Fixed
+- Missing completed checkbox for transfers.
+
+```
+# Docker images
+- thermcampos/ledger-frontend
+- thermcampos/ledger-backend
+```
+
 ## 2026-08-07
 
 ### Changed
