@@ -39,7 +39,7 @@ Personal finance app. Read this before making changes — it captures decisions 
 
 - CI: GitHub Actions on self-hosted runners (`graalvm-25` for backend, `easynode-debian` for frontend/deploy)
 - Secrets: Doppler (`prd` config) — `DOPPLER_AT_SECRETS` GitHub secret is the only secret in GH Actions
-- Docker Hub: `rmcampos/ledger-backend` (versioned `vYYYY.MM.DD.<run_number>` + `latest`), `rmcampos/ledger-frontend` (`latest` only)
+- Docker Hub: `thermcampos/ledger-backend` (versioned `vYYYY.MM.DD.<run_number>` + `latest`), `thermcampos/ledger-frontend` (`latest` only)
 - Deploy workflow: triggered after Backend CI or Frontend CI completes → Terraform plan+apply to Kubernetes
 - Terraform state: Cloudflare R2, bucket `ledger-finance`
 - DB backups: Kubernetes CronJob → R2 bucket `ledger-finance-backups`, twice daily

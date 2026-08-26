@@ -12,7 +12,7 @@ on:
       - '.github/workflows/backend.yml'
 
 env:
-  DOCKER_IMAGE: "rmcampos/ledger-backend"
+  DOCKER_IMAGE: "thermcampos/ledger-backend"
 
 jobs:
   build-and-push:
@@ -57,7 +57,7 @@ jobs:
       - name: Log in to Docker Hub
         env:
           DOPPLER_TOKEN: ${{ secrets.DOPPLER_AT_SECRETS }}
-        run: doppler run --config prd -- sh -c 'echo $DOCKERHUB_TOKEN | docker login -u rmcampos --password-stdin'
+        run: doppler run --config prd -- sh -c 'echo $DOCKERHUB_TOKEN | docker login -u thermcampos --password-stdin'
 
       - name: Extract metadata for Docker
         id: meta

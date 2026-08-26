@@ -51,8 +51,8 @@ jobs:
         env:
           DOPPLER_TOKEN: ${{ secrets.DOPPLER_AT_SECRETS }}
         run: |
-          BACKEND_TAG=$(doppler run --config prd -- bash .github/scripts/get-latest-tag.sh rmcampos/ledger-backend)
-          FRONTEND_TAG=$(doppler run --config prd -- bash .github/scripts/get-latest-tag.sh rmcampos/ledger-frontend)
+          BACKEND_TAG=$(doppler run --config prd -- bash .github/scripts/get-latest-tag.sh thermcampos/ledger-backend)
+          FRONTEND_TAG=$(doppler run --config prd -- bash .github/scripts/get-latest-tag.sh thermcampos/ledger-frontend)
           echo "backend_tag=$BACKEND_TAG" >> "$GITHUB_OUTPUT"
           echo "frontend_tag=$FRONTEND_TAG" >> "$GITHUB_OUTPUT"
 
@@ -75,8 +75,8 @@ jobs:
         working-directory: terraform
         env:
           DOPPLER_TOKEN: ${{ secrets.DOPPLER_AT_SECRETS }}
-          BACKEND_IMAGE: rmcampos/ledger-backend:${{ steps.resolve-tags.outputs.backend_tag }}
-          FRONTEND_IMAGE: rmcampos/ledger-frontend:${{ steps.resolve-tags.outputs.frontend_tag }}
+          BACKEND_IMAGE: thermcampos/ledger-backend:${{ steps.resolve-tags.outputs.backend_tag }}
+          FRONTEND_IMAGE: thermcampos/ledger-frontend:${{ steps.resolve-tags.outputs.frontend_tag }}
         run: |
           doppler run --config prd -- bash -c '
             TF_VAR_db_user="$TF_VAR_DB_USER" \
