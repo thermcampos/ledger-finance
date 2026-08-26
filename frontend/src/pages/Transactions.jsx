@@ -334,6 +334,8 @@ export default function Transactions() {
   const [transferDescription, setTransferDescription] = useState('Transfer');
   const [transferAmount, setTransferAmount] = useState('');
   const [transferOccurredOn, setTransferOccurredOn] = useState(todayIso());
+  const [transferCompleted, setTransferCompleted] = useState(false);
+  const [transferDebitAuthorized, setTransferDebitAuthorized] = useState(false);
 
   const resetTransferForm = () => {
     setShowTransferForm(false);
@@ -342,6 +344,8 @@ export default function Transactions() {
     setTransferDescription('Transfer');
     setTransferAmount('');
     setTransferOccurredOn(todayIso());
+    setTransferCompleted(false);
+    setTransferDebitAuthorized(false);
   };
 
   const createTransferMutation = useMutation({
@@ -362,6 +366,8 @@ export default function Transactions() {
       description: transferDescription,
       amount: Math.abs(parseSignedAmount(transferAmount)),
       occurredOn: transferOccurredOn,
+      completed: transferCompleted,
+      debitAuthorized: transferDebitAuthorized,
     });
   };
 
@@ -1035,6 +1041,28 @@ export default function Transactions() {
                   onChange={(e) => setTransferOccurredOn(e.target.value)}
                   required
                 />
+              </div>
+            </div>
+            <div className="row g-3 align-items-end mt-1">
+              <div className="col-md-4">
+                <label className="eyebrow d-block mb-2 d-flex align-items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={transferCompleted}
+                    onChange={(e) => setTransferCompleted(e.target.checked)}
+                  />
+                  Completed
+                </label>
+              </div>
+              <div className="col-md-4">
+                <label className="eyebrow d-block mb-2 d-flex align-items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={transferDebitAuthorized}
+                    onChange={(e) => setTransferDebitAuthorized(e.target.checked)}
+                  />
+                  Debit authorized (DA)
+                </label>
               </div>
             </div>
             <div className="row mt-3">
