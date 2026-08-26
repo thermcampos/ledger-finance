@@ -13,7 +13,8 @@ on:
       - '.github/workflows/frontend.yml'
 
 env:
-  DOCKER_IMAGE: "rmcampos/ledger-frontend"
+  REGISTRY: ghcr.io
+  DOCKER_IMAGE: "ghcr.io/thermcampos/ledger-finance/frontend"
 
 jobs:
   build:
@@ -65,13 +66,12 @@ jobs:
           docker buildx create --name container-builder --driver docker-container --use --bootstrap || \
             docker buildx use container-builder
 
-      - name: Setup Doppler CLI
-        uses: dopplerhq/cli-action@v4
-
-      - name: Log in to Docker Hub
-        env:
-          DOPPLER_TOKEN: ${{ secrets.DOPPLER_AT_SECRETS }}
-        run: doppler run --config prd -- sh -c 'echo $DOCKERHUB_TOKEN | docker login -u rmcampos --password-stdin'
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract metadata for Docker
         id: meta
@@ -99,7 +99,7 @@ jobs:
         run: |
           echo ""
           echo "=========================================="
-          echo "🚀 Docker Images Published Successfully!"
+          echo "🚀 Container Images Published Successfully!"
           echo "=========================================="
           echo ""
           echo "App Image:"

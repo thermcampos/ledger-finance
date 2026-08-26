@@ -21,7 +21,7 @@ services:
       - ledger-network
 
   ledger_backend:
-    image: rmcampos/ledger-backend:latest
+    image: thermcampos/ledger-backend:latest
     build: ./backend
     container_name: ledger-backend
     depends_on:
@@ -47,7 +47,7 @@ services:
       - ledger-network
 
   ledger_frontend:
-    image: rmcampos/ledger-frontend:latest
+    image: thermcampos/ledger-frontend:latest
     build:
       context: ./frontend
       args:

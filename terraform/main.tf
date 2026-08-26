@@ -70,12 +70,12 @@ variable "r2_endpoint" {
 
 variable "backend_image" {
   type    = string
-  default = "docker.io/rmcampos/ledger-backend:v2026.07.07.9"
+  default = "docker.io/thermcampos/ledger-backend:v2026.07.07.9"
 }
 
 variable "frontend_image" {
   type    = string
-  default = "docker.io/rmcampos/ledger-frontend:latest"
+  default = "docker.io/thermcampos/ledger-frontend:latest"
 }
 
 resource "kubernetes_namespace_v1" "ledger_finance" {

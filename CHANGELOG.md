@@ -7,22 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## 2026-08-26
+
+### Changed
+- Repo name on github and docker to match new username thermcampos.
+- Docker images to push and pull from GHCR.
+- Bumped all patch and minor deps in the frontend.
+
+### Fixed
+- Missing completed checkbox for transfers.
+
+```
+# Docker images
+- thermcampos/ledger-frontend
+- thermcampos/ledger-backend
+```
+
 ## 2026-08-07
 
 ### Changed
-- All deps at patch target bumped to latest. (build [633](https://lightroasted.vps-kinghost.net/rmcampos/ledger-finance/actions/runs/633))
-- All deps at minor target bumped to latest. (build [633](https://lightroasted.vps-kinghost.net/rmcampos/ledger-finance/actions/runs/633))
-- Scaled down the font-size for monthly totals and preditected in mobile. (build [633](https://lightroasted.vps-kinghost.net/rmcampos/ledger-finance/actions/runs/633))
+- All deps at patch target bumped to latest. (build [633](https://lightroasted.vps-kinghost.net/thermcampos/ledger-finance/actions/runs/633))
+- All deps at minor target bumped to latest. (build [633](https://lightroasted.vps-kinghost.net/thermcampos/ledger-finance/actions/runs/633))
+- Scaled down the font-size for monthly totals and preditected in mobile. (build [633](https://lightroasted.vps-kinghost.net/thermcampos/ledger-finance/actions/runs/633))
 
 ### Fixed
-- Bug adding additional root element in scss causing error. (build [633](https://lightroasted.vps-kinghost.net/rmcampos/ledger-finance/actions/runs/633))
-- Bug in useEffect dependency causing page empty state not render for credit-bills. (build [633](https://lightroasted.vps-kinghost.net/rmcampos/ledger-finance/actions/runs/633))
-- Bug in installed PWA app on iOS not updating. (build [635](https://lightroasted.vps-kinghost.net/rmcampos/ledger-finance/actions/runs/635))
-- Mobile word-wrapping in transactions view for monthly totals. (build [641](https://lightroasted.vps-kinghost.net/rmcampos/ledger-finance/actions/runs/641))
+- Bug adding additional root element in scss causing error. (build [633](https://lightroasted.vps-kinghost.net/thermcampos/ledger-finance/actions/runs/633))
+- Bug in useEffect dependency causing page empty state not render for credit-bills. (build [633](https://lightroasted.vps-kinghost.net/thermcampos/ledger-finance/actions/runs/633))
+- Bug in installed PWA app on iOS not updating. (build [635](https://lightroasted.vps-kinghost.net/thermcampos/ledger-finance/actions/runs/635))
+- Mobile word-wrapping in transactions view for monthly totals. (build [641](https://lightroasted.vps-kinghost.net/thermcampos/ledger-finance/actions/runs/641))
 
 ```bash
 # Docker images
-- rmcampos/ledger-frontend:v2026.08.06.170
+- thermcampos/ledger-frontend:v2026.08.06.170
 ```
 
 ---
@@ -39,8 +55,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ```bash
 # Docker images
-- rmcampos/ledger-frontend:v2026.08.06.164
-- rmcampos/ledger-backend:v2026.08.06.162
+- thermcampos/ledger-frontend:v2026.08.06.164
+- thermcampos/ledger-backend:v2026.08.06.162
 ```
 
 ---
@@ -55,8 +71,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ```bash
 # Docker images
-- rmcampos/ledger-frontend:v2026.08.04.150
-- rmcampos/ledger-backend:v2026.08.04.149
+- thermcampos/ledger-frontend:v2026.08.04.150
+- thermcampos/ledger-backend:v2026.08.04.149
 ```
 
 ---
@@ -69,8 +85,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ```bash
 # Docker images
-- rmcampos/ledger-frontend:v2026.08.03.146
-- rmcampos/ledger-backend:v2026.08.03.145
+- thermcampos/ledger-frontend:v2026.08.03.146
+- thermcampos/ledger-backend:v2026.08.03.145
 ```
 
 ---
@@ -89,7 +105,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ```bash
 # Docker images
-- rmcampos/ledger-frontend:v2026.08.02.141
+- thermcampos/ledger-frontend:v2026.08.02.141
 ```
 
 ---
@@ -110,8 +126,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ```bash
 # Docker images
-- rmcampos/ledger-backend:v2026.08.01.125
-- rmcampos/ledger-frontend:v2026.08.01.133
+- thermcampos/ledger-backend:v2026.08.01.125
+- thermcampos/ledger-frontend:v2026.08.01.133
 ```
 
 ---
@@ -131,8 +147,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ```bash
 # Docker images
-- rmcampos/ledger-backend:v2026.07.31.110
-- rmcampos/ledger-frontend:v2026.07.31.119
+- thermcampos/ledger-backend:v2026.07.31.110
+- thermcampos/ledger-frontend:v2026.07.31.119
 ```
 
 ---
@@ -140,21 +156,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## 2026-07-14
 
 ### Added
-- Scroll-linked header shrink effect in a progressive style. [Issue #4](https://lightroasted.vps-kinghost.net/rmcampos/ledger-finance/issues/4)
-- Page transition on route change. [Issue #5](https://lightroasted.vps-kinghost.net/rmcampos/ledger-finance/issues/5)
-- Sidebar active-link indicator now slide instead of snap. [Issue #6](https://lightroasted.vps-kinghost.net/rmcampos/ledger-finance/issues/6)
-- Today and Next two days transactions in the overview page. [Issue #1](https://lightroasted.vps-kinghost.net/rmcampos/ledger-finance/issues/1)
+- Scroll-linked header shrink effect in a progressive style. [Issue #4](https://lightroasted.vps-kinghost.net/thermcampos/ledger-finance/issues/4)
+- Page transition on route change. [Issue #5](https://lightroasted.vps-kinghost.net/thermcampos/ledger-finance/issues/5)
+- Sidebar active-link indicator now slide instead of snap. [Issue #6](https://lightroasted.vps-kinghost.net/thermcampos/ledger-finance/issues/6)
+- Today and Next two days transactions in the overview page. [Issue #1](https://lightroasted.vps-kinghost.net/thermcampos/ledger-finance/issues/1)
 
 ### Changed
-- Headers in all pages to scroll smoothier. [Issue #3](https://lightroasted.vps-kinghost.net/rmcampos/ledger-finance/issues/3).
+- Headers in all pages to scroll smoothier. [Issue #3](https://lightroasted.vps-kinghost.net/thermcampos/ledger-finance/issues/3).
 
 ### Fixed
-- Apple and iOS PWA icon when installed at Home Screen. [Issue #2](https://lightroasted.vps-kinghost.net/rmcampos/ledger-finance/issues/2)
+- Apple and iOS PWA icon when installed at Home Screen. [Issue #2](https://lightroasted.vps-kinghost.net/thermcampos/ledger-finance/issues/2)
 
 ```bash
 # Docker images
-- docker.io/rmcampos/ledger-backend:v2026.07.14.?
-- docker.io/rmcampos/ledger-frontend:v2026.07.14.?
+- docker.io/thermcampos/ledger-backend:v2026.07.14.?
+- docker.io/thermcampos/ledger-frontend:v2026.07.14.?
 ```
 
 ---
@@ -178,8 +194,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Amount spent in the budgets endpoint giving 500 when quering from DB.
 
 ### Docker images
-- `docker.io/rmcampos/ledger-backend:v2026.07.12.104`
-- `docker.io/rmcampos/ledger-frontend:v2026.07.12.102`
+- `docker.io/thermcampos/ledger-backend:v2026.07.12.104`
+- `docker.io/thermcampos/ledger-frontend:v2026.07.12.102`
 
 ## frontend:v2026.07.11.87 & backend:v2026.07.11.86 - 2026-07-11
 
@@ -197,8 +213,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Credit card transactions can select the first bill to land the first record.
 
 ### Docker images
-- `docker.io/rmcampos/ledger-backend:v2026.07.11.86`
-- `docker.io/rmcampos/ledger-frontend:v2026.07.11.87`
+- `docker.io/thermcampos/ledger-backend:v2026.07.11.86`
+- `docker.io/thermcampos/ledger-frontend:v2026.07.11.87`
 
 ## frontend:v2026.07.10.78 & backend:v2026.07.10.79 - 2026-07-10
 
@@ -207,8 +223,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Anthropic LLM to read and parse PDFs allowing to import transactions.
 
 ### Docker images
-- `docker.io/rmcampos/ledger-backend:v2026.07.10.79`
-- `docker.io/rmcampos/ledger-frontend:v2026.07.10.78`
+- `docker.io/thermcampos/ledger-backend:v2026.07.10.79`
+- `docker.io/thermcampos/ledger-frontend:v2026.07.10.78`
 
 ## frontend:v2026.07.10.74 & backend:v2026.07.10.70 - 2026-07-09
 
@@ -222,5 +238,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Budgets logic with wrong values.
 
 ### Docker images
-- `docker.io/rmcampos/ledger-backend:v2026.07.10.70`
-- `docker.io/rmcampos/ledger-frontend:v2026.07.10.74`
+- `docker.io/thermcampos/ledger-backend:v2026.07.10.70`
+- `docker.io/thermcampos/ledger-frontend:v2026.07.10.74`

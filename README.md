@@ -68,7 +68,7 @@ GitHub Actions → Docker Hub → Terraform apply to Kubernetes (self-hosted VPS
 
 - CI runners: `graalvm-25` (backend), `easynode-debian` (frontend + deploy)
 - Secrets managed via **Doppler** (`prd` config)
-- Docker images: `rmcampos/ledger-backend`, `rmcampos/ledger-frontend`
+- Docker images: `thermcampos/ledger-backend`, `thermcampos/ledger-frontend`
 - Versioning: `vYYYY.MM.DD.<run_number>` for backend; `latest` for frontend
 - Prod URLs:
   - Frontend: `https://ledger-finance.darkroasted.vps-kinghost.net`
