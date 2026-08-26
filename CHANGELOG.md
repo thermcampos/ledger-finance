@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Repo name on github and docker to match new username thermcampos.
+- Docker images to push and pull from GHCR.
 
 ### Fixed
 - Missing completed checkbox for transfers.

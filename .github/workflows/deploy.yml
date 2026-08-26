@@ -18,6 +18,7 @@ jobs:
       has_changes: ${{ steps.check-changes.outputs.has_changes }}
     permissions:
       contents: read
+      packages: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -46,13 +47,14 @@ jobs:
           kubectl cluster-info
           kubectl get namespace ledger-finance
 
-      - name: Resolve latest Docker tags
+      - name: Resolve latest image tags
         id: resolve-tags
         env:
-          DOPPLER_TOKEN: ${{ secrets.DOPPLER_AT_SECRETS }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_OWNER: thermcampos
         run: |
-          BACKEND_TAG=$(doppler run --config prd -- bash .github/scripts/get-latest-tag.sh thermcampos/ledger-backend)
-          FRONTEND_TAG=$(doppler run --config prd -- bash .github/scripts/get-latest-tag.sh thermcampos/ledger-frontend)
+          BACKEND_TAG=$(bash .github/scripts/get-latest-tag.sh ledger-finance/backend)
+          FRONTEND_TAG=$(bash .github/scripts/get-latest-tag.sh ledger-finance/frontend)
           echo "backend_tag=$BACKEND_TAG" >> "$GITHUB_OUTPUT"
           echo "frontend_tag=$FRONTEND_TAG" >> "$GITHUB_OUTPUT"
 
@@ -75,8 +77,8 @@ jobs:
         working-directory: terraform
         env:
           DOPPLER_TOKEN: ${{ secrets.DOPPLER_AT_SECRETS }}
-          BACKEND_IMAGE: thermcampos/ledger-backend:${{ steps.resolve-tags.outputs.backend_tag }}
-          FRONTEND_IMAGE: thermcampos/ledger-frontend:${{ steps.resolve-tags.outputs.frontend_tag }}
+          BACKEND_IMAGE: ghcr.io/thermcampos/ledger-finance/backend:${{ steps.resolve-tags.outputs.backend_tag }}
+          FRONTEND_IMAGE: ghcr.io/thermcampos/ledger-finance/frontend:${{ steps.resolve-tags.outputs.frontend_tag }}
         run: |
           doppler run --config prd -- bash -c '
             TF_VAR_db_user="$TF_VAR_DB_USER" \

@@ -12,13 +12,15 @@ on:
       - '.github/workflows/backend.yml'
 
 env:
-  DOCKER_IMAGE: "thermcampos/ledger-backend"
+  REGISTRY: ghcr.io
+  DOCKER_IMAGE: "ghcr.io/thermcampos/ledger-finance/backend"
 
 jobs:
   build-and-push:
     runs-on: graalvm-25
     permissions:
       contents: read
+      packages: write
 
     steps:
       - name: Checkout code
@@ -51,13 +53,12 @@ jobs:
           docker buildx create --name container-builder --driver docker-container --use --bootstrap || \
             docker buildx use container-builder
 
-      - name: Setup Doppler CLI
-        uses: dopplerhq/cli-action@v4
-
-      - name: Log in to Docker Hub
-        env:
-          DOPPLER_TOKEN: ${{ secrets.DOPPLER_AT_SECRETS }}
-        run: doppler run --config prd -- sh -c 'echo $DOCKERHUB_TOKEN | docker login -u thermcampos --password-stdin'
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract metadata for Docker
         id: meta
@@ -84,7 +85,7 @@ jobs:
         run: |
           echo ""
           echo "=========================================="
-          echo "🚀 Docker Images Published Successfully!"
+          echo "🚀 Container Images Published Successfully!"
           echo "=========================================="
           echo ""
           echo "App Image:"
