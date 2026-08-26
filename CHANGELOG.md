@@ -19,8 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ```
 # Docker images
-- thermcampos/ledger-frontend
-- thermcampos/ledger-backend
+- ghcr.io/thermcampos/ledger-finance/frontend:v2026.08.26.3
+- ghcr.io/thermcampos/ledger-finance/backend:v2026.08.26.3
 ```
 
 ## 2026-08-07
