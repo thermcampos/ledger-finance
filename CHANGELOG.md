@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## 2026-08-28
+
+### Changed
+- Due soon panel now display grouped accounts for better visibility.
+
+---
+
 ## 2026-08-26
 
 ### Changed

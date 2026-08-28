@@ -84,7 +84,7 @@ export default function Overview() {
     })),
   });
 
-  const today = startOfDay(new Date());
+  const [today] = useState(() => startOfDay(new Date()));
 
   const accountBalances = useMemo(() => {
     const map = new Map();
@@ -130,20 +130,35 @@ export default function Overview() {
     })
     .slice(0, 5);
 
-  // Due soon — next 7 upcoming checking-account transactions (excludes
-  // credit card bill projection rows, which land on the payment account but
-  // carry linkedCard), merged across accounts and sorted chronologically.
-  // Completed transactions are excluded because they're already settled.
-  const dueSoon = txnQueries
-    .flatMap((q) => q.data || [])
-    .filter((t) => t.account?.kind === 'CHECKING' && !t.linkedCard)
-    .filter((t) => parseLocalDate(t.occurredOn) >= today)
-    .filter((t) => !t.completed)
-    .sort((a, b) => {
-      const diff = parseLocalDate(a.occurredOn) - parseLocalDate(b.occurredOn);
-      return diff !== 0 ? diff : a.id - b.id;
-    })
-    .slice(0, 7);
+  // Due soon — upcoming checking-account transactions (excludes credit card
+  // bill projection rows, which land on the payment account but carry
+  // linkedCard), grouped by account. Groups are ordered by each group's
+  // earliest due date; rows within a group are chronological and capped at 5,
+  // with a "+N more" footer when the cap clips. Completed transactions are
+  // excluded because they're already settled.
+  const dueSoonGroups = useMemo(() => {
+    const upcoming = txnQueries
+      .flatMap((q) => q.data || [])
+      .filter((t) => t.account?.kind === 'CHECKING' && !t.linkedCard)
+      .filter((t) => parseLocalDate(t.occurredOn) >= today)
+      .filter((t) => !t.completed)
+      .sort((a, b) => {
+        const diff = parseLocalDate(a.occurredOn) - parseLocalDate(b.occurredOn);
+        return diff !== 0 ? diff : a.id - b.id;
+      });
+    const byAccount = new Map();
+    for (const t of upcoming) {
+      const list = byAccount.get(t.account.id) || [];
+      list.push(t);
+      byAccount.set(t.account.id, list);
+    }
+    return [...byAccount.values()]
+      .map((txns) => ({ account: txns[0].account, txns, total: txns.length }))
+      .sort((a, b) => {
+        const diff = parseLocalDate(a.txns[0].occurredOn) - parseLocalDate(b.txns[0].occurredOn);
+        return diff !== 0 ? diff : a.account.name.localeCompare(b.account.name);
+      });
+  }, [txnQueries, today]);
 
   return (
     <div>
@@ -225,37 +240,59 @@ export default function Overview() {
             <i className={`bi ${dueSoonOpen ? 'bi-chevron-up' : 'bi-chevron-down'}`} />
           </button>
         </div>
-        {!dueSoonOpen ? null : dueSoon.length === 0 ? (
+        {!dueSoonOpen ? null : dueSoonGroups.length === 0 ? (
           <div className="p-4 text-muted-c" style={{ fontSize: 13 }}>
-            No transactions in the next two days.
+            No upcoming transactions.
           </div>
         ) : (
-          dueSoon.map((t) => {
-            const catName = t.linkedCard ? 'Card payment' : t.category?.name || 'Uncategorized';
+          dueSoonGroups.map((group, groupIndex) => {
+            const visible = group.txns.slice(0, 5);
+            const clipped = group.total - visible.length;
             return (
-              <div className="feed-row" key={t.id}>
-                <div className="feed-left">
-                  <span
-                    className="cat-tick"
-                    style={{ background: t.linkedCard ? '#8B92A0' : categoryColors[t.category?.name] || '#8B92A0' }}
-                  />
-                  <div style={{ minWidth: 0 }}>
-                    <div className="feed-desc">
-                      {t.description}
-                      {t.debitAuthorized && (
-                        <span title="Debit authorized" className="ms-1">
-                          <i className="bi bi-shield-check" style={{ color: 'var(--gold)', fontSize: 12 }} />
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-faint" style={{ fontSize: 11.5 }}>
-                      {catName} · {dueLabel(parseLocalDate(t.occurredOn), today)} in {t.account.name}
-                    </div>
-                  </div>
+              <div key={group.account.id}>
+                <div
+                  className="due-soon-group-header"
+                  style={groupIndex === 0 ? { borderTop: 'none' } : undefined}
+                >
+                  <span className="due-soon-group-name" title={group.account.name}>
+                    {group.account.name}
+                  </span>
+                  <span className="due-soon-group-count">
+                    {group.total} upcoming
+                  </span>
                 </div>
-                <span className={`cell-amount ${t.amount < 0 ? 'neg' : 'pos'}`}>
-                  {money(Number(t.amount), { signed: true, hidden: hideValues })}
-                </span>
+                {visible.map((t) => {
+                  const catName = t.category?.name || 'Uncategorized';
+                  return (
+                    <div className="feed-row" key={t.id}>
+                      <div className="feed-left">
+                        <span
+                          className="cat-tick"
+                          style={{ background: categoryColors[t.category?.name] || '#8B92A0' }}
+                        />
+                        <div style={{ minWidth: 0 }}>
+                          <div className="feed-desc">
+                            {t.description}
+                            {t.debitAuthorized && (
+                              <span title="Debit authorized" className="ms-1">
+                                <i className="bi bi-shield-check" style={{ color: 'var(--gold)', fontSize: 12 }} />
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-faint" style={{ fontSize: 11.5 }}>
+                            {catName} · {dueLabel(parseLocalDate(t.occurredOn), today)}
+                          </div>
+                        </div>
+                      </div>
+                      <span className={`cell-amount ${t.amount < 0 ? 'neg' : 'pos'}`}>
+                        {money(Number(t.amount), { signed: true, hidden: hideValues })}
+                      </span>
+                    </div>
+                  );
+                })}
+                {clipped > 0 && (
+                  <div className="due-soon-group-more">+{clipped} more</div>
+                )}
               </div>
             );
           })
