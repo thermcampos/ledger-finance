@@ -305,6 +305,38 @@ body {
 }
 
 /* --- Feed rows (Overview recent activity) --- */
+.due-soon-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 20px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.due-soon-group-name {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.due-soon-group-count {
+  font-size: 11.5px;
+  color: var(--text-faint);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.due-soon-group-more {
+  padding: 8px 20px;
+  font-size: 11.5px;
+  color: var(--text-faint);
+  border-bottom: 1px solid var(--border);
+}
+.due-soon-group-more:last-child {
+  border-bottom: none;
+}
 .feed-row {
   display: flex;
   align-items: center;
@@ -312,7 +344,8 @@ body {
   padding: 13px 20px;
   border-bottom: 1px solid var(--border);
 }
-.feed-row:last-child {
+.feed-row:last-child,
+.feed-row:has(+ .due-soon-group-more) {
   border-bottom: none;
 }
 .feed-left {
