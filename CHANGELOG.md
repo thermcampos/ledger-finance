@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Due soon panel now display grouped accounts for better visibility.
 
+```
+# Docker images
+- ghcr.io/thermcampos/ledger-finance/frontend:v2026.08.28.4
+```
+
 ---
 
 ## 2026-08-26
