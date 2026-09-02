@@ -1,9 +1,10 @@
 @import './tokens';
 @import 'bootstrap/scss/bootstrap';
+@import './themes';
 
 html,
 body {
-  background: #0e1116;
+  background: var(--bg);
   color: var(--text);
   font-size: 14px;
   -webkit-font-smoothing: antialiased;
@@ -11,7 +12,7 @@ body {
 
 ::view-transition-old(root),
 ::view-transition-new(root) {
-  background: #0e1116;
+  background: var(--vt-bg);
 }
 
 .serif {
@@ -182,7 +183,7 @@ body {
   font-size: calc(24px - 4px * var(--header-scale, 0));
 }
 .sticky-page-header.is-stuck {
-  background: rgba(14, 17, 22, 0.82);
+  background: var(--backdrop);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
@@ -283,7 +284,7 @@ body {
   transition: border-color 0.12s ease;
 }
 .acct-card:hover {
-  border-color: #39414f;
+  border-color: var(--border-strong);
 }
 .acct-kind {
   font-size: 11px;
@@ -439,11 +440,11 @@ body {
 }
 .txn-row.future:hover {
   background: var(--jade-dim);
-  border-color: #39414f;
+  border-color: var(--border-strong);
   border-left-color: var(--jade);
 }
 .txn-row.future .txn-icon {
-  border-color: rgba(79, 169, 138, 0.45);
+  border-color: var(--jade-border);
   background: var(--surface);
 }
 .txn-row.reviewable {
@@ -455,11 +456,11 @@ body {
 }
 .txn-row.marked:hover {
   background: var(--jade-dim);
-  border-color: #39414f;
+  border-color: var(--border-strong);
   border-left-color: var(--jade);
 }
 .txn-row.marked .txn-icon {
-  border-color: rgba(79, 169, 138, 0.45);
+  border-color: var(--jade-border);
   background: var(--surface);
 }
 .badge-marked {
@@ -483,7 +484,7 @@ body {
   transition: border-color 0.12s ease, background 0.12s ease;
 }
 .txn-row:hover {
-  border-color: #39414f;
+  border-color: var(--border-strong);
   background: var(--surface-2);
 }
 
@@ -786,26 +787,26 @@ body {
 .btn-jade {
   background: var(--jade);
   border: 1px solid var(--jade);
-  color: #0e1116;
+  color: var(--btn-jade-text);
   font-weight: 600;
   font-size: 13px;
 }
 .btn-jade:hover {
-  background: #458f77;
-  border-color: #458f77;
-  color: #fff;
+  background: var(--btn-jade-hover-bg);
+  border-color: var(--btn-jade-hover-bg);
+  color: var(--btn-jade-hover-text);
 }
 .btn-red {
   background: var(--red);
   border: 1px solid var(--red);
-  color: #0e1116;
+  color: var(--btn-red-text);
   font-weight: 600;
   font-size: 13px;
 }
 .btn-red:hover {
-  background: #b3433f;
-  border-color: #b3433f;
-  color: #fff;
+  background: var(--btn-red-hover-bg);
+  border-color: var(--btn-red-hover-bg);
+  color: var(--btn-red-hover-text);
 }
 .btn-ghost {
   background: transparent;

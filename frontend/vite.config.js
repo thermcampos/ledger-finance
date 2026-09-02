@@ -18,4 +18,8 @@ export default defineConfig({
     ...(process.env.NGROK ? { allowedHosts: ['.ngrok-free.dev'] } : {}),
     proxy: proxyConfig
   },
+  test: {
+    environment: 'jsdom',
+    globals: true,
+  },
 });

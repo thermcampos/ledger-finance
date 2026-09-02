@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { UsersApi } from '../api/ledger';
 import { useAuth } from '../context/useAuth';
+import { THEMES, getStoredTheme, setTheme } from '../utils/theme';
+
+const THEME_LABELS = { dark: 'Dark', light: 'Light' };
 
 function describeHistoryEntry(entry) {
   switch (entry.field) {
@@ -38,6 +41,12 @@ export default function Profile() {
   const handleProfileSubmit = (e) => {
     e.preventDefault();
     profileMutation.mutate({ displayName, email });
+  };
+
+  const [theme, setThemeState] = useState(getStoredTheme);
+
+  const handleThemeChange = (next) => {
+    setThemeState(setTheme(next));
   };
 
   const [currentPassword, setCurrentPassword] = useState('');
@@ -174,6 +183,27 @@ export default function Profile() {
             </div>
           )}
         </form>
+      </div>
+
+      <div className="panel p-4 mt-4">
+        <div className="eyebrow mb-3">Appearance</div>
+        <label className="eyebrow d-block mb-2">Theme</label>
+        <div className="d-flex gap-2" role="group" aria-label="Theme">
+          {THEMES.map((t) => (
+            <button
+              key={t}
+              type="button"
+              className={`btn btn-sm ${theme === t ? 'btn-jade' : 'btn-ghost'}`}
+              aria-pressed={theme === t}
+              onClick={() => handleThemeChange(t)}
+            >
+              {THEME_LABELS[t]}
+            </button>
+          ))}
+        </div>
+        <div className="text-faint mt-2" style={{ fontSize: 11.5 }}>
+          Saved on this device. Dark is the default.
+        </div>
       </div>
 
       <div className="panel p-4 mt-4">
