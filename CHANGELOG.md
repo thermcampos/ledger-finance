@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Light theme, with a Dark/Light toggle on the Profile page. Dark stays the
+  default; the choice is stored per-device in `localStorage` and applied before
+  first paint (no flash), on every page including the logged-out ones.
+  `prefers-color-scheme` is deliberately ignored. Palette designed for WCAG AA
+  contrast (`npm run check:contrast`), not inverted from dark.
+- Vitest (first frontend test runner) — covers the theme module.
+
+### Changed
+- All colors in `main.scss` now flow through design tokens; the light palette
+  and Bootstrap runtime overrides live in `frontend/src/styles/_themes.scss`.
+  Reverses the former "dark mode only" design rule (see `docs/light-theme.md`).
+
 ## 2026-08-28
 
 ### Changed

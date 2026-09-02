@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="dark">
+<html lang="en" data-theme="dark" data-bs-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,6 +7,20 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-title" content="Ledger" />
     <title>Ledger</title>
+    <script>
+      // Pre-paint theme boot — no flash of the wrong theme. Mirrors
+      // src/utils/theme.js: dark default, prefers-color-scheme ignored.
+      (function () {
+        var t = null;
+        try {
+          t = window.localStorage.getItem('ledger-theme');
+        } catch (e) {}
+        if (t !== 'dark' && t !== 'light') t = 'dark';
+        var r = document.documentElement;
+        r.setAttribute('data-theme', t);
+        r.setAttribute('data-bs-theme', t);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

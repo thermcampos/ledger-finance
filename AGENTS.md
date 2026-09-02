@@ -4,13 +4,13 @@ Personal finance app. Read this before making changes — it captures decisions 
 
 ## Design language — do not deviate without asking
 
-- **Dark mode only.** No light theme, no toggle.
-- **The "ledger" concept is the whole point.** Every monetary figure is set in monospace (IBM Plex Mono), right-aligned, tabular. This is the one non-negotiable rule — if you add a new figure anywhere (a new stat, a new card), it follows this rule too.
-- **Fraunces (serif)** is reserved for the hero balance number and page titles only. Do not use it for body text or labels.
+- **Dark-first, with an opt-in light theme.** Dark is the default and the app's identity; light is an explicit per-device choice (toggle on the Profile page), persisted in `localStorage`. `prefers-color-scheme` is deliberately ignored — the theme only changes via the toggle. Every new UI must work in **both themes** — a standing design rule alongside the monospace-figures rule. Decision record: `docs/light-theme.md`.
+- **The "ledger" concept is the whole point.** Every monetary figure is set in monospace (IBM Plex Mono), right-aligned, tabular, in both themes. This is the one non-negotiable rule — if you add a new figure anywhere (a new stat, a new card), it follows this rule too.
+- **Fraunces (serif)** is reserved for the hero balance number and page titles only, in both themes. Do not use it for body text or labels.
 - **No charts.** Budgets and spending are shown as cards with progress bars and status words (On track / Near limit / Over budget). This was an explicit choice.
-- **Palette is muted, not neon:** jade `#4FA98A` for positive, brick-red `#C75450` for negative, gold `#C9A227` reserved for "near limit" warnings only. Background is ink-navy `#0E1116`, not true black.
-- **Hairline borders** (`#262C36`) do the separating — avoid drop shadows or heavy card elevation.
-- Tokens live in `frontend/src/styles/tokens.scss`. If the UI and tokens disagree, fix the UI, not the tokens.
+- **Palette is muted, not neon** in both themes: jade for positive, brick-red for negative, gold reserved for "near limit" warnings only. Dark background is ink-navy `#0E1116` (not true black); light is paper, not inverted-navy. The light palette is designed for WCAG AA contrast, not inverted — verify changes with `cd frontend && npm run check:contrast`.
+- **Hairline borders** do the separating — avoid drop shadows or heavy card elevation.
+- **All colors come from the tokens** — `frontend/src/styles/tokens.scss` (dark palette + compile-time Bootstrap Sass vars) and `frontend/src/styles/_themes.scss` (the `[data-theme='light']` overrides). A hardcoded hex or rgba anywhere else is a lint-by-convention offense. If the UI and tokens disagree, fix the UI, not the tokens.
 
 ## Architecture decisions
 

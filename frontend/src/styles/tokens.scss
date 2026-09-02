@@ -1,20 +1,50 @@
+// Design tokens — the single home for every color in the app.
+//
+// Two themes, dark-first. Dark is the default and the app's identity; light is
+// a per-device accommodation (see docs/light-theme.md). Every value is a CSS
+// custom property so a runtime `[data-theme]` switch reaches all of them —
+// nothing hardcodes a hex outside this file (lint-by-convention rule).
+//
+// This file holds the DARK palette (the `:root` defaults) plus the Bootstrap
+// Sass overrides, which are compile-time and must stay dark. The LIGHT palette
+// and its Bootstrap runtime-var overrides live in `_themes.scss`, imported
+// AFTER Bootstrap so `[data-theme='light']` outranks Bootstrap's own
+// `[data-bs-theme]` block.
+
 :root {
   --bg: #0e1116;
   --surface: #141922;
   --surface-2: #1b212b;
   --border: #262c36;
+  --border-strong: #39414f;
   --text: #e6e8eb;
   --text-muted: #8b92a0;
   --text-faint: #565e6c;
   --jade: #4fa98a;
   --jade-dim: rgba(79, 169, 138, 0.14);
+  --jade-border: rgba(79, 169, 138, 0.45);
   --red: #c75450;
   --red-dim: rgba(199, 84, 80, 0.14);
   --gold: #c9a227;
   --gold-dim: rgba(201, 162, 39, 0.14);
+
+  // Sticky-header backdrop (blurred), and the page-crossfade ground.
+  --backdrop: rgba(14, 17, 22, 0.82);
+  --vt-bg: #0e1116;
+
+  // Filled buttons: text sits on a jade/brick fill, so it's near-bg, not --text.
+  --btn-jade-text: #0e1116;
+  --btn-jade-hover-bg: #458f77;
+  --btn-jade-hover-text: #ffffff;
+  --btn-red-text: #0e1116;
+  --btn-red-hover-bg: #b3433f;
+  --btn-red-hover-text: #ffffff;
 }
 
-// Bootstrap Sass variable overrides — keep in sync with the tokens above.
+// Bootstrap Sass variable overrides — compile-time, keep in sync with the DARK
+// tokens above. A runtime theme switch cannot reach these (Sass runs colour
+// functions like `shade-color($primary)` on them at build), so light mode
+// corrects Bootstrap via its runtime `--bs-*` custom properties in _themes.scss.
 $body-bg: #0e1116;
 $body-color: #e6e8eb;
 $border-color: #262c36;

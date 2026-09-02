@@ -1,6 +1,6 @@
 # Light theme — design decisions
 
-Status: **confirmed, not yet implemented.** Captured from a grilling session on 2026-02-09. This document is the source of truth for the feature; when implementation lands, update `AGENTS.md` / `CLAUDE.md` in the same PR (see [Docs](#docs)).
+Status: **implemented** (2026-09-02, branch `feat/4-add-light-theme`). Captured from a grilling session on 2026-02-09. `AGENTS.md` / `CLAUDE.md` design-language section updated in the same PR (see [Docs](#docs)). This document remains the decision record.
 
 ## Why this exists
 
