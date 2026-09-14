@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## 2026-09-14
+
 ### Changed
 - Accounts page cards to display in this order: name, institution, balance and kind;
 - Overview page accounts to display in the same order as above and balance descending;
@@ -17,6 +19,8 @@ Docker images
 ```
 
 ---
+
+## 2026-09-02
 
 ### Added
 - Light theme, with a Dark/Light toggle on the Profile page. Dark stays the
@@ -30,6 +34,13 @@ Docker images
 - All colors in `main.scss` now flow through design tokens; the light palette
   and Bootstrap runtime overrides live in `frontend/src/styles/_themes.scss`.
   Reverses the former "dark mode only" design rule (see `docs/light-theme.md`).
+
+```
+Docker images
+- ghcr.io/thermcampos/ledger-finance/frontend:v2026.09.02.5
+```
+
+---
 
 ## 2026-08-28
 
