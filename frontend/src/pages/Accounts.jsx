@@ -182,7 +182,7 @@ export default function Accounts() {
       <div className="page-header">
         <div>
           <div className="eyebrow mb-1">
-            {accounts.length} linked account{accounts.length === 1 ? '' : 's'}
+            {accounts.length} account{accounts.length === 1 ? '' : 's'}
           </div>
           <div className="page-title">Accounts</div>
         </div>
@@ -437,12 +437,14 @@ export default function Accounts() {
                       </button>
                     </div>
                   </div>
-                  <div className="acct-kind">{a.kind?.replace('_', ' ')}</div>
+                  <div className="d-flex justify-content-between align-items-start">
+                    <div className="acct-name mb-3">{a.name}</div>
+                    {a.institution && <div className="text-faint mb-2" style={{ fontSize: 11.5 }}>{a.institution}</div>}
+                  </div>
                   <div className="acct-balance" style={{ color: bal < 0 ? 'var(--red)' : undefined }}>
                     {bal != null ? money(bal) : '—'}
                   </div>
-                  <div className="acct-name mb-3">{a.name}</div>
-                  {a.institution && <div className="text-faint mb-2" style={{ fontSize: 11.5 }}>{a.institution}</div>}
+                  <div className="acct-kind">{a.kind?.replace('_', ' ')}</div>
                   <div className="text-faint" style={{ fontSize: 11.5 }}>
                     {a.lastSyncedAt ? `Synced ${new Date(a.lastSyncedAt).toLocaleString()}` : 'Not yet synced'}
                   </div>
