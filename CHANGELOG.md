@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Accounts page cards to display in this order: name, institution, balance and kind;
+- Overview page accounts to display in the same order as above and balance descending;
+
+```
+Docker images
+- ghcr.io
+```
+
+---
+
 ### Added
 - Light theme, with a Dark/Light toggle on the Profile page. Dark stays the
   default; the choice is stored per-device in `localStorage` and applied before

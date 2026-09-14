@@ -100,9 +100,19 @@ export default function Overview() {
     return map;
   }, [accounts, txnQueries]);
 
-  const liquidAccounts = accounts.filter((a) => a.kind === 'CHECKING' || a.kind === 'SAVINGS');
-  const ccAccounts = accounts.filter((a) => a.kind === 'CREDIT_CARD');
-  const investmentAccounts = accounts.filter((a) => a.kind === 'INVESTMENT');
+  const liquidAccounts = accounts.filter((a) => a.kind === 'CHECKING' || a.kind === 'SAVINGS').sort((a, b) => {
+    const balanceDiff = (accountBalances.get(b.id) ?? Number(b.balance)) - (accountBalances.get(a.id) ?? Number(a.balance));
+    return balanceDiff !== 0 ? balanceDiff : a.name.localeCompare(b.name);
+  });
+  const ccAccounts = accounts.filter((a) => a.kind === 'CREDIT_CARD').sort((a, b) => {
+    const owedDiff = (nextBillFor(b, txnsByAccountId.get(b.id) || [], today)?.amountOwed ?? 0) - (nextBillFor(a, txnsByAccountId.get(a.id) || [], today)?.amountOwed ?? 0);
+    return owedDiff !== 0 ? owedDiff : a.name.localeCompare(b.name);
+  });
+  // order investmentAccounts by balance, descending, then by name
+  const investmentAccounts = accounts.filter((a) => a.kind === 'INVESTMENT').sort((a, b) => {
+    const balanceDiff = (accountBalances.get(b.id) ?? Number(b.balance)) - (accountBalances.get(a.id) ?? Number(a.balance));
+    return balanceDiff !== 0 ? balanceDiff : a.name.localeCompare(b.name);
+  });
   const totalBalance = liquidAccounts.reduce((sum, a) => sum + (accountBalances.get(a.id) ?? Number(a.balance)), 0);
 
   // Sum of each card's next open bill (same nextBillFor call the "Credit
@@ -347,11 +357,14 @@ export default function Overview() {
           return (
             <div className="col-6 col-md-3" key={a.id}>
               <div className="acct-card">
-                <div className="acct-kind">{a.kind?.replace('_', ' ')}</div>
+                <div className="d-flex justify-content-between align-items-start">
+                  <div className="acct-name mb-3">{a.name}</div>
+                  {a.institution && <div className="text-faint mb-2" style={{ fontSize: 11.5 }}>{a.institution}</div>}
+                </div>
                 <div className="acct-balance" style={{ color: bal < 0 ? 'var(--red)' : undefined }}>
                   {money(bal, { hidden: hideValues })}
                 </div>
-                <div className="acct-name">{a.name}</div>
+                <div className="acct-kind">{a.kind?.replace('_', ' ')}</div>
               </div>
             </div>
           );
@@ -372,11 +385,14 @@ export default function Overview() {
             return (
               <div className="col-6 col-md-3" key={a.id}>
                 <div className="acct-card">
-                  <div className="acct-kind">{a.kind?.replace('_', ' ')}</div>
+                  <div className="d-flex justify-content-between align-items-start">
+                    <div className="acct-name mb-3">{a.name}</div>
+                    {a.institution && <div className="text-faint mb-2" style={{ fontSize: 11.5 }}>{a.institution}</div>}
+                  </div>
                   <div className="acct-balance" style={{ color: bal < 0 ? 'var(--red)' : undefined }}>
                     {money(bal, { hidden: hideValues })}
                   </div>
-                  <div className="acct-name">{a.name}</div>
+                  <div className="acct-kind">{a.kind?.replace('_', ' ')}</div>
                 </div>
               </div>
             );
@@ -394,11 +410,14 @@ export default function Overview() {
               return (
                 <div className="col-6 col-md-3" key={c.id}>
                   <div className="acct-card">
-                    <div className="acct-kind">Credit card</div>
+                    <div className="d-flex justify-content-between align-items-start">
+                      <div className="acct-name mb-3">{c.name}</div>
+                      {c.institution && <div className="text-faint mb-2" style={{ fontSize: 11.5 }}>{c.institution}</div>}
+                    </div>
                     <div className="acct-balance" style={{ color: bill?.amountOwed > 0 ? 'var(--red)' : undefined }}>
                       {bill ? money(bill.amountOwed, { hidden: hideValues }) : '—'}
                     </div>
-                    <div className="acct-name">{c.name}</div>
+                    <div className="acct-kind">Credit card</div>
                     <div className="text-faint mt-1" style={{ fontSize: 11 }}>
                       {bill ? dueLabel(bill.dueDate) : 'No due day set'}
                     </div>
