@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { BudgetsApi, CategoriesApi } from '../api/ledger';
+import { BudgetsApi, CategoriesApi, AccountsApi } from '../api/ledger';
 import { localYearMonth } from '../utils/date';
 import { useStickyHeader } from '../hooks/useStickyHeader';
 import BudgetTransactionList from '../components/BudgetTransactionList';
@@ -38,6 +38,10 @@ export default function Budgets() {
   });
   const categoriesQuery = useQuery({ queryKey: ['categories'], queryFn: CategoriesApi.list });
   const categories = [...(categoriesQuery.data || [])].sort((a, b) => a.name.localeCompare(b.name));
+  const accountsQuery = useQuery({ queryKey: ['accounts'], queryFn: AccountsApi.list });
+  const projectableAccounts = (accountsQuery.data || [])
+    .filter((a) => a.kind === 'CHECKING' || a.kind === 'SAVINGS' || a.kind === 'CREDIT_CARD')
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   const budgets = [...(budgetsQuery.data || [])].sort((a, b) =>
     (a.category?.name || '').localeCompare(b.category?.name || '')
@@ -52,15 +56,19 @@ export default function Budgets() {
   const [showForm, setShowForm] = useState(false);
   const [categoryId, setCategoryId] = useState('');
   const [limitAmount, setLimitAmount] = useState('');
+  const [accountId, setAccountId] = useState('');
 
   const upsertMutation = useMutation({
     mutationFn: BudgetsApi.upsert,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['budgets'] });
       queryClient.invalidateQueries({ queryKey: ['budgets-spend', yearMonth] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
       setShowForm(false);
       setCategoryId('');
       setLimitAmount('');
+      setAccountId('');
     },
   });
 
@@ -69,6 +77,7 @@ export default function Budgets() {
     upsertMutation.mutate({
       categoryId: Number(categoryId),
       limitAmount: Number(limitAmount),
+      accountId: accountId ? Number(accountId) : null,
     });
   };
 
@@ -76,6 +85,7 @@ export default function Budgets() {
     setConfirmingId(null);
     setCategoryId(String(b.category?.id ?? ''));
     setLimitAmount(String(b.limitAmount));
+    setAccountId(b.account?.id ? String(b.account.id) : '');
     setShowForm(true);
   };
 
@@ -87,6 +97,8 @@ export default function Budgets() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['budgets'] });
       queryClient.invalidateQueries({ queryKey: ['budgets-spend', yearMonth] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
       setConfirmingId(null);
       if (selectedBudgetId) setSelectedBudgetId(null);
     },
@@ -129,7 +141,7 @@ export default function Budgets() {
         <div className="panel p-4 mb-4">
           <form onSubmit={handleSubmit}>
             <div className="row g-3 align-items-end">
-              <div className="col-md-4">
+              <div className="col-md-3">
                 <label className="eyebrow d-block mb-2">Category</label>
                 <select
                   className="form-select form-select-sm"
@@ -147,7 +159,7 @@ export default function Budgets() {
                   ))}
                 </select>
               </div>
-              <div className="col-md-3">
+              <div className="col-md-2">
                 <label className="eyebrow d-block mb-2">Monthly limit</label>
                 <input
                   type="number"
@@ -158,6 +170,21 @@ export default function Budgets() {
                   onChange={(e) => setLimitAmount(e.target.value)}
                   required
                 />
+              </div>
+              <div className="col-md-3">
+                <label className="eyebrow d-block mb-2">Project to account</label>
+                <select
+                  className="form-select form-select-sm"
+                  value={accountId}
+                  onChange={(e) => setAccountId(e.target.value)}
+                >
+                  <option value="">None</option>
+                  {projectableAccounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="col-md-2">
                 <button type="submit" className="btn btn-jade btn-sm w-100" disabled={upsertMutation.isPending}>
@@ -172,6 +199,7 @@ export default function Budgets() {
                     setShowForm(false);
                     setCategoryId('');
                     setLimitAmount('');
+                    setAccountId('');
                   }}
                 >
                   Cancel
@@ -292,6 +320,11 @@ export default function Budgets() {
                       <div className="track-fill" style={{ width: `${pct}%`, background: st.color }} />
                     </div>
                     <div className={`budget-status ${st.cls}`}>{st.label}</div>
+                    {b.account && (
+                      <div className="text-faint" style={{ fontSize: 11.5, marginTop: 4 }}>
+                        Projects to {b.account.name}
+                      </div>
+                    )}
                   </>
                 )}
               </div>

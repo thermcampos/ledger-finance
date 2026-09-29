@@ -8,6 +8,7 @@ import com.ledger.enums.AccountKind;
 import com.ledger.enums.EditScope;
 import com.ledger.enums.RepeatFrequency;
 import com.ledger.security.CurrentUserService;
+import com.ledger.service.BudgetProjectionSyncService;
 import com.ledger.service.CreditCardBillSyncService;
 import com.ledger.entity.User;
 import jakarta.annotation.security.RolesAllowed;
@@ -36,6 +37,8 @@ public class TransactionResource {
   @Inject CurrentUserService currentUser;
 
   @Inject CreditCardBillSyncService billSync;
+
+  @Inject BudgetProjectionSyncService budgetSync;
 
   @GET
   @Path("/account/{accountId}")
@@ -80,6 +83,11 @@ public class TransactionResource {
     }
 
     billSync.recomputeAccountBalance(account);
+    // Budget projections re-derive before the card bill sync so a projection
+    // landing on a card is already in place when the card's bill is recomputed.
+    if (category != null) {
+      budgetSync.syncForCategory(currentUser.require(), category.id);
+    }
     if (account.kind == AccountKind.CREDIT_CARD) {
       billSync.sync(account);
     }
@@ -180,6 +188,15 @@ public class TransactionResource {
     }
 
     billSync.recomputeAccountBalance(account);
+    java.util.Set<Long> categoryIds = new java.util.HashSet<>();
+    for (Transaction t : created) {
+      if (t.category != null) {
+        categoryIds.add(t.category.id);
+      }
+    }
+    for (Long categoryId : categoryIds) {
+      budgetSync.syncForCategory(currentUser.require(), categoryId);
+    }
     if (account.kind == AccountKind.CREDIT_CARD) {
       billSync.sync(account);
     }
@@ -194,6 +211,9 @@ public class TransactionResource {
     if (txn.linkedCard != null) {
       throw new WebApplicationException("Cannot directly edit a credit card bill transaction", 400);
     }
+    if (txn.linkedBudget != null) {
+      throw new WebApplicationException("Cannot directly edit a budget projection transaction", 400);
+    }
     if (txn.transferPeer != null) {
       applyToTransfer(txn, request);
       billSync.recomputeAccountBalance(txn.account);
@@ -207,6 +227,7 @@ public class TransactionResource {
     }
 
     EditScope scope = request.scope != null ? request.scope : EditScope.THIS;
+    Long oldCategoryId = txn.category != null ? txn.category.id : null;
     if (scope == EditScope.FUTURE && txn.seriesId != null) {
       applyToSeries(txn, request);
     } else {
@@ -214,6 +235,12 @@ public class TransactionResource {
     }
 
     billSync.recomputeAccountBalance(txn.account);
+    // A re-categorization moves spend between budgets — sync both sides.
+    budgetSync.syncForCategory(currentUser.require(), oldCategoryId);
+    Long newCategoryId = txn.category != null ? txn.category.id : null;
+    if (!Objects.equals(oldCategoryId, newCategoryId)) {
+      budgetSync.syncForCategory(currentUser.require(), newCategoryId);
+    }
     if (txn.account.kind == AccountKind.CREDIT_CARD) {
       billSync.sync(txn.account);
     }
@@ -359,6 +386,10 @@ public class TransactionResource {
       throw new WebApplicationException(
           "Cannot directly delete a credit card bill transaction", 400);
     }
+    if (txn.linkedBudget != null) {
+      throw new WebApplicationException(
+          "Cannot directly delete a budget projection transaction", 400);
+    }
 
     CreditCardBill paidBill = CreditCardBill.findByPaymentTransactionId(txn.id);
     if (paidBill != null) {
@@ -393,6 +424,7 @@ public class TransactionResource {
     }
     Account account = txn.account;
     String seriesId = txn.seriesId;
+    Long deletedCategoryId = txn.category != null ? txn.category.id : null;
 
     if (scope == EditScope.FUTURE && seriesId != null) {
       for (Transaction t : seriesFrom(txn)) {
@@ -407,6 +439,7 @@ public class TransactionResource {
     }
 
     billSync.recomputeAccountBalance(account);
+    budgetSync.syncForCategory(currentUser.require(), deletedCategoryId);
     if (account.kind == AccountKind.CREDIT_CARD) {
       billSync.sync(account);
     }

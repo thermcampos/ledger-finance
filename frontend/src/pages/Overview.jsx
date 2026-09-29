@@ -129,27 +129,29 @@ export default function Overview() {
   );
   // "Latest added" — global across all accounts, not sorted by occurredOn,
   // since a backdated/future entry can still be the most recently added
-  // one. System-generated credit card bill rows (linkedCard set) aren't
-  // something the user "added," so they're excluded here.
+  // one. System-generated rows (credit card bills via linkedCard, budget
+  // projections via linkedBudget) aren't something the user "added," so
+  // they're excluded here.
   const recent = txnQueries
     .flatMap((q) => q.data || [])
-    .filter((t) => !t.linkedCard)
+    .filter((t) => !t.linkedCard && !t.linkedBudget)
     .sort((a, b) => {
       const diff = new Date(b.createdAt) - new Date(a.createdAt);
       return diff !== 0 ? diff : b.id - a.id;
     })
     .slice(0, 5);
 
-  // Due soon — upcoming checking-account transactions (excludes credit card
-  // bill projection rows, which land on the payment account but carry
-  // linkedCard), grouped by account. Groups are ordered by each group's
+  // Due soon — upcoming checking-account transactions (excludes system-
+  // generated rows: credit card bill projections carry linkedCard, budget
+  // projections carry linkedBudget — both are placeholders, not actionable
+  // pending items), grouped by account. Groups are ordered by each group's
   // earliest due date; rows within a group are chronological and capped at 5,
   // with a "+N more" footer when the cap clips. Completed transactions are
   // excluded because they're already settled.
   const dueSoonGroups = useMemo(() => {
     const upcoming = txnQueries
       .flatMap((q) => q.data || [])
-      .filter((t) => t.account?.kind === 'CHECKING' && !t.linkedCard)
+      .filter((t) => t.account?.kind === 'CHECKING' && !t.linkedCard && !t.linkedBudget)
       .filter((t) => parseLocalDate(t.occurredOn) >= today)
       .filter((t) => !t.completed)
       .sort((a, b) => {

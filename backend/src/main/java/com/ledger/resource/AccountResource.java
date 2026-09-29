@@ -1,8 +1,10 @@
 package com.ledger.resource;
 
 import com.ledger.entity.Account;
+import com.ledger.entity.Budget;
 import com.ledger.enums.AccountKind;
 import com.ledger.security.CurrentUserService;
+import com.ledger.service.BudgetProjectionSyncService;
 import com.ledger.service.CreditCardBillSyncService;
 import com.ledger.entity.User;
 import io.quarkus.hibernate.orm.panache.Panache;
@@ -27,6 +29,8 @@ public class AccountResource {
   @Inject CurrentUserService currentUser;
 
   @Inject CreditCardBillSyncService billSync;
+
+  @Inject BudgetProjectionSyncService budgetSync;
 
   @GET
   public List<Account> list() {
@@ -79,6 +83,12 @@ public class AccountResource {
     // card with no synced-bill history. Handles a changed/cleared
     // payment account, due day, or kind all in one place.
     billSync.sync(account);
+    // Budgets projecting onto this account follow kind changes too (e.g. a
+    // card turned INVESTMENT is no longer a valid projection target).
+    List<Budget> projectingBudgets = Budget.list("account.id", id);
+    for (Budget budget : projectingBudgets) {
+      budgetSync.sync(budget);
+    }
     return account;
   }
 
@@ -119,6 +129,14 @@ public class AccountResource {
     Account account = Account.findById(id);
     if (account == null || !account.user.id.equals(user.id)) {
       throw new NotFoundException();
+    }
+    // Detach budgets projecting onto this account and remove their projection
+    // rows first — otherwise both FKs (budgets.account_id, transactions via the
+    // projection rows) would block the delete with a spurious 409.
+    List<Budget> projectingBudgets = Budget.list("account.id", id);
+    for (Budget budget : projectingBudgets) {
+      budgetSync.clear(budget);
+      budget.account = null;
     }
     try {
       account.delete();

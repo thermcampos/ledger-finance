@@ -572,12 +572,16 @@ export default function Transactions() {
     return Array.from(map.entries());
   }, [filteredFlat]);
 
-  const filteredTotal = filteredFlat.reduce((sum, t) => sum + Number(t.amount), 0);
+  const filteredTotal = filteredFlat.reduce(
+    (sum, t) => (t.linkedBudget ? sum : sum + Number(t.amount)),
+    0
+  );
 
   const monthlyFlat = useMemo(() => {
     const { start, end } = rangeBounds(filterRange, filterStartDate, filterEndDate, monthOffset);
     return txnQueries
       .flatMap((q) => q.data || [])
+      .filter((t) => !t.linkedBudget)
       .filter((t) => !filterAccountId || String(t.account?.id) === filterAccountId)
       .filter((t) => !start || parseLocalDate(t.occurredOn) >= start)
       .filter((t) => !end || parseLocalDate(t.occurredOn) <= end)
@@ -1171,7 +1175,7 @@ export default function Transactions() {
               return (
                 <div
                   className={`txn-row ${rowKind}`}
-                  style={t.linkedCard ? { borderStyle: 'dashed' } : undefined}
+                  style={t.linkedCard || t.linkedBudget ? { borderStyle: 'dashed' } : undefined}
                   key={t.id}
                 >
                   {editingId === t.id ? (
@@ -1362,6 +1366,11 @@ export default function Transactions() {
                               Card bill
                             </span>
                           )}
+                          {t.linkedBudget && (
+                            <span className="tag">
+                              Budget
+                            </span>
+                          )}
                           {t.completed && (
                             <span title="Completed">
                               <i
@@ -1400,6 +1409,10 @@ export default function Transactions() {
                             className="btn btn-ghost btn-sm"
                           >
                             View bill
+                          </Link>
+                        ) : t.linkedBudget ? (
+                          <Link to="/budgets" className="btn btn-ghost btn-sm">
+                            View budget
                           </Link>
                         ) : (
                           <>

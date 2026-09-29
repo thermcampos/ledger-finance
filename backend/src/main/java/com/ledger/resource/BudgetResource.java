@@ -2,9 +2,11 @@ package com.ledger.resource;
 
 import com.ledger.entity.Budget;
 import com.ledger.dto.response.CategorySpendResponse;
+import com.ledger.entity.Account;
 import com.ledger.entity.Category;
 import com.ledger.entity.Transaction;
 import com.ledger.security.CurrentUserService;
+import com.ledger.service.BudgetProjectionSyncService;
 import com.ledger.entity.User;
 import io.quarkus.panache.common.Sort;
 import jakarta.annotation.security.RolesAllowed;
@@ -29,9 +31,17 @@ public class BudgetResource {
 
   @Inject EntityManager em;
 
+  @Inject BudgetProjectionSyncService budgetSync;
+
+  /**
+   * syncAll runs first so a month rollover (or a stale projection from any path that missed a
+   * write hook) self-corrects on read — there is no scheduler in this project by design.
+   */
   @GET
+  @Transactional
   public List<Budget> list() {
     User user = currentUser.require();
+    budgetSync.syncAll(user);
     return Budget.list("user.id = ?1", user.id);
   }
 
@@ -48,7 +58,8 @@ public class BudgetResource {
     LocalDate start = LocalDate.parse(yearMonth + "-01");
     LocalDate end = start.plusMonths(1).minusDays(1);
     return Transaction.list(
-        "account.user.id = ?1 and category.id = ?2 and occurredOn between ?3 and ?4",
+        "account.user.id = ?1 and category.id = ?2 and occurredOn between ?3 and ?4 "
+            + "and linkedBudget is null",
         Sort.descending("occurredOn").and("id"),
         user.id,
         categoryId,
@@ -56,10 +67,17 @@ public class BudgetResource {
         end);
   }
 
+  /**
+   * System-generated budget projection rows (linkedBudget set) are excluded — they represent
+   * what is still available, not what was spent, so counting them would make the projection
+   * collapse its own input. syncAll runs first for lazy month rollover, same as list().
+   */
   @GET
   @Path("/month/{yearMonth}/spend")
+  @Transactional
   public List<CategorySpendResponse> spendForMonth(@PathParam("yearMonth") String yearMonth) {
     User user = currentUser.require();
+    budgetSync.syncAll(user);
     LocalDate start = LocalDate.parse(yearMonth + "-01");
     LocalDate end = start.plusMonths(1).minusDays(1);
     LocalDate today = LocalDate.now();
@@ -73,6 +91,7 @@ public class BudgetResource {
                 + "WHERE t.account.user.id = :userId "
                 + "AND t.category IS NOT NULL "
                 + "AND t.amount < 0 "
+                + "AND t.linkedBudget IS NULL "
                 + "AND t.occurredOn BETWEEN :start AND :end "
                 + "GROUP BY t.category.id, t.category.name",
             CategorySpendResponse.class)
@@ -91,6 +110,18 @@ public class BudgetResource {
       throw new NotFoundException("Category not found");
     }
 
+    Account account = null;
+    if (request.accountId != null) {
+      account = Account.findById(request.accountId);
+      if (account == null || !account.user.id.equals(user.id)) {
+        throw new NotFoundException("Account not found");
+      }
+      if (!budgetSync.isProjectable(account.kind)) {
+        throw new WebApplicationException(
+            "Budget account must be a checking, savings or credit card account", 400);
+      }
+    }
+
     Budget budget =
         Budget.find("user.id = ?1 and category.id = ?2", user.id, request.categoryId)
             .firstResult();
@@ -101,7 +132,9 @@ public class BudgetResource {
       budget.category = category;
     }
     budget.limitAmount = request.limitAmount;
+    budget.account = account;
     budget.persist();
+    budgetSync.sync(budget);
     return budget;
   }
 
@@ -114,11 +147,15 @@ public class BudgetResource {
     if (budget == null || !budget.user.id.equals(user.id)) {
       throw new NotFoundException();
     }
+    budgetSync.clear(budget);
     budget.delete();
   }
 
   public static class UpsertBudgetRequest {
     @NotNull public Long categoryId;
     @NotNull public BigDecimal limitAmount;
+
+    /** Optional projection target — when null, no transaction is projected. */
+    public Long accountId;
   }
 }
