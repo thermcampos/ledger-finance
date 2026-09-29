@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Link to budgets and transactions with projected transaction based on account;
 
+```
+# Docker images
+- ghcr.io/thermcampos/ledger-finance/frontend:v2026.09.29.8
+- ghcr.io/thermcampos/ledger-finance/backend:v2026.09.29.4
+```
+
 ---
 
 ## 2026-09-14
@@ -21,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Overview page accounts to display in the same order as above and balance descending;
 
 ```
-Docker images
+# Docker images
 - ghcr.io/thermcampos/ledger-finance/frontend:v2026.09.14.7
 ```
 
