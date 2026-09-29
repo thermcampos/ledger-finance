@@ -1020,7 +1020,7 @@ export default function CardBills() {
               const color = t.category?.colorHex || categoryColors[catName] || '#8B92A0';
               const isMarked = markedIds.has(t.id);
               const toggleMarked = () => {
-                if (!isReviewing) return;
+                if (!isReviewing || t.linkedBudget) return;
                 setMarkedIds((prev) => {
                   const next = new Set(prev);
                   if (next.has(t.id)) {
@@ -1036,7 +1036,10 @@ export default function CardBills() {
                   className={`txn-row ${isReviewing ? 'reviewable' : ''} ${isMarked ? 'marked' : ''}`}
                   key={t.id}
                   onClick={toggleMarked}
-                  style={{ cursor: isReviewing ? 'pointer' : undefined }}
+                  style={{
+                    cursor: isReviewing && !t.linkedBudget ? 'pointer' : undefined,
+                    borderStyle: t.linkedBudget ? 'dashed' : undefined,
+                  }}
                 >
                   {editingId === t.id ? (
                     <form
@@ -1189,6 +1192,11 @@ export default function CardBills() {
                               {t.seriesInfo}
                             </span>
                           )}
+                          {t.linkedBudget && (
+                            <span className="tag ms-2" style={{ verticalAlign: 'middle' }}>
+                              Budget
+                            </span>
+                          )}
                         </div>
                         <div className="txn-meta">
                           <span>{catName || 'Uncategorized'}</span>
@@ -1212,12 +1220,16 @@ export default function CardBills() {
                             <i className="bi bi-check-lg" />
                           </span>
                         )}
-                        <button className="icon-btn" title="Edit transaction" onClick={() => startEdit(t)}>
-                          <i className="bi bi-pencil" />
-                        </button>
-                        <button className="icon-btn" title="Delete transaction" onClick={() => setConfirmingId(t.id)}>
-                          <i className="bi bi-trash" />
-                        </button>
+                        {!t.linkedBudget && (
+                          <>
+                            <button className="icon-btn" title="Edit transaction" onClick={() => startEdit(t)}>
+                              <i className="bi bi-pencil" />
+                            </button>
+                            <button className="icon-btn" title="Delete transaction" onClick={() => setConfirmingId(t.id)}>
+                              <i className="bi bi-trash" />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </>
                   )}

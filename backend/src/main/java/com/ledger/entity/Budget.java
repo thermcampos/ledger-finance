@@ -22,6 +22,15 @@ public class Budget extends PanacheEntityBase {
   @JoinColumn(name = "category_id")
   public Category category;
 
+  /**
+   * Optional projection target. When set, BudgetProjectionSyncService maintains one
+   * system-generated Transaction on this account, dated on the last day of the current month,
+   * holding the amount still available under this budget. Null means no projection.
+   */
+  @ManyToOne
+  @JoinColumn(name = "account_id")
+  public Account account;
+
   @Column(name = "limit_amount", precision = 14, scale = 2, nullable = false)
   public BigDecimal limitAmount;
 }

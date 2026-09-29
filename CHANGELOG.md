@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## 2026-09-29
+
+### Added
+- Link to budgets and transactions with projected transaction based on account;
+
+---
+
 ## 2026-09-14
 
 ### Changed

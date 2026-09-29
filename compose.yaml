@@ -1,7 +1,7 @@
 ---
 
 services:
-  ledger_db:
+  ledger-db:
     image: postgres:16
     container_name: ledger-db
     environment:
@@ -10,49 +10,42 @@ services:
       POSTGRES_DB: ledger
     ports:
       - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ledger"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    networks:
-      - ledger-network
+      interval: 1m30s
+      timeout: 15s
+      retries: 3
+      start_period: 10s
 
-  ledger_backend:
+  ledger-backend:
     container_name: ledger-backend
     depends_on:
-      ledger_db:
-        condition: service_started
+      ledger-db:
+        condition: service_healthy
     environment:
       POSTGRES_DB: ledger
-      POSTGRES_HOST: ledger_db
+      POSTGRES_HOST: ledger-db
       POSTGRES_USER: ledger
       POSTGRES_PASSWORD: ledger
       POSTGRES_PORT: 5432
       CORS_ALLOWED_ORIGINS: http://localhost:5173
-      HOME: /tmp
     user: "${UID:-1000}:${GID:-1000}"
     ports:
       - "8080:8080"
       - "5005:5005"
     image: maven:3.9.12-eclipse-temurin-21
-    entrypoint: 'mvn -Dmaven.repo.local=/mvn-repo/repository quarkus:dev -Dquarkus.http.host=0.0.0.0'
+    entrypoint: './mvnw -ntp quarkus:dev -Dquarkus.http.host=0.0.0.0'
     working_dir: /app
     volumes:
       - "./backend:/app"
-      - "${HOME}/.m2:/mvn-repo"
     healthcheck:
       test: curl -f http://localhost:8080/q/health
       interval: 1m30s
       timeout: 15s
       retries: 3
       start_period: 10s
-    networks:
-      - ledger-network
 
-  ledger_frontend:
+  ledger-frontend:
     image: node:22.14-bookworm-slim
     volumes: 
       - "./frontend:/app"
@@ -62,20 +55,33 @@ services:
     ports:
       - "5173:5173"
     environment:
-      BACKEND_HOST: ledger_backend
+      BACKEND_HOST: ledger-backend
+      NGROK: 1
+      VITE_BACKEND_SERVER: "/api"
     entrypoint: sh -c "npm i --no-update-notifier && NGROK=1 npm run dev -- --host"
     depends_on:
-      - ledger_backend
+      ledger-backend:
+        condition: service_healthy
     healthcheck:
       test: timeout 10s bash -c 'true > /dev/tcp/127.0.0.1/5173' || exit 1
       interval: 1m30s
       timeout: 15s
       retries: 3
       start_period: 10s
-    networks:
-      - ledger-network
 
-volumes:
-  pgdata:
-networks:
-  ledger-network:
+  ledger-ngrok:
+    container_name: ledger-ngrok
+    image: ngrok/ngrok:3-alpine
+    restart: unless-stopped
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:?NGROK_AUTHTOKEN must be set}
+    command:
+      - http
+      - --url=https://flattop-depth-dropper.ngrok-free.dev
+      - ledger-frontend:5173
+    ports:
+      - "4040:4040"
+    depends_on:
+      ledger-frontend:
+        condition: service_healthy
+

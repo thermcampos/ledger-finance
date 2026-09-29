@@ -80,6 +80,17 @@ public class Transaction extends PanacheEntityBase {
   public Account linkedCard;
 
   /**
+   * Only set on a system-generated "budget projection" row — the Budget it represents the
+   * still-available amount for. Maintained exclusively by BudgetProjectionSyncService;
+   * TransactionResource rejects direct update/delete on a transaction that has this set, and
+   * budget spend aggregations must exclude these rows or the projection would count as its
+   * own spend.
+   */
+  @ManyToOne
+  @JoinColumn(name = "linked_budget_id")
+  public Budget linkedBudget;
+
+  /**
    * Set on both rows of a transfer — the other side of the pair (source row's peer is the target
    * row and vice versa). A negative amount marks this row as the source (money left this account,
    * moved to peer.account); positive marks it as the target. Maintained by TransactionResource: an

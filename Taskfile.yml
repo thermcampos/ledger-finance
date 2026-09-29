@@ -1,0 +1,12 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: '3'
+
+tasks:
+  dev-up:
+    desc: Starts database, API and web app locally
+    cmd: doppler run --project ledger-finance --config dev -- docker compose -f compose.yaml up -d
+
+  dev-down:
+    desc: Stops and remove database, API and web app containers
+    cmd: export NGROK_AUTHTOKEN=1 && docker compose -f compose.yaml down -v --remove-orphans 
