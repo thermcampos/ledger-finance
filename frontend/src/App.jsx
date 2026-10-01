@@ -16,6 +16,7 @@ import Accounts from './pages/Accounts';
 import CreditCards from './pages/CreditCards';
 import CardBills from './pages/CardBills';
 import Categories from './pages/Categories';
+import Report from './pages/Report';
 import Profile from './pages/Profile';
 
 // Defers the location Routes renders against until inside a view
@@ -160,6 +161,15 @@ export default function App() {
         element={
           <ProtectedLayout>
             <Categories />
+          </ProtectedLayout>
+        }
+      />
+
+      <Route
+        path="/report"
+        element={
+          <ProtectedLayout>
+            <Report />
           </ProtectedLayout>
         }
       />
