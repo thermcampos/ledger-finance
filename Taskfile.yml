@@ -3,6 +3,14 @@
 version: '3'
 
 tasks:
+  db-up:
+    desc: Starts Postgres database container
+    cmd: export NGROK_AUTHTOKEN=1 && docker compose -f compose.yaml up -d ledger-db
+
+  db-down:
+    desc: Stops and remove Postgres database container
+    cmd: export NGROK_AUTHTOKEN=1 && docker compose -f compose.yaml down ledger-db -v --remove-orphans
+
   dev-up:
     desc: Starts database, API and web app locally
     cmd: doppler run --project ledger-finance --config dev -- docker compose -f compose.yaml up -d

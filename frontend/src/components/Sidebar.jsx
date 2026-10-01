@@ -10,6 +10,7 @@ const links = [
   { to: '/credit-cards', label: 'Credit Cards', icon: 'bi-credit-card' },
   { to: '/card-bills', label: 'Card Bills', icon: 'bi-receipt' },
   { to: '/categories', label: 'Categories', icon: 'bi-tags' },
+  { to: '/report', label: 'Report', icon: 'bi-graph-up-arrow' },
   { to: '/profile', label: 'Profile', icon: 'bi-person' },
 ];
 
