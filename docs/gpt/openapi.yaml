@@ -1,0 +1,347 @@
+openapi: 3.0.3
+info:
+  title: Ledger — read-only finance API for LLMs
+  version: "1.0.0"
+  description: >-
+    Read-only access to the user's personal ledger: accounts, balances, budgets,
+    transactions, cashflow and credit card bills. All monetary amounts are JSON
+    numbers in the account currency; expenses are reported as positive magnitudes
+    except transaction amounts, which are signed (negative = money out). Dates are
+    ISO-8601. System-generated projection rows are already excluded everywhere.
+servers:
+  - url: https://ledgerapi.darkroasted.vps-kinghost.net
+paths:
+  /llm/summary:
+    get:
+      operationId: getSummary
+      summary: Account balances, month income vs expenses, and open credit card bills
+      description: >-
+        Use for questions like "what's my balance", "how much did I spend this
+        month overall", or "what's the current credit card bills amount"
+        (sum the cardBills totals and mention each due date).
+      parameters:
+        - name: month
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}$'
+          description: Month to summarize (yyyy-MM). Defaults to the current month.
+      responses:
+        '200':
+          description: Summary for the month
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Summary'
+  /llm/budgets:
+    get:
+      operationId: getBudgets
+      summary: Budgets with live spend, remaining amount and status word
+      description: >-
+        Use for "how much can I still spend on X this month". Find the budget whose
+        category matches; if no budget exists for the category, say so — never
+        invent a number. Status is one of: On track, Near limit, Over budget.
+      parameters:
+        - name: month
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}$'
+          description: Month (yyyy-MM). Defaults to the current month.
+      responses:
+        '200':
+          description: Budgets with live spend
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BudgetEntry'
+  /llm/transactions:
+    get:
+      operationId: getTransactions
+      summary: Raw transactions in a date range, newest first
+      description: >-
+        Use when the user asks about individual purchases or wants a list. Amounts
+        are signed: negative = expense, positive = income. At most 200 rows; when
+        truncated is true, narrow the date range or filters.
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Start date, inclusive (yyyy-MM-dd). Defaults to the 1st of the current month.
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: End date, inclusive (yyyy-MM-dd). Defaults to today.
+        - name: accountId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: categoryId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Case-insensitive substring match on the description.
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+      responses:
+        '200':
+          description: Transactions and a truncation flag
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionsPage'
+  /llm/cashflow/by-month:
+    get:
+      operationId: getCashflowByMonth
+      summary: Income, expenses and net per month
+      description: >-
+        Use for "how much income did I have in the last three months" and similar
+        multi-month comparisons. Returns one entry per month, oldest first,
+        including months with no activity.
+      parameters:
+        - name: months
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 3
+            minimum: 1
+            maximum: 24
+          description: How many months back, including the current one.
+      responses:
+        '200':
+          description: Per-month cashflow
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CashflowMonth'
+  /llm/spending/by-category:
+    get:
+      operationId: getSpendingByCategory
+      summary: Expense totals per category in a date range
+      description: >-
+        Use for "how much have I spent on groceries this month". Sum or pick the
+        matching category; totals are positive magnitudes.
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Start date, inclusive (yyyy-MM-dd). Defaults to the 1st of the current month.
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: End date, inclusive (yyyy-MM-dd). Defaults to today.
+      responses:
+        '200':
+          description: Expense total per category
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategoryTotal'
+  /llm/accounts:
+    get:
+      operationId: getAccounts
+      summary: Reference data — the user's accounts with current balances
+      responses:
+        '200':
+          description: Accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AccountEntry'
+  /llm/categories:
+    get:
+      operationId: getCategories
+      summary: Reference data — the user's categories (id + name)
+      description: Use to resolve a category name to the categoryId used by other endpoints.
+      responses:
+        '200':
+          description: Categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategoryEntry'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: API token created on the Profile page (starts with "led_").
+  schemas:
+    Summary:
+      type: object
+      properties:
+        month:
+          type: string
+          example: "2026-10"
+        accounts:
+          type: array
+          items:
+            $ref: '#/components/schemas/AccountEntry'
+        income:
+          type: number
+          description: Total income in the month to date.
+        expenses:
+          type: number
+          description: Total expenses in the month to date (positive magnitude).
+        net:
+          type: number
+          description: income minus expenses.
+        cardBills:
+          type: array
+          description: One entry per open (unpaid) credit card bill.
+          items:
+            $ref: '#/components/schemas/CardBillEntry'
+    AccountEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        institution:
+          type: string
+        kind:
+          type: string
+          enum: [CHECKING, SAVINGS, CREDIT_CARD, INVESTMENT]
+        balance:
+          type: number
+    CardBillEntry:
+      type: object
+      properties:
+        card:
+          type: string
+          description: Name of the credit card account.
+        total:
+          type: number
+          description: Bill amount due (positive magnitude).
+        dueOn:
+          type: string
+          format: date
+    TransactionsPage:
+      type: object
+      properties:
+        transactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransactionEntry'
+        truncated:
+          type: boolean
+          description: True when more rows matched than were returned.
+    TransactionEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+        date:
+          type: string
+          format: date
+        description:
+          type: string
+        amount:
+          type: number
+          description: Signed — negative is money out, positive is money in.
+        account:
+          $ref: '#/components/schemas/AccountRef'
+        category:
+          $ref: '#/components/schemas/CategoryRef'
+    AccountRef:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+    CategoryRef:
+      type: object
+      nullable: true
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+    BudgetEntry:
+      type: object
+      properties:
+        categoryId:
+          type: integer
+        category:
+          type: string
+        limit:
+          type: number
+        spent:
+          type: number
+          description: Spent so far this month (positive magnitude).
+        remaining:
+          type: number
+          description: limit minus spent; negative when over budget.
+        status:
+          type: string
+          enum: [On track, Near limit, Over budget]
+    CashflowMonth:
+      type: object
+      properties:
+        month:
+          type: string
+          example: "2026-10"
+        income:
+          type: number
+        expenses:
+          type: number
+        net:
+          type: number
+    CategoryTotal:
+      type: object
+      properties:
+        categoryId:
+          type: integer
+        category:
+          type: string
+        total:
+          type: number
+          description: Expenses in the range (positive magnitude).
+    CategoryEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+security:
+  - bearerAuth: []

@@ -108,11 +108,10 @@ public class Transaction extends PanacheEntityBase {
 
   /**
    * When this row was inserted — drives "latest added" ordering (e.g. Overview's Recent Activity).
+   * Prod column is TIMESTAMPTZ via Flyway (V5); the entity stays vendor-neutral so H2 tests can
+   * generate the schema. @PrePersist below supplies the value.
    */
-  @Column(
-      name = "created_at",
-      nullable = false,
-      columnDefinition = "TIMESTAMPTZ NOT NULL DEFAULT now()")
+  @Column(name = "created_at", nullable = false)
   public Instant createdAt;
 
   public Boolean completed;

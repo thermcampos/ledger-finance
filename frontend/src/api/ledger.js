@@ -10,6 +10,9 @@ export const UsersApi = {
   updateProfile: (payload) => client.put('/users/me', payload).then((r) => r.data),
   changePassword: (payload) => client.put('/users/me/password', payload).then((r) => r.data),
   history: () => client.get('/users/me/history').then((r) => r.data),
+  listTokens: () => client.get('/users/me/tokens').then((r) => r.data),
+  createToken: (payload) => client.post('/users/me/tokens', payload).then((r) => r.data),
+  removeToken: (id) => client.delete(`/users/me/tokens/${id}`),
 };
 
 export const AccountsApi = {

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## 2026-10-14
+
+### Added
+- LLM access v0: read-only API tokens (Profile page → API tokens panel) plus a curated
+  `/llm/**` API — summary, transactions (with server-side date-range filtering), budgets,
+  cashflow by month, spending by category, accounts and categories — engineered for ChatGPT
+  Custom GPT Actions (see `docs/gpt/openapi.yaml` and `docs/gpt/instructions.md`). Tokens are
+  SHA-256-hashed at rest, valid only under `/llm/**`, rate-limited per token, and revocable.
+
 ## 2026-09-29
 
 ### Added
