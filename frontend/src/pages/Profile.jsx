@@ -64,6 +64,47 @@ export default function Profile() {
     },
   });
 
+  const tokensQuery = useQuery({ queryKey: ['api-tokens'], queryFn: UsersApi.listTokens });
+  const tokens = tokensQuery.data || [];
+
+  const [tokenName, setTokenName] = useState('');
+  const [createdToken, setCreatedToken] = useState(null);
+  const [copiedToken, setCopiedToken] = useState(false);
+  const [revokingId, setRevokingId] = useState(null);
+
+  const createTokenMutation = useMutation({
+    mutationFn: UsersApi.createToken,
+    onSuccess: (response) => {
+      setCreatedToken(response);
+      setCopiedToken(false);
+      setTokenName('');
+      queryClient.invalidateQueries({ queryKey: ['api-tokens'] });
+    },
+  });
+
+  const revokeTokenMutation = useMutation({
+    mutationFn: UsersApi.removeToken,
+    onSuccess: () => {
+      setRevokingId(null);
+      queryClient.invalidateQueries({ queryKey: ['api-tokens'] });
+    },
+  });
+
+  const handleCreateToken = (e) => {
+    e.preventDefault();
+    createTokenMutation.mutate({ name: tokenName, scope: 'read' });
+  };
+
+  const copyCreatedToken = async () => {
+    if (!createdToken) return;
+    try {
+      await navigator.clipboard.writeText(createdToken.token);
+      setCopiedToken(true);
+    } catch {
+      setCopiedToken(false);
+    }
+  };
+
   const handlePasswordSubmit = (e) => {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
@@ -183,6 +224,121 @@ export default function Profile() {
             </div>
           )}
         </form>
+      </div>
+
+      <div className="panel p-4 mt-4">
+        <div className="eyebrow mb-3">API tokens</div>
+        <div className="text-faint mb-3" style={{ fontSize: 12.5 }}>
+          Tokens let an LLM you configure (e.g. a ChatGPT Custom GPT) read your finances through
+          the /llm API. Read-only, one token per integration, revocable any time.
+        </div>
+        <form onSubmit={handleCreateToken} className="mb-3">
+          <div className="row g-3 align-items-end">
+            <div className="col-md-4">
+              <label className="eyebrow d-block mb-2">Name</label>
+              <input
+                className="form-control form-control-sm"
+                placeholder="e.g. ChatGPT"
+                value={tokenName}
+                onChange={(e) => setTokenName(e.target.value)}
+                required
+              />
+            </div>
+            <div className="col-md-3">
+              <label className="eyebrow d-block mb-2">Scope</label>
+              <select className="form-select form-select-sm" value="read" disabled>
+                <option value="read">Read</option>
+                <option value="read-write">Read + Write (coming soon)</option>
+              </select>
+            </div>
+            <div className="col-md-3">
+              <button type="submit" className="btn btn-jade btn-sm w-100" disabled={createTokenMutation.isPending}>
+                {createTokenMutation.isPending ? 'Creating…' : 'Create token'}
+              </button>
+            </div>
+          </div>
+          {createTokenMutation.isError && (
+            <div className="mt-2" style={{ fontSize: 11.5, color: 'var(--red)' }}>
+              {createTokenMutation.error?.response?.data?.message || 'Could not create token.'}
+            </div>
+          )}
+        </form>
+
+        {createdToken && (
+          <div className="mb-3 p-3" style={{ border: '1px solid var(--border)' }}>
+            <div className="eyebrow mb-2">Your new token — shown once, copy it now</div>
+            <div className="d-flex gap-2 align-items-center">
+              <code className="flex-grow-1" style={{ fontSize: 12, wordBreak: 'break-all' }}>
+                {createdToken.token}
+              </code>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={copyCreatedToken}>
+                {copiedToken ? 'Copied' : 'Copy'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {tokensQuery.isLoading && (
+          <div className="text-muted-c" style={{ fontSize: 13 }}>
+            Loading…
+          </div>
+        )}
+        {!tokensQuery.isLoading && tokens.length === 0 && (
+          <div className="text-muted-c" style={{ fontSize: 13 }}>
+            No tokens yet.
+          </div>
+        )}
+        {tokens.map((t, i) => (
+          <div
+            key={t.id}
+            className="py-2"
+            style={{ borderTop: i > 0 || createdToken ? '1px solid var(--border)' : 'none' }}
+          >
+            {revokingId === t.id ? (
+              <div>
+                <div className="mb-2" style={{ fontSize: 13 }}>
+                  Revoke &ldquo;{t.name}&rdquo;? Any integration using it stops working immediately.
+                </div>
+                <div className="d-flex gap-2">
+                  <button
+                    className="btn btn-red btn-sm"
+                    disabled={revokeTokenMutation.isPending}
+                    onClick={() => revokeTokenMutation.mutate(t.id)}
+                  >
+                    {revokeTokenMutation.isPending ? 'Revoking…' : 'Revoke'}
+                  </button>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setRevokingId(null)}>
+                    Cancel
+                  </button>
+                </div>
+                {revokeTokenMutation.isError && (
+                  <div className="mt-2" style={{ fontSize: 11.5, color: 'var(--red)' }}>
+                    Could not revoke this token.
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="d-flex align-items-center justify-content-between">
+                <span style={{ fontSize: 13 }}>{t.name}</span>
+                <span className="d-flex align-items-center gap-3">
+                  <span className="text-faint" style={{ fontSize: 11.5, whiteSpace: 'nowrap' }}>
+                    {t.lastUsedAt
+                      ? `Last used ${new Date(t.lastUsedAt).toLocaleDateString()}`
+                      : 'Never used'}
+                    {' · '}expires {new Date(t.expiresAt).toLocaleDateString()}
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => setRevokingId(t.id)}
+                  >
+                    Revoke
+                  </button>
+                </span>
+              </div>
+            )}
+          </div>
+        ))}
       </div>
 
       <div className="panel p-4 mt-4">

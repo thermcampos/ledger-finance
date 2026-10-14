@@ -142,6 +142,20 @@ public class CreditCardBillSyncService {
   }
 
   /**
+   * Totals per due date for a card's open (unpaid, non-zero) bills — the same grouping the sync
+   * above mirrors onto the payment account, so bill amounts stay consistent whether or not the
+   * card has a linked payment account. Used by the /llm summary endpoint.
+   */
+  public Map<LocalDate, BigDecimal> unpaidBillTotals(Account card) {
+    if (card.dueDayOfMonth == null) {
+      return Map.of();
+    }
+    Map<LocalDate, BigDecimal> groups = groupByBillDueDate(card);
+    groups.entrySet().removeIf(e -> e.getValue().signum() == 0 || isPaid(card, e.getKey()));
+    return groups;
+  }
+
+  /**
    * Rolls dueDay forward to its next on-or-after occurrence relative to `from`, clamping for months
    * shorter than dueDay — mirrors the frontend's utils/date.js#nextDueDate exactly. Package-private
    * so TransactionResource can reuse it for bill-offset math on repeat/ installment series (see
