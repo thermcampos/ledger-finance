@@ -43,12 +43,13 @@ export default function BudgetTransactionList({ yearMonth, categoryId }) {
 
   // Cumulative spend in display order (newest first): each row shows the
   // running total of the amounts listed so far, so the last row matches the
-  // budget card's "spent" figure.
+  // budget card's "spent" figure. Amounts are signed (expenses negative,
+  // refunds positive), so negate: expenses add to the total, refunds subtract.
   const cumulativeById = useMemo(() => {
     const map = new Map();
     let total = 0;
     for (const t of data) {
-      total += Math.abs(Number(t.amount));
+      total -= Number(t.amount);
       map.set(t.id, total);
     }
     return map;

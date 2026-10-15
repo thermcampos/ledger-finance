@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Budgets display the right cumulative values and remaining value;
 
+### Fixed
+- Wrong cumulative values on budget page;
+
 ## 2026-10-14
 
 ### Added
