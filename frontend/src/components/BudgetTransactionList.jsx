@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { BudgetsApi } from '../api/ledger';
-import { parseLocalDate } from '../utils/date';
+import { parseLocalDate, isoDate } from '../utils/date';
 
 function money(amount) {
   const value = Math.abs(Number(amount)).toLocaleString('en-US', {
@@ -31,15 +31,23 @@ export default function BudgetTransactionList({ yearMonth, categoryId }) {
     enabled: !!categoryId,
   });
 
+  // Drop future-dated rows (pre-generated repeat/installment occurrences):
+  // they don't count toward the month's spent, so listing them would make the
+  // cumulative diverge from the budget card total.
+  const visible = useMemo(() => {
+    const today = isoDate(new Date());
+    return data.filter((t) => t.occurredOn <= today);
+  }, [data]);
+
   const grouped = useMemo(() => {
     const map = new Map();
-    for (const t of data) {
+    for (const t of visible) {
       const label = dayLabel(t.occurredOn);
       if (!map.has(label)) map.set(label, []);
       map.get(label).push(t);
     }
     return Array.from(map.entries());
-  }, [data]);
+  }, [visible]);
 
   // Cumulative spend in display order (newest first): each row shows the
   // running total of the amounts listed so far, so the last row matches the
@@ -48,12 +56,12 @@ export default function BudgetTransactionList({ yearMonth, categoryId }) {
   const cumulativeById = useMemo(() => {
     const map = new Map();
     let total = 0;
-    for (const t of data) {
+    for (const t of visible) {
       total -= Number(t.amount);
       map.set(t.id, total);
     }
     return map;
-  }, [data]);
+  }, [visible]);
 
   if (isLoading) return <div className="text-muted-c">Loading…</div>;
   if (grouped.length === 0) return <div className="text-muted-c">No transactions.</div>;
