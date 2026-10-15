@@ -47,8 +47,8 @@ public class BudgetResource {
 
   /**
    * Per-category spend for the given month, derived from transactions rather than stored on the
-   * Budget row — so it always reflects the live ledger. Only negative (expense) transactions are
-   * summed; positive amounts (income, transfers in) are excluded from "spent".
+   * Budget row — so it always reflects the live ledger. Amounts are summed signed: expenses
+   * (negative) add to "spent", positive amounts (refunds) subtract from it.
    */
   @GET
   @Path("/month/{yearMonth}/category/{categoryId}/transactions")
@@ -90,7 +90,6 @@ public class BudgetResource {
                 + "FROM Transaction t "
                 + "WHERE t.account.user.id = :userId "
                 + "AND t.category IS NOT NULL "
-                + "AND t.amount < 0 "
                 + "AND t.linkedBudget IS NULL "
                 + "AND t.occurredOn BETWEEN :start AND :end "
                 + "GROUP BY t.category.id, t.category.name",

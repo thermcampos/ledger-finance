@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BudgetsApi, CategoriesApi, AccountsApi } from '../api/ledger';
 import { localYearMonth } from '../utils/date';
 import { useStickyHeader } from '../hooks/useStickyHeader';
+import { iconClassName } from '../constants/categoryIcons';
 import BudgetTransactionList from '../components/BudgetTransactionList';
 
 const categoryColors = {
@@ -254,7 +255,7 @@ export default function Budgets() {
           const spent = spendByCategory[b.category?.id] || 0;
           const remaining = Number(b.limitAmount) - spent;
           const st = statusFor(spent, Number(b.limitAmount));
-          const pct = Math.min((spent / Number(b.limitAmount)) * 100, 100);
+          const pct = Math.min(Math.max((spent / Number(b.limitAmount)) * 100, 0), 100);
           const color = b.category?.colorHex || categoryColors[b.category?.name] || '#8B92A0';
           return (
             <div className="col-md-6 col-lg-4" key={b.id}>
@@ -294,7 +295,12 @@ export default function Budgets() {
                   <>
                     <div className="d-flex justify-content-between align-items-start">
                       <div className="budget-name">
-                        <span className="cat-tick" style={{ background: color }} />
+                        <span
+                          className="txn-icon"
+                          style={{ color, width: 28, height: 28, fontSize: 13 }}
+                        >
+                          <i className={iconClassName(b.category?.icon)} />
+                        </span>
                         {b.category?.name}
                       </div>
                       <div className="d-flex gap-1">

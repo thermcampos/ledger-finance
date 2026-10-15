@@ -476,7 +476,7 @@ export default function Overview() {
                 const spent = spendByCategory[b.category?.id] || 0;
                 const limit = Number(b.limitAmount);
                 const st = statusColor(spent, limit);
-                const pct = Math.min((spent / limit) * 100, 100);
+                const pct = Math.min(Math.max((spent / limit) * 100, 0), 100);
                 const rawPct = limit > 0 ? Math.round((spent / limit) * 100) : 0;
                 return (
                   <div key={b.id} className="mb-3">
