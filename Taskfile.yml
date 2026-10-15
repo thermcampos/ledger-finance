@@ -3,6 +3,10 @@
 version: '3'
 
 tasks:
+  build-native:
+    desc: Build the backend for GraalVM native image
+    cmd: docker build -t ghcr.io/thermcampos/ledger-finance/backend:latest backend/
+
   db-up:
     desc: Starts Postgres database container
     cmd: export NGROK_AUTHTOKEN=1 && docker compose -f compose.yaml up -d ledger-db
@@ -18,3 +22,23 @@ tasks:
   dev-down:
     desc: Stops and remove database, API and web app containers
     cmd: export NGROK_AUTHTOKEN=1 && docker compose -f compose.yaml down -v --remove-orphans 
+
+  quality-check-backend:
+    desc: Run tests for the backend (needs java 21.0.2-graalce)
+    dir: backend
+    cmd: |
+      bash -c '
+        source $HOME/.sdkman/bin/sdkman-init.sh && \
+        sdk use java 21.0.2-graalce && \
+        ./mvnw clean package -DskipTests && \
+        ./mvnw test
+      '
+
+  quality-check-frontend:
+    desc: Run tests for the frontend
+    dir: frontend
+    cmds:
+      - npm ci
+      - npm run build
+      - npm run test
+

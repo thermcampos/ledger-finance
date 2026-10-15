@@ -28,8 +28,6 @@ import java.util.List;
 @Produces(MediaType.APPLICATION_JSON)
 public class ApiTokenResource {
 
-  private static final SecureRandom RANDOM = new SecureRandom();
-
   @Inject CurrentUserService currentUser;
 
   @POST
@@ -41,8 +39,10 @@ public class ApiTokenResource {
       throw new WebApplicationException("Only the 'read' scope is available", 400);
     }
 
+    // No static SecureRandom field: it would be baked into the native image heap with a
+    // cached seed. Token creation is rare, so per-call construction is fine.
     byte[] bytes = new byte[32];
-    RANDOM.nextBytes(bytes);
+    new SecureRandom().nextBytes(bytes);
     String plaintext = ApiTokenAuthMechanism.TOKEN_PREFIX + HexFormat.of().formatHex(bytes);
 
     ApiToken token = new ApiToken();
