@@ -41,6 +41,19 @@ export default function BudgetTransactionList({ yearMonth, categoryId }) {
     return Array.from(map.entries());
   }, [data]);
 
+  // Cumulative spend in display order (newest first): each row shows the
+  // running total of the amounts listed so far, so the last row matches the
+  // budget card's "spent" figure.
+  const cumulativeById = useMemo(() => {
+    const map = new Map();
+    let total = 0;
+    for (const t of data) {
+      total += Math.abs(Number(t.amount));
+      map.set(t.id, total);
+    }
+    return map;
+  }, [data]);
+
   if (isLoading) return <div className="text-muted-c">Loading…</div>;
   if (grouped.length === 0) return <div className="text-muted-c">No transactions.</div>;
 
@@ -79,9 +92,7 @@ export default function BudgetTransactionList({ yearMonth, categoryId }) {
                 >
                   {money(t.amount)}
                 </div>
-                {t.runningBalance != null && (
-                  <div className="txn-balance">{money(t.runningBalance)}</div>
-                )}
+                <div className="txn-balance">{money(cumulativeById.get(t.id) ?? 0)}</div>
               </div>
             </div>
           ))}

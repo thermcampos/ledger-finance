@@ -252,6 +252,7 @@ export default function Budgets() {
       <div className="row g-3">
         {budgets.map((b) => {
           const spent = spendByCategory[b.category?.id] || 0;
+          const remaining = Number(b.limitAmount) - spent;
           const st = statusFor(spent, Number(b.limitAmount));
           const pct = Math.min((spent / Number(b.limitAmount)) * 100, 100);
           const color = b.category?.colorHex || categoryColors[b.category?.name] || '#8B92A0';
@@ -319,7 +320,15 @@ export default function Budgets() {
                     <div className="track">
                       <div className="track-fill" style={{ width: `${pct}%`, background: st.color }} />
                     </div>
-                    <div className={`budget-status ${st.cls}`}>{st.label}</div>
+                    <div className="d-flex justify-content-between align-items-baseline" style={{ marginTop: 8 }}>
+                      <div className={`budget-status ${st.cls}`} style={{ marginTop: 0 }}>{st.label}</div>
+                      <div
+                        className="mono"
+                        style={{ fontSize: 11.5, color: remaining < 0 ? 'var(--red)' : 'var(--text-muted)' }}
+                      >
+                        {remaining < 0 ? '-' : ''}{money(remaining)} left
+                      </div>
+                    </div>
                     {b.account && (
                       <div className="text-faint" style={{ fontSize: 11.5, marginTop: 4 }}>
                         Projects to {b.account.name}
