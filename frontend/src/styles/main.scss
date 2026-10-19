@@ -773,6 +773,20 @@ body {
   background: var(--surface-2);
   border: 1px solid var(--border);
   color: var(--text);
+  font-size: 15px;
+  padding: 8px 12px;
+}
+.form-control-sm,
+.form-select-sm {
+  font-size: 14px;
+  padding: 6px 10px;
+}
+/* iOS Safari auto-zooms on focus when a control's font-size is below 16px */
+@media (pointer: coarse) {
+  .form-control,
+  .form-select {
+    font-size: 16px;
+  }
 }
 .form-control::placeholder {
   color: var(--text-faint);
