@@ -5,6 +5,7 @@ import { AccountsApi, CategoriesApi, TransactionsApi } from '../api/ledger';
 import { iconClassName } from '../constants/categoryIcons';
 import { parseLocalDate, startOfDay } from '../utils/date';
 import { balanceAsOf, sortChronologically } from '../utils/balance';
+import { matchesTransactionSearch } from '../utils/search';
 import { useStickyHeader } from '../hooks/useStickyHeader';
 import { toCsv, downloadCsv } from '../utils/export';
 
@@ -542,15 +543,7 @@ export default function Transactions() {
     const { start, end } = rangeBounds(filterRange, filterStartDate, filterEndDate, monthOffset);
     return txnQueries
       .flatMap((q) => q.data || [])
-      .filter((t) => {
-        const term = search.trim().toLowerCase();
-        if (!term) return true;
-        return (
-          t.description.toLowerCase().includes(term) ||
-          (t.category?.name || '').toLowerCase().includes(term) ||
-          String(t.amount).toLowerCase().includes(term)
-        );
-      })
+      .filter((t) => matchesTransactionSearch(t, search))
       .filter((t) => !filterAccountId || String(t.account?.id) === filterAccountId)
       .filter((t) => !filterCategoryId || String(t.category?.id) === filterCategoryId)
       .filter((t) => !start || parseLocalDate(t.occurredOn) >= start)

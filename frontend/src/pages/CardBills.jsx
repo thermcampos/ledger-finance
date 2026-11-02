@@ -9,6 +9,7 @@ import {
 } from '../api/ledger';
 import { parseLocalDate, startOfDay, isoDate, nextDueDate } from '../utils/date';
 import { toCsv, downloadCsv } from '../utils/export';
+import { matchesTransactionSearch } from '../utils/search';
 import { iconClassName } from '../constants/categoryIcons';
 import { useStickyHeader } from '../hooks/useStickyHeader';
 import {
@@ -320,14 +321,7 @@ export default function CardBills() {
   };
 
   const filteredBillTransactions = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    if (!term) return billTransactions;
-    return billTransactions.filter(
-      (t) =>
-        t.description.toLowerCase().includes(term) ||
-        (t.category?.name || '').toLowerCase().includes(term) ||
-        String(t.amount).toLowerCase().includes(term)
-    );
+    return billTransactions.filter((t) => matchesTransactionSearch(t, search));
   }, [billTransactions, search]);
 
   const [showForm, setShowForm] = useState(false);
