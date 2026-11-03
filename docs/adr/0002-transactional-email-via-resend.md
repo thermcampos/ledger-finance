@@ -51,3 +51,9 @@ still respects the ledger design language, inside a GraalVM native image.
 - One new external dependency at runtime (api.resend.com); failures are per-user and logged,
   never fatal to the app.
 - Any future email reuses `ResendClient`, `EmailPalette` and the Qute layout.
+- **DNS gotcha (2026-11-03):** the app hostname resolved only through the
+  `*.darkroasted.vps-kinghost.net` wildcard. Adding Resend's records *under* it
+  (`resend._domainkey.ledger-finance…`, `send.ledger-finance…`) makes `ledger-finance…` exist in
+  the zone, and a wildcard never matches an existing name. The app then stopped resolving. The fix is an
+  explicit `ledger-finance A 191.252.159.227`. Keep that record, and give any other
+  wildcard-served hostname its own A record before adding records beneath it.

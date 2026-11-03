@@ -22,7 +22,7 @@ Status: **planned** (agreed 2026-11-03). Decisions: [ADR-0001 scheduled jobs](ad
 | 1 | Server-side budget spend & status | `in-progress` | | Implemented, gates green; awaiting owner check of Budgets page + commit |
 | 2 | Opt-in flags + UI | `in-progress` | | Implemented, gates green; awaiting owner theme check, V18 on prod copy, commit |
 | 3 | Email infrastructure (Resend client) | `done` | `main` @ 540e8fc | Native build green in CI; key in prod pod |
-| 4 | Digest content + "Send test email" | `in-progress` | | Implemented, tests green; awaiting real send + client rendering check, commit. Started before 1/2 closed (owner's call) |
+| 4 | Digest content + "Send test email" | `in-progress` | `main` @ ea5bd8b | Deployed; real email received and looks right in Hotmail web. Awaiting Gmail (mobile + desktop) check |
 | 5 | Scheduled daily send | `todo` | | Needs 4 |
 
 ### Log
@@ -79,6 +79,15 @@ Status: **planned** (agreed 2026-11-03). Decisions: [ADR-0001 scheduled jobs](ad
     Needs `@Consumes(WILDCARD)`: the class-level JSON `@Consumes` 415s a bodyless POST.
   - Qute gotcha: a boolean `hasX()` accessor shadows a sibling `x` property in templates — hence
     `perDayAvailable`, not `hasPerDay`.
+- 2026-11-03 — Change 4 deployed (ea5bd8b). Incident: the app hostname stopped resolving. It had
+  relied on the `*.darkroasted.vps-kinghost.net` wildcard, and the Resend records under
+  `ledger-finance.…` (`resend._domainkey`, `send`) made the name exist, so the wildcard no longer
+  matched it (NODATA). The PWA service worker kept serving a stale shell, and icon fonts (not
+  precached) failed with `ERR_NAME_NOT_RESOLVED`. Fixed by an explicit
+  `ledger-finance A 191.252.159.227`. DMARC (`p=none`) was also missing despite the 2026-11-03
+  entry above and has now been added. A real test email arrived and renders well in Hotmail web,
+  but it **landed in Junk** (the owner marked it safe). Keep an eye on placement once the
+  scheduled sends start (change 5).
 
 ## Feature
 
@@ -207,8 +216,8 @@ Five changes, in order. Each one leaves `main` deployable and is useful/testable
 - **Profile page:** "Send test email" button next to the toggle, inline success/error text.
 
 **Done when:**
-- [ ] A real test email arrives at `ricardompcampos@hotmail.com`
-- [ ] It renders correctly in Outlook/Hotmail web and Gmail (mobile + desktop)
+- [x] A real test email arrives at `ricardompcampos@hotmail.com`
+- [ ] It renders correctly in Outlook/Hotmail web and Gmail (mobile + desktop) (Hotmail web ✓ 2026-11-03; Gmail pending)
 - [x] Snapshot tests (text variant): On track / Near limit / Over budget / last day of month / 1st of month
 
 ### Change 5 — Scheduled daily send
