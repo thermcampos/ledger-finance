@@ -45,6 +45,12 @@ Personal finance app. Read this before making changes — it captures decisions 
 - Terraform state: Cloudflare R2, bucket `ledger-finance`
 - DB backups: Kubernetes CronJob → R2 bucket `ledger-finance-backups`, twice daily
 
+## Active plans
+
+Multi-change features in progress. Before working on one, read its **Progress** section and update it in the same commit as your work.
+
+- **Daily budget digest** — `docs/daily-digest.md` (decisions: `docs/adr/0001-scheduled-jobs-via-cronjob.md`, `docs/adr/0002-transactional-email-via-resend.md`). Remove this entry when the plan's Status is **implemented**.
+
 ## Known gaps / deferred
 
 - Demo login broken: `seed-data.sql` hash uses `$2b$` prefix, Elytron wants `$2a$`. Fix: regenerate hash via `BcryptUtil.bcryptHash`.
