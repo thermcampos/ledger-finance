@@ -4,6 +4,7 @@ import com.ledger.entity.Account;
 import com.ledger.entity.ApiToken;
 import com.ledger.entity.Budget;
 import com.ledger.entity.Category;
+import com.ledger.entity.CreditCardBill;
 import com.ledger.entity.Transaction;
 import com.ledger.entity.User;
 import com.ledger.enums.AccountKind;
@@ -155,6 +156,18 @@ final class LlmTestSupport {
             () -> {
               Account account = Account.findById(accountId);
               account.dueDayOfMonth = dueDayOfMonth;
+            });
+  }
+
+  static void markBillPaid(Long cardAccountId, LocalDate dueDate) {
+    QuarkusTransaction.requiringNew()
+        .run(
+            () -> {
+              CreditCardBill bill = new CreditCardBill();
+              bill.account = Account.findById(cardAccountId);
+              bill.dueDate = dueDate;
+              bill.paid = true;
+              bill.persist();
             });
   }
 }

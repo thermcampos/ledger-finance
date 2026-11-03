@@ -27,12 +27,15 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import org.jboss.logging.Logger;
 
 @Path("/transactions")
 @RolesAllowed("user")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
 public class TransactionResource {
+
+  private static final Logger LOG = Logger.getLogger(TransactionResource.class);
 
   @Inject CurrentUserService currentUser;
 
@@ -50,6 +53,10 @@ public class TransactionResource {
   @POST
   @Transactional
   public List<Transaction> create(@Valid CreateTransactionRequest request) {
+    LOG.infof(
+        "tx-create accountId=%d amount=%s occurredOn=%s billDueDate=%s repeat=%s occurrences=%s",
+        request.accountId, request.amount, request.occurredOn, request.billDueDate, request.repeat,
+        request.occurrences);
     Account account = requireOwnedAccount(request.accountId);
     Category category = request.categoryId != null ? Category.findById(request.categoryId) : null;
 
@@ -91,6 +98,7 @@ public class TransactionResource {
     if (account.kind == AccountKind.CREDIT_CARD) {
       billSync.sync(account);
     }
+    LOG.infof("tx-create done accountId=%d count=%d seriesId=%s", account.id, created.size(), seriesId);
     return created;
   }
 
@@ -98,6 +106,9 @@ public class TransactionResource {
   @Path("/transfer")
   @Transactional
   public List<Transaction> createTransfer(@Valid CreateTransferRequest request) {
+    LOG.infof(
+        "tx-transfer source=%d target=%d amount=%s occurredOn=%s",
+        request.sourceAccountId, request.targetAccountId, request.amount, request.occurredOn);
     Account source = requireOwnedAccount(request.sourceAccountId);
     Account target = requireOwnedAccount(request.targetAccountId);
     if (source.id.equals(target.id)) {
@@ -137,6 +148,7 @@ public class TransactionResource {
 
     billSync.recomputeAccountBalance(source);
     billSync.recomputeAccountBalance(target);
+    LOG.infof("tx-transfer done sourceTxnId=%d targetTxnId=%d", sourceTxn.id, targetTxn.id);
     return List.of(sourceTxn, targetTxn);
   }
 
@@ -164,6 +176,9 @@ public class TransactionResource {
   @Path("/batch")
   @Transactional
   public List<Transaction> batchCreate(@Valid BatchImportRequest request) {
+    LOG.infof(
+        "tx-batch accountId=%d rows=%d billDueDate=%s",
+        request.accountId, request.rows.size(), request.billDueDate);
     Account account = requireOwnedAccount(request.accountId);
     if (account.kind == AccountKind.CREDIT_CARD && request.billDueDate == null) {
       throw new WebApplicationException("billDueDate required for credit card imports", 400);
@@ -200,6 +215,7 @@ public class TransactionResource {
     if (account.kind == AccountKind.CREDIT_CARD) {
       billSync.sync(account);
     }
+    LOG.infof("tx-batch done accountId=%d created=%d", account.id, created.size());
     return created;
   }
 
@@ -207,14 +223,21 @@ public class TransactionResource {
   @Path("/{id}")
   @Transactional
   public Transaction update(@PathParam("id") Long id, @Valid UpdateTransactionRequest request) {
+    LOG.infof(
+        "tx-update id=%d amount=%s occurredOn=%s billDueDate=%s categoryId=%s scope=%s",
+        id, request.amount, request.occurredOn, request.billDueDate, request.categoryId,
+        request.scope);
     Transaction txn = requireOwnedTransaction(id);
     if (txn.linkedCard != null) {
+      LOG.warnf("tx-update id=%d rejected: card bill projection row (linkedCard=%d)", id, txn.linkedCard.id);
       throw new WebApplicationException("Cannot directly edit a credit card bill transaction", 400);
     }
     if (txn.linkedBudget != null) {
+      LOG.warnf("tx-update id=%d rejected: budget projection row (linkedBudget=%d)", id, txn.linkedBudget.id);
       throw new WebApplicationException("Cannot directly edit a budget projection transaction", 400);
     }
     if (txn.transferPeer != null) {
+      LOG.infof("tx-update id=%d applying transfer mirror (peer=%d)", id, txn.transferPeer.id);
       applyToTransfer(txn, request);
       billSync.recomputeAccountBalance(txn.account);
       billSync.recomputeAccountBalance(txn.transferPeer.account);
@@ -223,6 +246,7 @@ public class TransactionResource {
 
     CreditCardBill paidBill = CreditCardBill.findByPaymentTransactionId(txn.id);
     if (paidBill != null) {
+      LOG.infof("tx-update id=%d is the payment of bill=%d, date/flags only", id, paidBill.id);
       return updatePaymentTransaction(txn, request, paidBill);
     }
 
@@ -244,6 +268,7 @@ public class TransactionResource {
     if (txn.account.kind == AccountKind.CREDIT_CARD) {
       billSync.sync(txn.account);
     }
+    LOG.infof("tx-update done id=%d scope=%s", txn.id, scope);
     return txn;
   }
 
@@ -292,47 +317,63 @@ public class TransactionResource {
    */
   private void applyToSeries(Transaction anchor, UpdateTransactionRequest request) {
     List<Transaction> rest = seriesFrom(anchor);
+    Category category = request.categoryId != null ? Category.findById(request.categoryId) : null;
+    Integer offsetMonths = billOffsetMonths(anchor.account, anchor.occurredOn, request.billDueDate);
+    BigDecimal[] amounts = splitAmount(request.amount, anchor.seriesRepeat, rest.size());
+    LocalDate anchorDate = request.occurredOn != null ? request.occurredOn : anchor.occurredOn;
+
     if (anchor.account.kind == AccountKind.CREDIT_CARD) {
-      for (Transaction t : rest) {
-        LocalDate due = effectiveBillDueDate(anchor.account, t);
-        assertNotPaidBill(anchor.account, due);
-      }
-      if (request.billDueDate != null && isPaidBill(anchor.account, request.billDueDate)) {
+      assertSeriesNotTouchingPaidBills(anchor, rest, amounts, offsetMonths, anchorDate);
+    }
+
+    for (int i = 0; i < rest.size(); i++) {
+      Transaction t = rest.get(i);
+      t.description = request.description;
+      t.category = category;
+      t.billDueDate =
+          offsetMonths != null ? shiftedBillDueDate(t.account, t.occurredOn, offsetMonths) : null;
+      t.amount = amounts[i];
+      t.completed = request.completed;
+      t.debitAuthorized = request.debitAuthorized;
+    }
+
+    anchor.occurredOn = anchorDate;
+    anchor.completed = request.completed;
+    anchor.debitAuthorized = request.debitAuthorized;
+  }
+
+  /**
+   * Paid bills are frozen with respect to their contents only: a "this and future" edit may change
+   * category, description and flags freely, but a row whose amount or bill membership would change
+   * is rejected when its old or new bill is already paid.
+   */
+  private void assertSeriesNotTouchingPaidBills(
+      Transaction anchor,
+      List<Transaction> rest,
+      BigDecimal[] amounts,
+      Integer offsetMonths,
+      LocalDate anchorDate) {
+    for (int i = 0; i < rest.size(); i++) {
+      Transaction t = rest.get(i);
+      LocalDate oldDue = effectiveBillDueDate(t.account, t);
+      LocalDate newDate = t.id.equals(anchor.id) ? anchorDate : t.occurredOn;
+      LocalDate newStoredDue =
+          offsetMonths != null ? shiftedBillDueDate(t.account, t.occurredOn, offsetMonths) : null;
+      LocalDate newDue =
+          newStoredDue != null
+              ? newStoredDue
+              : (t.account.dueDayOfMonth != null
+                  ? billSync.nextDueDate(t.account.dueDayOfMonth, newDate)
+                  : null);
+      boolean changesBill = t.amount.compareTo(amounts[i]) != 0 || !Objects.equals(oldDue, newDue);
+      if (changesBill && (isPaidBill(t.account, oldDue) || isPaidBill(t.account, newDue))) {
+        LOG.warnf(
+            "tx-update series anchor=%d rejected: paid bill (row=%d oldDue=%s newDue=%s)",
+            anchor.id, t.id, oldDue, newDue);
         throw new WebApplicationException(
             "This bill has already been paid. Delete the payment to edit this transaction.", 400);
       }
     }
-
-    Category category = request.categoryId != null ? Category.findById(request.categoryId) : null;
-    Integer offsetMonths = billOffsetMonths(anchor.account, anchor.occurredOn, request.billDueDate);
-
-    if (anchor.seriesRepeat == RepeatFrequency.INSTALLMENTS) {
-      BigDecimal[] amounts = splitAmount(request.amount, RepeatFrequency.INSTALLMENTS, rest.size());
-      for (int i = 0; i < rest.size(); i++) {
-        Transaction t = rest.get(i);
-        t.description = request.description;
-        t.category = category;
-        t.billDueDate =
-            offsetMonths != null ? shiftedBillDueDate(t.account, t.occurredOn, offsetMonths) : null;
-        t.amount = amounts[i];
-        t.completed = request.completed;
-        t.debitAuthorized = request.debitAuthorized;
-      }
-    } else {
-      for (Transaction t : rest) {
-        t.description = request.description;
-        t.category = category;
-        t.billDueDate =
-            offsetMonths != null ? shiftedBillDueDate(t.account, t.occurredOn, offsetMonths) : null;
-        t.amount = request.amount;
-        t.completed = request.completed;
-        t.debitAuthorized = request.debitAuthorized;
-      }
-    }
-
-    anchor.occurredOn = request.occurredOn != null ? request.occurredOn : anchor.occurredOn;
-    anchor.completed = request.completed;
-    anchor.debitAuthorized = request.debitAuthorized;
   }
 
   /**
@@ -381,12 +422,15 @@ public class TransactionResource {
   @Transactional
   public void delete(
       @PathParam("id") Long id, @QueryParam("scope") @DefaultValue("THIS") EditScope scope) {
+    LOG.infof("tx-delete id=%d scope=%s", id, scope);
     Transaction txn = requireOwnedTransaction(id);
     if (txn.linkedCard != null) {
+      LOG.warnf("tx-delete id=%d rejected: card bill projection row (linkedCard=%d)", id, txn.linkedCard.id);
       throw new WebApplicationException(
           "Cannot directly delete a credit card bill transaction", 400);
     }
     if (txn.linkedBudget != null) {
+      LOG.warnf("tx-delete id=%d rejected: budget projection row (linkedBudget=%d)", id, txn.linkedBudget.id);
       throw new WebApplicationException(
           "Cannot directly delete a budget projection transaction", 400);
     }
@@ -420,6 +464,7 @@ public class TransactionResource {
       peer.delete();
       billSync.recomputeAccountBalance(account);
       billSync.recomputeAccountBalance(peerAccount);
+      LOG.infof("tx-delete done id=%d transferPeer=%d", id, peer.id);
       return;
     }
     Account account = txn.account;
@@ -443,6 +488,7 @@ public class TransactionResource {
     if (account.kind == AccountKind.CREDIT_CARD) {
       billSync.sync(account);
     }
+    LOG.infof("tx-delete done id=%d scope=%s seriesId=%s", id, scope, seriesId);
   }
 
   /**
@@ -485,6 +531,7 @@ public class TransactionResource {
       return;
     }
     if (isPaidBill(account, dueDate)) {
+      LOG.warnf("tx rejected: bill already paid accountId=%d dueDate=%s", account.id, dueDate);
       throw new WebApplicationException(
           "This bill has already been paid. Delete the payment to add more transactions.", 400);
     }
@@ -512,11 +559,18 @@ public class TransactionResource {
             : (request.occurredOn != null && txn.account.dueDayOfMonth != null
                 ? billSync.nextDueDate(txn.account.dueDayOfMonth, request.occurredOn)
                 : oldDue);
-    boolean changesBill =
-        !Objects.equals(txn.amount, request.amount)
-            || !Objects.equals(txn.occurredOn, request.occurredOn)
-            || !Objects.equals(txn.billDueDate, request.billDueDate);
-    if (changesBill && (isPaidBill(txn.account, oldDue) || isPaidBill(txn.account, newDue))) {
+    // A paid bill freezes only what would change its contents: amount (compareTo, since
+    // BigDecimal equals is scale-sensitive and would false-positive on 150 vs 150.00) or which
+    // bill the row belongs to. Category, description and flag edits stay allowed. Omitted request
+    // fields mean "unchanged", which the effective-due comparison already captures.
+    boolean amountChanged = txn.amount.compareTo(request.amount) != 0;
+    boolean billChanged = !Objects.equals(oldDue, newDue);
+    boolean paidOld = isPaidBill(txn.account, oldDue);
+    boolean paidNew = isPaidBill(txn.account, newDue);
+    if ((amountChanged || billChanged) && (paidOld || paidNew)) {
+      LOG.warnf(
+          "tx-update id=%d rejected: paid bill (amountChanged=%s billChanged=%s oldDue=%s newDue=%s paidOld=%s paidNew=%s)",
+          txn.id, amountChanged, billChanged, oldDue, newDue, paidOld, paidNew);
       throw new WebApplicationException(
           "This bill has already been paid. Delete the payment to edit this transaction.", 400);
     }
@@ -525,9 +579,13 @@ public class TransactionResource {
   private Transaction updatePaymentTransaction(
       Transaction txn, UpdateTransactionRequest request, CreditCardBill bill) {
     Long currentCategoryId = txn.category != null ? txn.category.id : null;
-    if (!Objects.equals(txn.amount, request.amount)
-        || !Objects.equals(currentCategoryId, request.categoryId)
-        || !Objects.equals(txn.description, request.description)) {
+    boolean amountChanged = txn.amount.compareTo(request.amount) != 0;
+    boolean categoryChanged = !Objects.equals(currentCategoryId, request.categoryId);
+    boolean descriptionChanged = !Objects.equals(txn.description, request.description);
+    if (amountChanged || categoryChanged || descriptionChanged) {
+      LOG.warnf(
+          "tx-update id=%d rejected: payment txn allows date/flags only (amountChanged=%s categoryChanged=%s descriptionChanged=%s)",
+          txn.id, amountChanged, categoryChanged, descriptionChanged);
       throw new WebApplicationException(
           "Credit card payment transactions can only have their date and flags changed", 400);
     }
@@ -544,6 +602,7 @@ public class TransactionResource {
   }
 
   private void unpayBill(CreditCardBill bill) {
+    LOG.infof("bill-unpay billId=%d cardId=%d", bill.id, bill.account.id);
     Transaction payment = bill.paymentTransaction;
     Account paymentAccount = bill.paymentAccount;
     Account card = bill.account;
