@@ -70,18 +70,23 @@ public class BudgetResource {
   /**
    * System-generated budget projection rows (linkedBudget set) are excluded — they represent
    * what is still available, not what was spent, so counting them would make the projection
-   * collapse its own input. syncAll runs first for lazy month rollover, same as list().
+   * collapse its own input. Internal categories (e.g. "Card payment") are excluded too: a bill
+   * payment mirrors purchases already counted on the card. Rows dated after today are left out
+   * unless includeUpcoming is set (the Report page's toggle). syncAll runs first for lazy month
+   * rollover, same as list().
    */
   @GET
   @Path("/month/{yearMonth}/spend")
   @Transactional
-  public List<CategorySpendResponse> spendForMonth(@PathParam("yearMonth") String yearMonth) {
+  public List<CategorySpendResponse> spendForMonth(
+      @PathParam("yearMonth") String yearMonth,
+      @QueryParam("includeUpcoming") @DefaultValue("false") boolean includeUpcoming) {
     User user = currentUser.require();
     budgetSync.syncAll(user);
     LocalDate start = LocalDate.parse(yearMonth + "-01");
     LocalDate end = start.plusMonths(1).minusDays(1);
     LocalDate today = LocalDate.now();
-    if (end.isAfter(today)) {
+    if (!includeUpcoming && end.isAfter(today)) {
       end = today;
     }
 
@@ -90,6 +95,7 @@ public class BudgetResource {
                 + "FROM Transaction t "
                 + "WHERE t.account.user.id = :userId "
                 + "AND t.category IS NOT NULL "
+                + "AND t.category.internal = false "
                 + "AND t.linkedBudget IS NULL "
                 + "AND t.occurredOn BETWEEN :start AND :end "
                 + "GROUP BY t.category.id, t.category.name",

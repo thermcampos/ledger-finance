@@ -150,6 +150,15 @@ final class LlmTestSupport {
             });
   }
 
+  static void markInternal(Long categoryId) {
+    QuarkusTransaction.requiringNew()
+        .run(
+            () -> {
+              Category category = Category.findById(categoryId);
+              category.internal = true;
+            });
+  }
+
   static void setDueDay(Long accountId, int dueDayOfMonth) {
     QuarkusTransaction.requiringNew()
         .run(

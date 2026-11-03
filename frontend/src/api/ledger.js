@@ -71,8 +71,10 @@ export const CreditCardBillsApi = {
 
 export const BudgetsApi = {
   list: () => client.get('/budgets').then((r) => r.data),
-  spendForMonth: (yearMonth) =>
-    client.get(`/budgets/month/${yearMonth}/spend`).then((r) => r.data),
+  spendForMonth: (yearMonth, { includeUpcoming = false } = {}) =>
+    client
+      .get(`/budgets/month/${yearMonth}/spend`, { params: includeUpcoming ? { includeUpcoming } : {} })
+      .then((r) => r.data),
   transactionsForBudget: (yearMonth, categoryId) =>
     client.get(`/budgets/month/${yearMonth}/category/${categoryId}/transactions`).then((r) => r.data),
   upsert: (payload) => client.post('/budgets', payload).then((r) => r.data),

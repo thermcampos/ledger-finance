@@ -415,6 +415,79 @@ body {
   border-radius: 3px;
 }
 
+/* --- Report: top-5 share bar + ranked category list --- */
+.share-bar {
+  display: flex;
+  gap: 2px;
+  height: 10px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+.share-seg {
+  height: 100%;
+  min-width: 2px;
+}
+.share-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  font-size: 12.5px;
+}
+.share-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.share-legend-name {
+  color: var(--text-muted);
+}
+.share-swatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.rank-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 8px;
+  margin: 0 -8px;
+  box-sizing: content-box;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  text-align: left;
+}
+.rank-row:last-child {
+  border-bottom: 0;
+}
+.rank-row:hover,
+.rank-row.selected {
+  background: var(--surface-2);
+}
+.rank-num {
+  width: 20px;
+  text-align: right;
+  font-size: 12px;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+.rank-main {
+  flex: 1;
+  min-width: 0;
+}
+.rank-figures {
+  display: flex;
+  gap: 14px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
 /* --- Transactions feed --- */
 .day-heading {
   display: flex;
