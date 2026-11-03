@@ -53,6 +53,11 @@ variable "resend_api_key" {
   sensitive = true
 }
 
+variable "digest_trigger_secret" {
+  type      = string
+  sensitive = true
+}
+
 variable "r2_access_key" {
   type      = string
   sensitive = true
@@ -96,12 +101,13 @@ resource "kubernetes_secret_v1" "ledger_finance_secrets" {
   }
 
   data = {
-    postgres_user     = var.db_user
-    postgres_password = var.db_password
-    postgres_db       = var.db_name
-    jwt_private_key   = var.jwt_private_key
-    jwt_public_key    = var.jwt_public_key
-    resend_api_key    = var.resend_api_key
+    postgres_user         = var.db_user
+    postgres_password     = var.db_password
+    postgres_db           = var.db_name
+    jwt_private_key       = var.jwt_private_key
+    jwt_public_key        = var.jwt_public_key
+    resend_api_key        = var.resend_api_key
+    digest_trigger_secret = var.digest_trigger_secret
   }
 }
 
@@ -240,6 +246,15 @@ resource "kubernetes_deployment_v1" "ledger_finance_backend" {
               secret_key_ref {
                 name = kubernetes_secret_v1.ledger_finance_secrets.metadata[0].name
                 key  = "resend_api_key"
+              }
+            }
+          }
+          env {
+            name = "DIGEST_TRIGGER_SECRET"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret_v1.ledger_finance_secrets.metadata[0].name
+                key  = "digest_trigger_secret"
               }
             }
           }
@@ -491,6 +506,65 @@ resource "kubernetes_cron_job_v1" "ledger_finance_db_backup" {
               }
             }
             restart_policy = "OnFailure"
+          }
+        }
+      }
+    }
+  }
+}
+
+# Daily budget digest — first scheduled job (docs/adr/0001-scheduled-jobs-via-cronjob.md).
+# Calls the backend over the cluster-internal Service (no X-Forwarded-For, so the endpoint
+# accepts it). The run is idempotent per user per day, so a retry or double fire is harmless.
+resource "kubernetes_cron_job_v1" "ledger_finance_daily_digest" {
+  metadata {
+    name      = "ledger-finance-daily-digest"
+    namespace = kubernetes_namespace_v1.ledger_finance.metadata[0].name
+  }
+  spec {
+    schedule                      = "0 7 * * *"
+    timezone                      = "America/Sao_Paulo"
+    concurrency_policy            = "Forbid"
+    starting_deadline_seconds     = 3600
+    successful_jobs_history_limit = 3
+    failed_jobs_history_limit     = 3
+    job_template {
+      metadata {
+        labels = {
+          app = "ledger-finance-daily-digest"
+        }
+      }
+      spec {
+        backoff_limit = 2
+        template {
+          metadata {
+            labels = {
+              app = "ledger-finance-daily-digest"
+            }
+          }
+          spec {
+            container {
+              name    = "trigger"
+              image   = "curlimages/curl:8.11.1"
+              command = ["/bin/sh", "-c"]
+              args = [
+                <<-EOT
+                curl -fsS --max-time 300 -X POST \
+                  -H "X-Digest-Secret: $DIGEST_TRIGGER_SECRET" \
+                  http://${kubernetes_service_v1.ledger_finance_backend_svc.metadata[0].name}:8080/internal/digests/daily
+                EOT
+              ]
+              env {
+                name = "DIGEST_TRIGGER_SECRET"
+                value_from {
+                  secret_key_ref {
+                    name = kubernetes_secret_v1.ledger_finance_secrets.metadata[0].name
+                    key  = "digest_trigger_secret"
+                  }
+                }
+              }
+            }
+            restart_policy = "Never"
           }
         }
       }

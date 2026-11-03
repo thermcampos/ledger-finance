@@ -95,8 +95,9 @@ public class BudgetProjectionSyncService {
   }
 
   /**
-   * Lazy rollover driver for read paths (GET /budgets, the spend endpoint) — this project has
-   * no scheduler by design, so a new month is detected here instead.
+   * Rollover driver: a new month is detected lazily on read paths (GET /budgets, the spend
+   * endpoint), and the scheduled daily digest calls it too for opted-in users before building
+   * their email (DailyDigestService#sendAll, ADR-0001). Idempotent — safe from any trigger.
    */
   @Transactional
   public void syncAll(User user) {

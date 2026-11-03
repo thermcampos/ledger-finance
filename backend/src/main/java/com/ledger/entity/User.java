@@ -11,6 +11,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 import java.time.Instant;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "users")
@@ -37,6 +38,14 @@ public class User extends PanacheEntityBase {
   @ColumnDefault("false") // matches V18, so dev drop-and-create and plain SQL inserts agree
   @Column(name = "email_summaries_enabled", nullable = false)
   public boolean emailSummariesEnabled;
+
+  /**
+   * Budget-zone date of the last daily digest Resend accepted — set only after a 2xx, so the
+   * scheduled run is idempotent per day. Null until the first send.
+   */
+  @JsonIgnore
+  @Column(name = "last_digest_sent_on")
+  public LocalDate lastDigestSentOn;
 
   public static User findByEmail(String email) {
     return find("email", email).firstResult();

@@ -90,6 +90,7 @@ jobs:
             TF_VAR_jwt_private_key="$JWT_PRIVATE_KEY" \
             TF_VAR_jwt_public_key="$JWT_PUBLIC_KEY" \
             TF_VAR_resend_api_key="$RESEND_API_KEY" \
+            TF_VAR_digest_trigger_secret="$DIGEST_TRIGGER_SECRET" \
             TF_VAR_backend_image="$BACKEND_IMAGE" \
             TF_VAR_frontend_image="$FRONTEND_IMAGE" \
             timeout 1m terraform plan -input=false -out=tfplan

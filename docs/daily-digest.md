@@ -23,7 +23,7 @@ Status: **planned** (agreed 2026-11-03). Decisions: [ADR-0001 scheduled jobs](ad
 | 2 | Opt-in flags + UI | `in-progress` | | Implemented, gates green; awaiting owner theme check, V18 on prod copy, commit |
 | 3 | Email infrastructure (Resend client) | `done` | `main` @ 540e8fc | Native build green in CI; key in prod pod |
 | 4 | Digest content + "Send test email" | `in-progress` | `main` @ ea5bd8b | Deployed; real email received and looks right in Hotmail web. Awaiting Gmail (mobile + desktop) check |
-| 5 | Scheduled daily send | `todo` | | Needs 4 |
+| 5 | Scheduled daily send | `in-progress` | | Implemented, tests green; needs `DIGEST_TRIGGER_SECRET` in Doppler `prd`, commit + deploy, then the manual/scheduled run checks |
 
 ### Log
 
@@ -88,6 +88,22 @@ Status: **planned** (agreed 2026-11-03). Decisions: [ADR-0001 scheduled jobs](ad
   entry above and has now been added. A real test email arrived and renders well in Hotmail web,
   but it **landed in Junk** (the owner marked it safe). Keep an eye on placement once the
   scheduled sends start (change 5).
+- 2026-11-03 — Change 5 → `in-progress`. Notes and deviations:
+  - The Terraform kubernetes provider attribute is `timezone`, not `time_zone`. Checked with
+    `terraform validate` against the provider schema, and the plan text above is fixed.
+  - CronJob: image pinned to `curlimages/curl:8.11.1`; `restart_policy = "Never"` (so
+    `backoff_limit = 2` means two fresh retry pods), job history 3/3, and `curl -f` so the 500
+    "every send failed" response marks the Job failed and triggers the retry. A partial failure
+    returns 200 and isn't retried until the next day (failed users stay unmarked).
+  - `sendAll` captures "today" once per run. Each user runs in `QuarkusTransaction.requiringNew()`:
+    the `syncAll`, send and mark all roll back together on failure. With email disabled (dev), a
+    logged digest counts as sent and is marked.
+  - Users are selected by JPQL (`dailyEmailSummary = true AND user.emailSummariesEnabled = true`,
+    distinct). A user whose digest builds empty is counted as skipped.
+  - Tests swap `EmailService` with `QuarkusMock` (a subclass, no Mockito). The unset-secret
+    case runs under its own `@TestProfile` (one extra Quarkus boot).
+  - **Not done here:** the top-level Status stays **planned**, and CLAUDE.md keeps its Active
+    plans entry, until changes 1, 2 and 4 close their remaining manual boxes.
 
 ## Feature
 
@@ -243,7 +259,7 @@ Five changes, in order. Each one leaves `main` deployable and is useful/testable
   - Returns `{sent, skipped, failed}`; 500 only if every attempted send failed.
 - Infra: `DIGEST_TRIGGER_SECRET` through Doppler → `deploy.yml` → Terraform secret → backend env
   and CronJob env. New `kubernetes_cron_job_v1.ledger_finance_daily_digest`:
-  `schedule = "0 7 * * *"`, `time_zone = "America/Sao_Paulo"`, `concurrency_policy = "Forbid"`,
+  `schedule = "0 7 * * *"`, `timezone = "America/Sao_Paulo"`, `concurrency_policy = "Forbid"`,
   `starting_deadline_seconds = 3600`, `backoff_limit = 2`, image `curlimages/curl`:
   ```sh
   curl -fsS -X POST -H "X-Digest-Secret: $DIGEST_TRIGGER_SECRET" \
@@ -254,12 +270,12 @@ Five changes, in order. Each one leaves `main` deployable and is useful/testable
   `BudgetResource#list` javadoc and CLAUDE.md; mark this plan **implemented**.
 
 **Done when:**
-- [ ] Tests: skip-when-already-sent, mark-sent-only-on-success, one user's failure doesn't stop others
-- [ ] Tests: internal endpoint 403 (missing/wrong/unset secret) and 404 (via ingress)
+- [x] Tests: skip-when-already-sent, mark-sent-only-on-success, one user's failure doesn't stop others
+- [x] Tests: internal endpoint 403 (missing/wrong/unset secret) and 404 (via ingress)
 - [ ] After deploy, `kubectl create job --from=cronjob/ledger-finance-daily-digest digest-manual -n ledger-finance` sends one email
 - [ ] Running it a second time the same day sends none
 - [ ] First scheduled 07:00 run observed in the inbox
-- [ ] CLAUDE.md updated
+- [x] CLAUDE.md updated
 
 ---
 

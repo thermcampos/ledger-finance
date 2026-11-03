@@ -150,6 +150,15 @@ final class LlmTestSupport {
             });
   }
 
+  static void enableEmailSummaries(Long userId) {
+    QuarkusTransaction.requiringNew()
+        .run(
+            () -> {
+              User user = User.findById(userId);
+              user.emailSummariesEnabled = true;
+            });
+  }
+
   static void markDailyEmailSummary(Long budgetId) {
     QuarkusTransaction.requiringNew()
         .run(

@@ -38,7 +38,8 @@ public class BudgetResource {
 
   /**
    * syncAll runs first so a month rollover (or a stale projection from any path that missed a
-   * write hook) self-corrects on read — there is no scheduler in this project by design.
+   * write hook) self-corrects on read. The daily digest job also calls syncAll, but only for
+   * opted-in users, so this lazy on-read sync stays the primary trigger (ADR-0001).
    */
   @GET
   @Transactional
