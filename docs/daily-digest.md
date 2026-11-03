@@ -23,7 +23,7 @@ Status: **planned** (agreed 2026-11-03). Decisions: [ADR-0001 scheduled jobs](ad
 | 2 | Opt-in flags + UI | `in-progress` | | Implemented, gates green; awaiting owner theme check, V18 on prod copy, commit |
 | 3 | Email infrastructure (Resend client) | `done` | `main` @ 540e8fc | Native build green in CI; key in prod pod |
 | 4 | Digest content + "Send test email" | `in-progress` | `main` @ ea5bd8b | Deployed; real email received and looks right in Hotmail web. Awaiting Gmail (mobile + desktop) check |
-| 5 | Scheduled daily send | `in-progress` | | Implemented, tests green; needs `DIGEST_TRIGGER_SECRET` in Doppler `prd`, commit + deploy, then the manual/scheduled run checks |
+| 5 | Scheduled daily send | `in-progress` | | Deployed; manual run delivered. Awaiting second same-day run (expect skip) + first 07:00 run |
 
 ### Log
 
@@ -272,7 +272,7 @@ Five changes, in order. Each one leaves `main` deployable and is useful/testable
 **Done when:**
 - [x] Tests: skip-when-already-sent, mark-sent-only-on-success, one user's failure doesn't stop others
 - [x] Tests: internal endpoint 403 (missing/wrong/unset secret) and 404 (via ingress)
-- [ ] After deploy, `kubectl create job --from=cronjob/ledger-finance-daily-digest digest-manual -n ledger-finance` sends one email
+- [x] After deploy, `kubectl create job --from=cronjob/ledger-finance-daily-digest digest-manual -n ledger-finance` sends one email
 - [ ] Running it a second time the same day sends none
 - [ ] First scheduled 07:00 run observed in the inbox
 - [x] CLAUDE.md updated
@@ -284,3 +284,13 @@ Five changes, in order. Each one leaves `main` deployable and is useful/testable
 - Per-user send time or timezone.
 - Weekly/monthly digests, digest for accounts or card bills.
 - Unsubscribe link handling (the footer links to Profile; volume is far below bulk-sender rules).
+- 2026-11-03 — Change 5 deployed with `DIGEST_TRIGGER_SECRET` in Doppler `prd`. The manual
+  `kubectl create job … digest-manual` run delivered one digest, and it landed in the Outlook
+  **inbox**, not Junk (the earlier test email went to Junk before DMARC and "mark as safe").
+- 2026-11-03 — Native-only bug found in the prod logs: `POST /internal/digests/daily` returned
+  500 because Jackson couldn't serialize `RunResult`. The endpoint returns a plain `Response`,
+  so Quarkus didn't register the type for reflection, and JVM tests can't catch that. The digest
+  itself was sent and marked before the response failed. The CronJob's retries (backoff 2) then
+  skipped the already-sent user, so no duplicate emails went out, but the Job was marked failed.
+  Fixed with `@RegisterForReflection` on `RunResult`. Rule for future endpoints: a custom type
+  returned only inside a `Response` needs `@RegisterForReflection` (or return `RestResponse<T>`).

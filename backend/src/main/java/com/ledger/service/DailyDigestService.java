@@ -9,6 +9,7 @@ import com.ledger.entity.User;
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.qute.Location;
 import io.quarkus.qute.Template;
+import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
@@ -68,7 +69,12 @@ public class DailyDigestService {
 
   public record RenderedEmail(String subject, String html, String text) {}
 
-  /** Outcome of one scheduled run; the internal endpoint returns it as JSON. */
+  /**
+   * Outcome of one scheduled run; the internal endpoint returns it as JSON. Registered for
+   * reflection explicitly: the endpoint wraps it in a plain {@code Response}, so Quarkus can't
+   * infer it for the native image (Jackson then fails with "no serializer found").
+   */
+  @RegisterForReflection
   public record RunResult(int sent, int skipped, int failed) {}
 
   private enum Outcome {
