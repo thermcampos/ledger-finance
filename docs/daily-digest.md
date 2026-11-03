@@ -23,7 +23,7 @@ Status: **planned** (agreed 2026-11-03). Decisions: [ADR-0001 scheduled jobs](ad
 | 2 | Opt-in flags + UI | `in-progress` | | Implemented, gates green; awaiting owner theme check, V18 on prod copy, commit |
 | 3 | Email infrastructure (Resend client) | `done` | `main` @ 540e8fc | Native build green in CI; key in prod pod |
 | 4 | Digest content + "Send test email" | `in-progress` | `main` @ ea5bd8b | Deployed; real email received and looks right in Hotmail web. Awaiting Gmail (mobile + desktop) check |
-| 5 | Scheduled daily send | `in-progress` | | Deployed; manual run delivered. Awaiting second same-day run (expect skip) + first 07:00 run |
+| 5 | Scheduled daily send | `in-progress` | `main` @ abf55a9 | Manual run delivered, same-day rerun skipped. Awaiting first 07:00 run (2026-11-04) |
 
 ### Log
 
@@ -273,7 +273,7 @@ Five changes, in order. Each one leaves `main` deployable and is useful/testable
 - [x] Tests: skip-when-already-sent, mark-sent-only-on-success, one user's failure doesn't stop others
 - [x] Tests: internal endpoint 403 (missing/wrong/unset secret) and 404 (via ingress)
 - [x] After deploy, `kubectl create job --from=cronjob/ledger-finance-daily-digest digest-manual -n ledger-finance` sends one email
-- [ ] Running it a second time the same day sends none
+- [x] Running it a second time the same day sends none
 - [ ] First scheduled 07:00 run observed in the inbox
 - [x] CLAUDE.md updated
 
@@ -294,3 +294,5 @@ Five changes, in order. Each one leaves `main` deployable and is useful/testable
   skipped the already-sent user, so no duplicate emails went out, but the Job was marked failed.
   Fixed with `@RegisterForReflection` on `RunResult`. Rule for future endpoints: a custom type
   returned only inside a `Response` needs `@RegisterForReflection` (or return `RestResponse<T>`).
+- 2026-11-03 — After abf55a9 deployed, `digest-manual-2` logged `Daily digest 2026-11-03: 0 sent,
+  1 skipped, 0 failed`, with no new email and no serialization error. Same-day idempotency confirmed.
