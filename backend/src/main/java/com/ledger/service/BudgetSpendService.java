@@ -47,30 +47,44 @@ public class BudgetSpendService {
    */
   public List<CategorySpendResponse> spendForMonth(
       User user, YearMonth month, boolean includeUpcoming) {
+    return spendForMonth(user, month, includeUpcoming, false);
+  }
+
+  /**
+   * As above; includeInternal also returns internal-category rows (flagged {@code internal}) so
+   * the Report page can list them apart from spending. Budgets and the digest never ask for them.
+   */
+  public List<CategorySpendResponse> spendForMonth(
+      User user, YearMonth month, boolean includeUpcoming, boolean includeInternal) {
     LocalDate start = month.atDay(1);
     LocalDate end = month.atEndOfMonth();
     LocalDate today = clock.today();
     if (!includeUpcoming && end.isAfter(today)) {
       end = today;
     }
-    return spendBetween(user, start, end);
+    return spendBetween(user, start, end, includeInternal);
   }
 
   /** Spend between two dates, both inclusive. An empty range yields an empty list. */
   public List<CategorySpendResponse> spendBetween(User user, LocalDate start, LocalDate end) {
+    return spendBetween(user, start, end, false);
+  }
+
+  private List<CategorySpendResponse> spendBetween(
+      User user, LocalDate start, LocalDate end, boolean includeInternal) {
     if (end.isBefore(start)) {
       return List.of();
     }
     return em.createQuery(
             "SELECT new com.ledger.dto.response.CategorySpendResponse("
-                + "t.category.id, t.category.name, SUM(t.amount)) "
+                + "t.category.id, t.category.name, SUM(t.amount), t.category.internal) "
                 + "FROM Transaction t "
                 + "WHERE t.account.user.id = :userId "
                 + "AND t.category IS NOT NULL "
-                + "AND t.category.internal = false "
+                + (includeInternal ? "" : "AND t.category.internal = false ")
                 + "AND t.linkedBudget IS NULL "
                 + "AND t.occurredOn BETWEEN :start AND :end "
-                + "GROUP BY t.category.id, t.category.name",
+                + "GROUP BY t.category.id, t.category.name, t.category.internal",
             CategorySpendResponse.class)
         .setParameter("userId", user.id)
         .setParameter("start", start)

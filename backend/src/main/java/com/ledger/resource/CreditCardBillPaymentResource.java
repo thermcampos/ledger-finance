@@ -187,6 +187,9 @@ public class CreditCardBillPaymentResource {
   private Category findOrCreateCardPaymentCategory(User user) {
     Category existing = Category.findByUserAndName(user.id, "Card payment");
     if (existing != null) {
+      // A user-made "Card payment" (from before bill payments existed) gets adopted as the
+      // system category — left unflagged, bill payments would count as spending.
+      existing.internal = true;
       return existing;
     }
     Category category = new Category();

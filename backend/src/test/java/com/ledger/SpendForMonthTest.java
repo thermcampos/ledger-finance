@@ -62,6 +62,43 @@ class SpendForMonthTest {
   }
 
   @Test
+  void includesInternalCategoriesFlaggedWhenRequested() {
+    given()
+        .auth()
+        .oauth2(jwt())
+        .queryParam("includeInternal", true)
+        .when()
+        .get("/budgets/month/" + MONTH + "/spend")
+        .then()
+        .statusCode(200)
+        .body("find { it.categoryId == " + cardPaymentId + " }.spent", is(300.0f))
+        .body("find { it.categoryId == " + cardPaymentId + " }.internal", is(true))
+        .body("find { it.categoryId == " + groceriesId + " }.internal", is(false));
+  }
+
+  @Test
+  void categoryListHidesInternalUnlessRequested() {
+    given()
+        .auth()
+        .oauth2(jwt())
+        .when()
+        .get("/categories")
+        .then()
+        .statusCode(200)
+        .body("id", not(hasItem(cardPaymentId.intValue())));
+
+    given()
+        .auth()
+        .oauth2(jwt())
+        .queryParam("includeInternal", true)
+        .when()
+        .get("/categories")
+        .then()
+        .statusCode(200)
+        .body("id", hasItem(cardPaymentId.intValue()));
+  }
+
+  @Test
   void upcomingRowsOnlyWhenRequested() {
     Assumptions.assumeFalse(TODAY.equals(MONTH.atEndOfMonth()), "no future day left this month");
 

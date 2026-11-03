@@ -23,9 +23,12 @@ public class CategoryResource {
 
   @Inject CurrentUserService currentUser;
 
+  /** Internal (system) categories are hidden unless includeInternal — the Report page wants them. */
   @GET
-  public List<Category> list() {
-    return Category.findVisibleByUser(currentUser.require().id);
+  public List<Category> list(
+      @QueryParam("includeInternal") @DefaultValue("false") boolean includeInternal) {
+    Long userId = currentUser.require().id;
+    return includeInternal ? Category.findByUser(userId) : Category.findVisibleByUser(userId);
   }
 
   @POST

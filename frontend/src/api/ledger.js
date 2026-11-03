@@ -24,7 +24,10 @@ export const AccountsApi = {
 };
 
 export const CategoriesApi = {
-  list: () => client.get('/categories').then((r) => r.data),
+  list: ({ includeInternal = false } = {}) =>
+    client
+      .get('/categories', { params: includeInternal ? { includeInternal } : {} })
+      .then((r) => r.data),
   create: (payload) => client.post('/categories', payload).then((r) => r.data),
   update: (id, payload) => client.put(`/categories/${id}`, payload).then((r) => r.data),
   usage: (id) => client.get(`/categories/${id}/usage`).then((r) => r.data),
@@ -72,9 +75,14 @@ export const CreditCardBillsApi = {
 
 export const BudgetsApi = {
   list: () => client.get('/budgets').then((r) => r.data),
-  spendForMonth: (yearMonth, { includeUpcoming = false } = {}) =>
+  spendForMonth: (yearMonth, { includeUpcoming = false, includeInternal = false } = {}) =>
     client
-      .get(`/budgets/month/${yearMonth}/spend`, { params: includeUpcoming ? { includeUpcoming } : {} })
+      .get(`/budgets/month/${yearMonth}/spend`, {
+        params: {
+          ...(includeUpcoming ? { includeUpcoming } : {}),
+          ...(includeInternal ? { includeInternal } : {}),
+        },
+      })
       .then((r) => r.data),
   summaryForMonth: (yearMonth) =>
     client.get(`/budgets/month/${yearMonth}/summary`).then((r) => r.data),

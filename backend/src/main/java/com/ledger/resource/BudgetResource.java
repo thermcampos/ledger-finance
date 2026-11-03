@@ -73,7 +73,8 @@ public class BudgetResource {
 
   /**
    * Per-category spend for the month — exclusions documented on BudgetSpendService. Rows dated
-   * after today are left out unless includeUpcoming is set (the Report page's toggle). syncAll
+   * after today are left out unless includeUpcoming is set (the Report page's toggle);
+   * internal categories only with includeInternal (the Report lists them apart). syncAll
    * runs first for lazy month rollover, same as list().
    */
   @GET
@@ -81,10 +82,12 @@ public class BudgetResource {
   @Transactional
   public List<CategorySpendResponse> spendForMonth(
       @PathParam("yearMonth") String yearMonth,
-      @QueryParam("includeUpcoming") @DefaultValue("false") boolean includeUpcoming) {
+      @QueryParam("includeUpcoming") @DefaultValue("false") boolean includeUpcoming,
+      @QueryParam("includeInternal") @DefaultValue("false") boolean includeInternal) {
     User user = currentUser.require();
     budgetSync.syncAll(user);
-    return spendService.spendForMonth(user, parseMonth(yearMonth), includeUpcoming);
+    return spendService.spendForMonth(
+        user, parseMonth(yearMonth), includeUpcoming, includeInternal);
   }
 
   /**

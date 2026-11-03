@@ -53,11 +53,24 @@ function percent(value) {
 // Ranks the spend endpoint's per-category totals. Categories that net to a
 // refund/income (spent <= 0) aren't spending, so they're left out of the
 // ranking; transfers net to zero across their two sides and drop out here too.
+// Internal categories (e.g. "Card payment") mirror spend already counted
+// elsewhere, so they're never part of the ranking or the totals.
 function rankSpend(spend, categories) {
   const byId = new Map(categories.map((c) => [c.id, c]));
   return spend
+    .filter((s) => !s.internal)
     .map((s) => ({ ...s, spent: Number(s.spent), category: byId.get(s.categoryId) }))
     .filter((s) => s.spent > 0)
+    .sort((a, b) => b.spent - a.spent);
+}
+
+// Internal categories, listed apart for visibility only — not counted anywhere.
+function internalSpend(spend, categories) {
+  const byId = new Map(categories.map((c) => [c.id, c]));
+  return spend
+    .filter((s) => s.internal)
+    .map((s) => ({ ...s, spent: Number(s.spent), category: byId.get(s.categoryId) }))
+    .filter((s) => s.spent !== 0)
     .sort((a, b) => b.spent - a.spent);
 }
 
@@ -67,7 +80,11 @@ export default function Report() {
   const [categoryId, setCategoryId] = useState('');
   const [includeUpcoming, setIncludeUpcoming] = useState(false);
 
-  const categoriesQuery = useQuery({ queryKey: ['categories'], queryFn: CategoriesApi.list });
+  // Internal categories included: the report lists them in their own group.
+  const categoriesQuery = useQuery({
+    queryKey: ['categories', { includeInternal: true }],
+    queryFn: () => CategoriesApi.list({ includeInternal: true }),
+  });
   const categories = useMemo(() => categoriesQuery.data || [], [categoriesQuery.data]);
   const sortedCategories = useMemo(
     () => [...categories].sort((a, b) => a.name.localeCompare(b.name)),
@@ -85,23 +102,26 @@ export default function Report() {
   // Keyed under 'budgets-spend' so the invalidations Budgets/Transactions
   // already fire on writes refresh the report too.
   const spendQuery = useQuery({
-    queryKey: ['budgets-spend', yearMonth, { includeUpcoming }],
-    queryFn: () => BudgetsApi.spendForMonth(yearMonth, { includeUpcoming }),
+    queryKey: ['budgets-spend', yearMonth, { includeUpcoming, includeInternal: true }],
+    queryFn: () => BudgetsApi.spendForMonth(yearMonth, { includeUpcoming, includeInternal: true }),
   });
   const prevSpendQuery = useQuery({
-    queryKey: ['budgets-spend', prevYearMonth, { includeUpcoming }],
-    queryFn: () => BudgetsApi.spendForMonth(prevYearMonth, { includeUpcoming }),
+    queryKey: ['budgets-spend', prevYearMonth, { includeUpcoming, includeInternal: true }],
+    queryFn: () => BudgetsApi.spendForMonth(prevYearMonth, { includeUpcoming, includeInternal: true }),
   });
 
   const ranked = useMemo(
     () => rankSpend(spendQuery.data || [], categories),
     [spendQuery.data, categories]
   );
-  const totalSpent = ranked.reduce((sum, s) => sum + s.spent, 0);
-  const income = (spendQuery.data || []).reduce(
-    (sum, s) => sum + (Number(s.spent) < 0 ? -Number(s.spent) : 0),
-    0
+  const internalRows = useMemo(
+    () => internalSpend(spendQuery.data || [], categories),
+    [spendQuery.data, categories]
   );
+  const totalSpent = ranked.reduce((sum, s) => sum + s.spent, 0);
+  const income = (spendQuery.data || [])
+    .filter((s) => !s.internal)
+    .reduce((sum, s) => sum + (Number(s.spent) < 0 ? -Number(s.spent) : 0), 0);
   const prevSpent = rankSpend(prevSpendQuery.data || [], categories).reduce(
     (sum, s) => sum + s.spent,
     0
@@ -346,6 +366,39 @@ export default function Report() {
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {internalRows.length > 0 && (
+        <div className="panel p-4 mb-4">
+          <div className="eyebrow mb-1">Internal · not counted in spending</div>
+          <div className="text-muted-c mb-3" style={{ fontSize: 12.5 }}>
+            Money moved between your own accounts — already counted where it was spent.
+          </div>
+          {internalRows.map((s) => {
+            const color = s.category?.colorHex || 'var(--text-muted)';
+            const selected = categoryId === String(s.categoryId);
+            return (
+              <button
+                type="button"
+                key={s.categoryId}
+                className={`rank-row${selected ? ' selected' : ''}`}
+                onClick={() => toggleCategory(s.categoryId)}
+              >
+                <span className="txn-icon" style={{ color, width: 28, height: 28, fontSize: 13 }}>
+                  <i className={iconClassName(s.category?.icon)} />
+                </span>
+                <span className="rank-main">
+                  <span className="spend-label">
+                    <span className="text-muted-c">{s.categoryName}</span>
+                    <span className="rank-figures mono">
+                      <span className="text-muted-c">{money(s.spent)}</span>
+                    </span>
+                  </span>
+                </span>
+              </button>
+            );
+          })}
         </div>
       )}
 
