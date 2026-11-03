@@ -1,0 +1,29 @@
+Ledger · Budgets for Tue, Nov 3
+
+Travel                                       Over budget
+[████████████████████]
+Spent              $250.00    Limit              $200.00
+Left               -$50.00    Per day ×28    Over budget
+Yesterday            $0.00
+
+Dining                                        Near limit
+[███████████████████░]
+Spent              $290.00    Limit              $300.00
+Left                $10.00    Per day ×28          $0.36
+Yesterday            $0.00
+
+Books                                           On track
+[██░░░░░░░░░░░░░░░░░░]
+Spent               $10.00    Limit              $100.00
+Left                $90.00    Per day ×28          $3.21
+Yesterday            $0.00
+
+groceries                                       On track
+[██░░░░░░░░░░░░░░░░░░]
+Spent              $100.00    Limit            $1,000.00
+Left               $900.00    Per day ×28         $32.14
+Yesterday           -$5.00
+
+--
+This is a test you sent from Profile.
+Manage email summaries on Profile: https://ledger.example/profile

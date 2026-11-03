@@ -22,7 +22,7 @@ Status: **planned** (agreed 2026-11-03). Decisions: [ADR-0001 scheduled jobs](ad
 | 1 | Server-side budget spend & status | `in-progress` | | Implemented, gates green; awaiting owner check of Budgets page + commit |
 | 2 | Opt-in flags + UI | `in-progress` | | Implemented, gates green; awaiting owner theme check, V18 on prod copy, commit |
 | 3 | Email infrastructure (Resend client) | `done` | `main` @ 540e8fc | Native build green in CI; key in prod pod |
-| 4 | Digest content + "Send test email" | `todo` | | Needs 1, 2, 3 |
+| 4 | Digest content + "Send test email" | `in-progress` | | Implemented, tests green; awaiting real send + client rendering check, commit. Started before 1/2 closed (owner's call) |
 | 5 | Scheduled daily send | `todo` | | Needs 4 |
 
 ### Log
@@ -58,6 +58,27 @@ Status: **planned** (agreed 2026-11-03). Decisions: [ADR-0001 scheduled jobs](ad
   CI on the `graalvm-25` runner.
 - 2026-11-03 — Change 3 → `done` (540e8fc on `main`). Backend CI native build green, deployed;
   owner confirmed `RESEND_API_KEY` is in Doppler `prd` and the running backend pod.
+- 2026-11-03 — Change 4 → `in-progress`, at the owner's request while changes 1 and 2 still await
+  their manual checks (the code they provide is on `main`). Decisions:
+  - `email/DailyDigest` is a pure, pre-formatted model built from change 1's
+    `BudgetSummaryResponse` (`DailyDigest.of(summary, flaggedIds, yesterdaySpent, test, profileUrl)`),
+    so snapshots need no DB or clock. `DailyDigestService#buildFor` feeds it from the DB.
+  - "Yesterday" on the 1st is labelled `Yesterday, Oct 31`. Spent/limit use `Money.abs` (as
+    `Budgets.jsx#money`), left and yesterday are signed (`-$112.40`). Per day shows
+    "Over budget" when `perDay` is null.
+  - Text variant is 56 columns wide; alignment comes from a `txt:` Qute extension
+    (`email/TextLayout`). Snapshots live in `src/test/resources/snapshots/daily-digest/`;
+    regenerate with `-Dsnapshots.update=true`. The HTML test also writes
+    `target/digest-preview.html`.
+  - Test emails: subject gets a ` (test)` suffix, and the footer reads "This is a test you sent
+    from Profile." (the master switch may be off). New config `ledger.app.url` (prod:
+    `https://ledger-finance.darkroasted.vps-kinghost.net`) for the footer's Profile link.
+  - `POST /users/me/digest/test` → `{to, delivered}` (`delivered=false` when email is disabled
+    and the digest was only logged). Errors are `{message}` JSON: 400 nothing flagged, 429 within
+    60 s of the previous test (in-memory, per pod — fine at one replica), 502 Resend failure.
+    Needs `@Consumes(WILDCARD)`: the class-level JSON `@Consumes` 415s a bodyless POST.
+  - Qute gotcha: a boolean `hasX()` accessor shadows a sibling `x` property in templates — hence
+    `perDayAvailable`, not `hasPerDay`.
 
 ## Feature
 
@@ -188,7 +209,7 @@ Five changes, in order. Each one leaves `main` deployable and is useful/testable
 **Done when:**
 - [ ] A real test email arrives at `ricardompcampos@hotmail.com`
 - [ ] It renders correctly in Outlook/Hotmail web and Gmail (mobile + desktop)
-- [ ] Snapshot tests (text variant): On track / Near limit / Over budget / last day of month / 1st of month
+- [x] Snapshot tests (text variant): On track / Near limit / Over budget / last day of month / 1st of month
 
 ### Change 5 — Scheduled daily send
 

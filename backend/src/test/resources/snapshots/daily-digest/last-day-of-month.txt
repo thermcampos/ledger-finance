@@ -1,0 +1,11 @@
+Ledger · Budgets for Mon, Nov 30
+
+Groceries                                       On track
+[███████████████░░░░░]
+Spent            $1,500.00    Limit            $2,000.00
+Left               $500.00    Per day ×1         $500.00
+Yesterday           $40.00
+
+--
+You're receiving this because daily summaries are on.
+Manage email summaries on Profile: https://ledger.example/profile

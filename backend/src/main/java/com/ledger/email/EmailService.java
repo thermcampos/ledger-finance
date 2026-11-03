@@ -45,6 +45,11 @@ public class EmailService {
     this.from = from;
   }
 
+  /** False outside prod: {@link #send} only logs. */
+  public boolean isEnabled() {
+    return enabled;
+  }
+
   /**
    * Sends one email, or logs it when email is disabled.
    *

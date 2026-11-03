@@ -1,0 +1,18 @@
+{@com.ledger.email.DailyDigest digest}
+Ledger · Budgets for {digest.dateLabel}
+{#for line in digest.lines}
+
+{txt:row(line.categoryName, line.statusLabel)}
+{txt:bar(line.percent)}
+{txt:pair('Spent', line.spent, 'Limit', line.limit)}
+{txt:pair('Left', line.left, digest.perDayLabel, line.perDay)}
+{txt:cell(digest.yesterdayLabel, line.yesterday)}
+{/for}
+
+--
+{#if digest.test}
+This is a test you sent from Profile.
+{#else}
+You're receiving this because daily summaries are on.
+{/if}
+Manage email summaries on Profile: {digest.profileUrl}

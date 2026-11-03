@@ -1,0 +1,51 @@
+{@com.ledger.email.DailyDigest digest}
+{#include email/layout}
+{#title}Budgets for {digest.dateLabel}{/title}
+{#preheader}{digest.preheader}{/preheader}
+{#for line in digest.lines}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="{#if line_index > 0}border-top:1px solid {palette:BORDER};{/if}">
+  <tr>
+    <td style="padding:{#if line_index > 0}16px{#else}4px{/if} 0 8px 0;font-family:{palette:FONT_SANS};font-size:15px;font-weight:600;color:{palette:TEXT};">{line.categoryName}</td>
+    <td align="right" style="padding:{#if line_index > 0}16px{#else}4px{/if} 0 8px 0;font-family:{palette:FONT_SANS};font-size:12px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:{line.statusColor};white-space:nowrap;">{line.statusLabel}</td>
+  </tr>
+  <tr>
+    <td colspan="2" style="padding:0 0 12px 0;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
+        <tr>
+          {#if line.percent > 0}<td width="{line.percent}%" height="6" style="height:6px;line-height:6px;font-size:0;background-color:{line.statusColor};">&nbsp;</td>{/if}
+          {#if line.percent < 100}<td height="6" style="height:6px;line-height:6px;font-size:0;background-color:{palette:SURFACE_2};">&nbsp;</td>{/if}
+        </tr>
+      </table>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" style="padding:0 0 16px 0;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td style="padding:2px 0;font-family:{palette:FONT_SANS};font-size:12px;color:{palette:TEXT_MUTED};">Spent</td>
+          <td align="right" style="padding:2px 24px 2px 0;font-family:{palette:FONT_MONO};font-size:13px;font-variant-numeric:tabular-nums;color:{palette:TEXT};white-space:nowrap;">{line.spent}</td>
+          <td style="padding:2px 0;font-family:{palette:FONT_SANS};font-size:12px;color:{palette:TEXT_MUTED};">Limit</td>
+          <td align="right" style="padding:2px 0;font-family:{palette:FONT_MONO};font-size:13px;font-variant-numeric:tabular-nums;color:{palette:TEXT};white-space:nowrap;">{line.limit}</td>
+        </tr>
+        <tr>
+          <td style="padding:2px 0;font-family:{palette:FONT_SANS};font-size:12px;color:{palette:TEXT_MUTED};">Left</td>
+          <td align="right" style="padding:2px 24px 2px 0;font-family:{palette:FONT_MONO};font-size:13px;font-variant-numeric:tabular-nums;color:{#if line.overspent}{palette:RED}{#else}{palette:TEXT}{/if};white-space:nowrap;">{line.left}</td>
+          <td style="padding:2px 0;font-family:{palette:FONT_SANS};font-size:12px;color:{palette:TEXT_MUTED};white-space:nowrap;">{digest.perDayLabel}</td>
+          <td align="right" style="padding:2px 0;font-family:{#if line.perDayAvailable}{palette:FONT_MONO};font-size:13px;color:{palette:TEXT}{#else}{palette:FONT_SANS};font-size:12px;color:{palette:RED}{/if};font-variant-numeric:tabular-nums;white-space:nowrap;">{line.perDay}</td>
+        </tr>
+        <tr>
+          <td style="padding:2px 0;font-family:{palette:FONT_SANS};font-size:12px;color:{palette:TEXT_MUTED};white-space:nowrap;">{digest.yesterdayLabel}</td>
+          <td align="right" style="padding:2px 24px 2px 0;font-family:{palette:FONT_MONO};font-size:13px;font-variant-numeric:tabular-nums;color:{palette:TEXT};white-space:nowrap;">{line.yesterday}</td>
+          <td></td>
+          <td></td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+{/for}
+{#footer}
+{#if digest.test}This is a test you sent from Profile.{#else}You're receiving this because daily summaries are on.{/if}
+<a href="{digest.profileUrl}" style="color:{palette:JADE};">Manage email summaries on Profile</a>
+{/footer}
+{/include}

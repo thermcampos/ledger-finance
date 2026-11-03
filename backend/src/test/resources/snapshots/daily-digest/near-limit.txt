@@ -1,0 +1,11 @@
+Ledger · Budgets for Tue, Nov 3
+
+Groceries                                     Near limit
+[█████████████████░░░]
+Spent            $1,742.10    Limit            $2,000.00
+Left               $257.90    Per day ×28          $9.21
+Yesterday           $84.20
+
+--
+You're receiving this because daily summaries are on.
+Manage email summaries on Profile: https://ledger.example/profile

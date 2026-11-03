@@ -1,0 +1,11 @@
+Ledger · Budgets for Tue, Nov 3
+
+Travel                                       Over budget
+[████████████████████]
+Spent              $612.40    Limit              $500.00
+Left              -$112.40    Per day ×28    Over budget
+Yesterday            $0.00
+
+--
+You're receiving this because daily summaries are on.
+Manage email summaries on Profile: https://ledger.example/profile

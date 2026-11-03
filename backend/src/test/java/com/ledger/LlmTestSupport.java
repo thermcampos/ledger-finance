@@ -150,6 +150,15 @@ final class LlmTestSupport {
             });
   }
 
+  static void markDailyEmailSummary(Long budgetId) {
+    QuarkusTransaction.requiringNew()
+        .run(
+            () -> {
+              Budget budget = Budget.findById(budgetId);
+              budget.dailyEmailSummary = true;
+            });
+  }
+
   static void markInternal(Long categoryId) {
     QuarkusTransaction.requiringNew()
         .run(

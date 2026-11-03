@@ -1,0 +1,11 @@
+Ledger · Budgets for Tue, Nov 3
+
+Dining                                          On track
+[████░░░░░░░░░░░░░░░░]
+Spent              $120.00    Limit              $600.00
+Left               $480.00    Per day ×28         $17.14
+Yesterday           $32.50
+
+--
+You're receiving this because daily summaries are on.
+Manage email summaries on Profile: https://ledger.example/profile

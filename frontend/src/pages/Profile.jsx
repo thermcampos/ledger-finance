@@ -58,6 +58,9 @@ export default function Profile() {
   });
   const emailSummariesEnabled = !!meQuery.data?.emailSummariesEnabled;
 
+  // Sends today's digest now, even with summaries off — so it can be previewed before opting in.
+  const testDigestMutation = useMutation({ mutationFn: UsersApi.sendTestDigest });
+
   const [theme, setThemeState] = useState(getStoredTheme);
 
   const handleThemeChange = (next) => {
@@ -358,19 +361,30 @@ export default function Profile() {
 
       <div className="panel p-4 mt-4">
         <div className="eyebrow mb-3">Email summaries</div>
-        <div className="d-flex gap-2" role="group" aria-label="Email summaries">
-          {[true, false].map((on) => (
-            <button
-              key={String(on)}
-              type="button"
-              className={`btn btn-sm ${emailSummariesEnabled === on ? 'btn-jade' : 'btn-ghost'}`}
-              aria-pressed={emailSummariesEnabled === on}
-              disabled={!meQuery.data || emailSummariesMutation.isPending}
-              onClick={() => emailSummariesEnabled !== on && emailSummariesMutation.mutate(on)}
-            >
-              {on ? 'On' : 'Off'}
-            </button>
-          ))}
+        <div className="d-flex flex-wrap align-items-center gap-2">
+          <div className="d-flex gap-2" role="group" aria-label="Email summaries">
+            {[true, false].map((on) => (
+              <button
+                key={String(on)}
+                type="button"
+                className={`btn btn-sm ${emailSummariesEnabled === on ? 'btn-jade' : 'btn-ghost'}`}
+                aria-pressed={emailSummariesEnabled === on}
+                disabled={!meQuery.data || emailSummariesMutation.isPending}
+                onClick={() => emailSummariesEnabled !== on && emailSummariesMutation.mutate(on)}
+              >
+                {on ? 'On' : 'Off'}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm ms-sm-auto"
+            disabled={testDigestMutation.isPending}
+            onClick={() => testDigestMutation.mutate()}
+          >
+            <i className="bi bi-envelope me-1" />
+            {testDigestMutation.isPending ? 'Sending…' : 'Send test email'}
+          </button>
         </div>
         <div className="text-faint mt-2" style={{ fontSize: 11.5 }}>
           Daily at 07:00 (São Paulo time), for the budgets marked &ldquo;Daily email summary&rdquo;.
@@ -378,6 +392,18 @@ export default function Profile() {
         {emailSummariesMutation.isError && (
           <div className="mt-2" style={{ fontSize: 11.5, color: 'var(--red)' }}>
             {emailSummariesMutation.error?.response?.data?.message || 'Could not save this setting.'}
+          </div>
+        )}
+        {testDigestMutation.isSuccess && (
+          <div className="text-muted-c mt-2" style={{ fontSize: 11.5 }} role="status">
+            {testDigestMutation.data.delivered
+              ? `Test email sent to ${testDigestMutation.data.to}.`
+              : 'Email sending is off on this server — the digest was written to the backend log.'}
+          </div>
+        )}
+        {testDigestMutation.isError && (
+          <div className="mt-2" style={{ fontSize: 11.5, color: 'var(--red)' }} role="alert">
+            {testDigestMutation.error?.response?.data?.message || 'Could not send the test email.'}
           </div>
         )}
       </div>

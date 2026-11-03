@@ -1,11 +1,14 @@
 package com.ledger.resource;
 
 import com.ledger.dto.response.AuthResponse;
+import com.ledger.email.EmailSendException;
+import com.ledger.email.EmailService;
 import com.ledger.entity.AccountHistoryEntry;
 import com.ledger.entity.User;
 import com.ledger.enums.AccountHistoryField;
 import com.ledger.security.CurrentUserService;
 import com.ledger.security.TokenService;
+import com.ledger.service.DailyDigestService;
 import io.quarkus.elytron.security.common.BcryptUtil;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
@@ -16,9 +19,11 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 @Path("/users")
 @RolesAllowed("user")
@@ -29,6 +34,10 @@ public class UserResource {
   @Inject CurrentUserService currentUser;
 
   @Inject TokenService tokenService;
+
+  @Inject DailyDigestService digestService;
+
+  @Inject EmailService emailService;
 
   @GET
   @Path("/me")
@@ -81,6 +90,36 @@ public class UserResource {
     recordHistory(user, AccountHistoryField.PASSWORD, null, null);
   }
 
+  /**
+   * Profile → "Send test email": today's digest to the current user, now. Ignores the "Email
+   * summaries" master switch (that's what you'd test before turning it on). Errors carry a
+   * {@code message} the Profile page shows inline.
+   */
+  @POST
+  @Path("/me/digest/test")
+  @Consumes(MediaType.WILDCARD) // no body; don't 415 a bare POST
+  public DigestTestResponse sendTestDigest() {
+    User user = currentUser.require();
+    try {
+      digestService.sendTest(user);
+    } catch (DailyDigestService.NothingToSendException e) {
+      throw error(400, e.getMessage());
+    } catch (DailyDigestService.TooSoonException e) {
+      throw error(429, e.getMessage());
+    } catch (EmailSendException e) {
+      throw error(502, "Couldn't send the test email: " + e.getMessage());
+    }
+    return new DigestTestResponse(user.email, emailService.isEnabled());
+  }
+
+  private static WebApplicationException error(int status, String message) {
+    return new WebApplicationException(
+        Response.status(status)
+            .type(MediaType.APPLICATION_JSON)
+            .entity(Map.of("message", message))
+            .build());
+  }
+
   @GET
   @Path("/me/history")
   public List<AccountHistoryEntry> history() {
@@ -114,6 +153,12 @@ public class UserResource {
     @Size(min = 8, message = "Password must be at least 8 characters")
     public String newPassword;
   }
+
+  /**
+   * @param delivered false when email is disabled on this server (dev) and the digest was only
+   *     written to the log
+   */
+  public record DigestTestResponse(String to, boolean delivered) {}
 
   public static class MeResponse {
     public String email;
