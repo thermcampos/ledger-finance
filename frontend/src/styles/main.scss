@@ -172,7 +172,11 @@ body {
   top: 0;
   z-index: 5;
   background: var(--bg);
-  padding: calc(8px - 4px * var(--header-scale, 0)) 0;
+  /* Inset the text from the backdrop's edges once stuck; the negative margin
+     keeps it aligned with the content below. 16px fits inside .main's
+     padding on mobile and desktop alike. */
+  margin-inline: -16px;
+  padding: calc(12px - 4px * var(--header-scale, 0)) 16px;
   box-shadow: 0
     calc(8px * var(--header-scale, 0))
     calc(24px * var(--header-scale, 0))
