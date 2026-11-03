@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { BudgetsApi, CategoriesApi } from '../api/ledger';
 import { iconClassName } from '../constants/categoryIcons';
 import { isoDate, localYearMonth, parseLocalDate } from '../utils/date';
 import { useStickyHeader } from '../hooks/useStickyHeader';
+import { downloadFile } from '../utils/export';
+import { buildReportMarkdown } from '../utils/reportExport';
 
 function money(amount, { signed = false } = {}) {
   const value = Math.abs(amount).toLocaleString('en-US', {
@@ -64,6 +66,23 @@ function rankSpend(spend, categories) {
     .sort((a, b) => b.spent - a.spent);
 }
 
+// Real, already-happened (or upcoming, when toggled) rows of a drill-down list.
+function visibleRows(data, includeUpcoming, today) {
+  return (data || []).filter(
+    (t) => !t.linkedCard && !t.linkedBudget && (includeUpcoming || t.occurredOn <= today)
+  );
+}
+
+// Non-internal categories netting to money in (or zero) — left out of the
+// ranking but still part of the month, so the export lists them.
+function refundSpend(spend) {
+  return spend
+    .filter((s) => !s.internal)
+    .map((s) => ({ ...s, spent: Number(s.spent) }))
+    .filter((s) => s.spent <= 0)
+    .sort((a, b) => a.spent - b.spent);
+}
+
 // Internal categories, listed apart for visibility only — not counted anywhere.
 function internalSpend(spend, categories) {
   const byId = new Map(categories.map((c) => [c.id, c]));
@@ -76,6 +95,8 @@ function internalSpend(spend, categories) {
 
 export default function Report() {
   const { sentinelRef, progress, isStuck } = useStickyHeader();
+  const queryClient = useQueryClient();
+  const [exportState, setExportState] = useState('idle'); // idle | busy | error
   const [monthOffset, setMonthOffset] = useState(0);
   const [categoryId, setCategoryId] = useState('');
   const [includeUpcoming, setIncludeUpcoming] = useState(false);
@@ -145,12 +166,48 @@ export default function Report() {
   // total matches the ranking above.
   const today = isoDate(new Date());
   const rows = useMemo(
-    () =>
-      (reportQuery.data || []).filter(
-        (t) => !t.linkedCard && !t.linkedBudget && (includeUpcoming || t.occurredOn <= today)
-      ),
+    () => visibleRows(reportQuery.data, includeUpcoming, today),
     [reportQuery.data, includeUpcoming, today]
   );
+
+  // Markdown export of the whole month — every category's transactions,
+  // fetched through the drill-down's query key so they're cached for it too.
+  const exportReport = async () => {
+    setExportState('busy');
+    try {
+      const refunds = refundSpend(spendQuery.data || []);
+      const all = [...ranked, ...refunds, ...internalRows];
+      const lists = await Promise.all(
+        all.map((s) =>
+          queryClient.fetchQuery({
+            queryKey: ['report-transactions', yearMonth, String(s.categoryId)],
+            queryFn: () => BudgetsApi.transactionsForBudget(yearMonth, String(s.categoryId)),
+          })
+        )
+      );
+      const transactionsByCategory = new Map(
+        all.map((s, i) => [s.categoryId, visibleRows(lists[i], includeUpcoming, today)])
+      );
+      const markdown = buildReportMarkdown({
+        yearMonth,
+        monthLabel,
+        prevMonthLabel,
+        today,
+        includeUpcoming,
+        totalSpent,
+        income,
+        prevSpent,
+        ranked,
+        refunds,
+        internal: internalRows,
+        transactionsByCategory,
+      });
+      downloadFile(markdown, `ledger-report-${yearMonth}.md`, 'text/markdown;charset=utf-8;');
+      setExportState('idle');
+    } catch {
+      setExportState('error');
+    }
+  };
 
   const total = rows.reduce((sum, t) => sum + Number(t.amount), 0);
   const expenses = rows.reduce((sum, t) => sum + (Number(t.amount) < 0 ? -Number(t.amount) : 0), 0);
@@ -180,6 +237,21 @@ export default function Report() {
           <div>
             <div className="eyebrow mb-1">{monthLabel}</div>
             <div className="page-title">Report</div>
+          </div>
+          <div className="d-flex align-items-center gap-2">
+            {exportState === 'error' && (
+              <span style={{ fontSize: 12.5, color: 'var(--red)' }}>Export failed</span>
+            )}
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              title="Download this month as Markdown — all transactions, totals and shares"
+              disabled={exportState === 'busy' || spendQuery.isLoading || spendQuery.isError}
+              onClick={exportReport}
+            >
+              <i className="bi bi-download me-1" />
+              {exportState === 'busy' ? 'Exporting…' : 'Export'}
+            </button>
           </div>
         </div>
       </div>
