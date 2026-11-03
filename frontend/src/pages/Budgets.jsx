@@ -14,12 +14,12 @@ const categoryColors = {
   Subscriptions: '#8B92A0',
 };
 
-function statusFor(spent, limit) {
-  const pct = limit > 0 ? (spent / limit) * 100 : 0;
-  if (pct >= 100) return { label: 'Over budget', cls: 'status-over', color: 'var(--red)' };
-  if (pct >= 85) return { label: 'Near limit', cls: 'status-warn', color: 'var(--gold)' };
-  return { label: 'On track', cls: 'status-ok', color: 'var(--jade)' };
-}
+// Status is computed by the backend (BudgetStatus); this only maps it to presentation.
+const statusStyles = {
+  ON_TRACK: { label: 'On track', cls: 'status-ok', color: 'var(--jade)' },
+  NEAR_LIMIT: { label: 'Near limit', cls: 'status-warn', color: 'var(--gold)' },
+  OVER_BUDGET: { label: 'Over budget', cls: 'status-over', color: 'var(--red)' },
+};
 
 function money(amount) {
   return `$${Math.abs(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -33,9 +33,10 @@ export default function Budgets() {
     queryKey: ['budgets'],
     queryFn: () => BudgetsApi.list(),
   });
-  const spendQuery = useQuery({
-    queryKey: ['budgets-spend', yearMonth],
-    queryFn: () => BudgetsApi.spendForMonth(yearMonth),
+  // Keyed under 'budgets-spend' so every existing invalidation of the month's spend refreshes it.
+  const summaryQuery = useQuery({
+    queryKey: ['budgets-spend', yearMonth, 'summary'],
+    queryFn: () => BudgetsApi.summaryForMonth(yearMonth),
   });
   const categoriesQuery = useQuery({ queryKey: ['categories'], queryFn: CategoriesApi.list });
   const categories = [...(categoriesQuery.data || [])].sort((a, b) => a.name.localeCompare(b.name));
@@ -47,12 +48,12 @@ export default function Budgets() {
   const budgets = [...(budgetsQuery.data || [])].sort((a, b) =>
     (a.category?.name || '').localeCompare(b.category?.name || '')
   );
-  const spendByCategory = Object.fromEntries(
-    (spendQuery.data || []).map((s) => [s.categoryId, Number(s.spent)])
+  const summaryByBudget = Object.fromEntries(
+    (summaryQuery.data?.budgets || []).map((s) => [s.budgetId, s])
   );
 
   const totalBudgeted = budgets.reduce((s, b) => s + Number(b.limitAmount), 0);
-  const totalSpent = budgets.reduce((s, b) => s + (spendByCategory[b.category?.id] || 0), 0);
+  const totalSpent = budgets.reduce((s, b) => s + Number(summaryByBudget[b.id]?.spent || 0), 0);
 
   const [showForm, setShowForm] = useState(false);
   const [categoryId, setCategoryId] = useState('');
@@ -117,7 +118,8 @@ export default function Budgets() {
     year: 'numeric',
   });
 
-  const daysLeft = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate() - new Date().getDate();
+  // Today included (lastDay − today + 1), computed server-side in the budget zone.
+  const daysLeft = summaryQuery.data?.daysLeft ?? '—';
 
   return (
     <div>
@@ -252,9 +254,10 @@ export default function Budgets() {
 
       <div className="row g-3">
         {budgets.map((b) => {
-          const spent = spendByCategory[b.category?.id] || 0;
-          const remaining = Number(b.limitAmount) - spent;
-          const st = statusFor(spent, Number(b.limitAmount));
+          const summary = summaryByBudget[b.id];
+          const spent = Number(summary?.spent || 0);
+          const remaining = summary ? Number(summary.left) : Number(b.limitAmount);
+          const st = statusStyles[summary?.status] || statusStyles.ON_TRACK;
           const pct = Math.min(Math.max((spent / Number(b.limitAmount)) * 100, 0), 100);
           const color = b.category?.colorHex || categoryColors[b.category?.name] || '#8B92A0';
           return (

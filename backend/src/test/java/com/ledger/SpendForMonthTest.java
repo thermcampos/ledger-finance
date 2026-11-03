@@ -7,6 +7,7 @@ import com.ledger.enums.AccountKind;
 import io.quarkus.test.junit.QuarkusTest;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.time.ZoneId;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -20,7 +21,7 @@ class SpendForMonthTest {
 
   private static final String EMAIL = "spend-for-month@example.com";
 
-  private static final LocalDate TODAY = LocalDate.now();
+  private static final LocalDate TODAY = LocalDate.now(ZoneId.of("America/Sao_Paulo"));
   private static final YearMonth MONTH = YearMonth.from(TODAY);
 
   private static Long groceriesId;

@@ -75,6 +75,8 @@ export const BudgetsApi = {
     client
       .get(`/budgets/month/${yearMonth}/spend`, { params: includeUpcoming ? { includeUpcoming } : {} })
       .then((r) => r.data),
+  summaryForMonth: (yearMonth) =>
+    client.get(`/budgets/month/${yearMonth}/summary`).then((r) => r.data),
   transactionsForBudget: (yearMonth, categoryId) =>
     client.get(`/budgets/month/${yearMonth}/category/${categoryId}/transactions`).then((r) => r.data),
   upsert: (payload) => client.post('/budgets', payload).then((r) => r.data),

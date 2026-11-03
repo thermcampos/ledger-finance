@@ -19,7 +19,7 @@ Status: **planned** (agreed 2026-11-03). Decisions: [ADR-0001 scheduled jobs](ad
 
 | # | Change | Status | Branch / PR | Notes |
 |---|---|---|---|---|
-| 1 | Server-side budget spend & status | `todo` | | |
+| 1 | Server-side budget spend & status | `in-progress` | | Implemented, gates green; awaiting owner check of Budgets page + commit |
 | 2 | Opt-in flags + UI | `todo` | | Independent of 3 |
 | 3 | Email infrastructure (Resend client) | `todo` | | Independent of 2 |
 | 4 | Digest content + "Send test email" | `todo` | | Needs 1, 2, 3 |
@@ -29,6 +29,14 @@ Status: **planned** (agreed 2026-11-03). Decisions: [ADR-0001 scheduled jobs](ad
 
 - 2026-11-03 — Plan and ADR-0001/0002 agreed. Resend DNS records for
   `ledger-finance.darkroasted.vps-kinghost.net` configured by the owner.
+- 2026-11-03 — Change 1 → `in-progress`. Chose the `GET /budgets/month/{yyyy-MM}/summary`
+  endpoint. Shape: `{yearMonth, today, daysLeft, budgets: [{budgetId, categoryId, categoryName,
+  limit, spent, left, status, perDay}]}` — `daysLeft` is month-level (not per budget) since it's
+  the same for every budget and the page header needs it with zero budgets; past month → 0,
+  future → month length. `perDay` is null when `left ≤ 0`. Also switched
+  `BudgetProjectionSyncService` to `BudgetClock` (the digest job calls `syncAll`, ADR-0001 says
+  no `LocalDate.now()`). Overview/Report keep using `/spend` (unchanged figures). A limit ≤ 0 stays
+  "On track", matching the old `statusFor`.
 
 ## Feature
 
@@ -87,7 +95,7 @@ Five changes, in order. Each one leaves `main` deployable and is useful/testable
 
 **Done when:**
 - [ ] Budgets page looks identical except days left is +1 (and never 0 on the last day)
-- [ ] Tests cover the spend exclusions, zone-based today, and the three status thresholds
+- [x] Tests cover the spend exclusions, zone-based today, and the three status thresholds
 
 ### Change 2 — Opt-in flags + UI
 

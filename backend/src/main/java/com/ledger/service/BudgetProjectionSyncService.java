@@ -33,10 +33,12 @@ public class BudgetProjectionSyncService {
 
   @Inject CreditCardBillSyncService billSync;
 
+  @Inject BudgetClock clock;
+
   /** The single entry point — safe to call unconditionally on any budget after any change. */
   @Transactional
   public void sync(Budget budget) {
-    LocalDate today = LocalDate.now();
+    LocalDate today = clock.today();
     LocalDate lastDay = today.withDayOfMonth(today.lengthOfMonth());
     Account target = budget.account;
 
@@ -131,7 +133,7 @@ public class BudgetProjectionSyncService {
 
   /** Real spend this month in the budget's category — expense rows only, projections excluded. */
   private BigDecimal spentThisMonth(Budget budget) {
-    LocalDate today = LocalDate.now();
+    LocalDate today = clock.today();
     BigDecimal sum =
         em.createQuery(
                 "SELECT SUM(t.amount) FROM Transaction t "

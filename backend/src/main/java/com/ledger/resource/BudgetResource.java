@@ -1,17 +1,18 @@
 package com.ledger.resource;
 
 import com.ledger.entity.Budget;
+import com.ledger.dto.response.BudgetSummaryResponse;
 import com.ledger.dto.response.CategorySpendResponse;
 import com.ledger.entity.Account;
 import com.ledger.entity.Category;
 import com.ledger.entity.Transaction;
 import com.ledger.security.CurrentUserService;
 import com.ledger.service.BudgetProjectionSyncService;
+import com.ledger.service.BudgetSpendService;
 import com.ledger.entity.User;
 import io.quarkus.panache.common.Sort;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
-import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -19,6 +20,8 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 
 @Path("/budgets")
@@ -29,7 +32,7 @@ public class BudgetResource {
 
   @Inject CurrentUserService currentUser;
 
-  @Inject EntityManager em;
+  @Inject BudgetSpendService spendService;
 
   @Inject BudgetProjectionSyncService budgetSync;
 
@@ -68,12 +71,9 @@ public class BudgetResource {
   }
 
   /**
-   * System-generated budget projection rows (linkedBudget set) are excluded — they represent
-   * what is still available, not what was spent, so counting them would make the projection
-   * collapse its own input. Internal categories (e.g. "Card payment") are excluded too: a bill
-   * payment mirrors purchases already counted on the card. Rows dated after today are left out
-   * unless includeUpcoming is set (the Report page's toggle). syncAll runs first for lazy month
-   * rollover, same as list().
+   * Per-category spend for the month — exclusions documented on BudgetSpendService. Rows dated
+   * after today are left out unless includeUpcoming is set (the Report page's toggle). syncAll
+   * runs first for lazy month rollover, same as list().
    */
   @GET
   @Path("/month/{yearMonth}/spend")
@@ -83,27 +83,26 @@ public class BudgetResource {
       @QueryParam("includeUpcoming") @DefaultValue("false") boolean includeUpcoming) {
     User user = currentUser.require();
     budgetSync.syncAll(user);
-    LocalDate start = LocalDate.parse(yearMonth + "-01");
-    LocalDate end = start.plusMonths(1).minusDays(1);
-    LocalDate today = LocalDate.now();
-    if (!includeUpcoming && end.isAfter(today)) {
-      end = today;
-    }
+    return spendService.spendForMonth(user, parseMonth(yearMonth), includeUpcoming);
+  }
 
-    return em.createQuery(
-            "SELECT new com.ledger.dto.response.CategorySpendResponse(t.category.id, t.category.name, SUM(t.amount)) "
-                + "FROM Transaction t "
-                + "WHERE t.account.user.id = :userId "
-                + "AND t.category IS NOT NULL "
-                + "AND t.category.internal = false "
-                + "AND t.linkedBudget IS NULL "
-                + "AND t.occurredOn BETWEEN :start AND :end "
-                + "GROUP BY t.category.id, t.category.name",
-            CategorySpendResponse.class)
-        .setParameter("userId", user.id)
-        .setParameter("start", start)
-        .setParameter("end", end)
-        .getResultList();
+  /**
+   * Every budget with the month's limit/spent/left/status/perDay and the month's days left —
+   * what the Budgets page renders (and the daily digest reuses). Upcoming rows are excluded.
+   */
+  @GET
+  @Path("/month/{yearMonth}/summary")
+  public BudgetSummaryResponse summaryForMonth(@PathParam("yearMonth") String yearMonth) {
+    User user = currentUser.require();
+    return spendService.summaryForMonth(user, parseMonth(yearMonth));
+  }
+
+  private static YearMonth parseMonth(String yearMonth) {
+    try {
+      return YearMonth.parse(yearMonth);
+    } catch (DateTimeParseException e) {
+      throw new BadRequestException("Month must be yyyy-MM");
+    }
   }
 
   @POST
