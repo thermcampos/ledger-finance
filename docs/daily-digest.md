@@ -21,7 +21,7 @@ Status: **planned** (agreed 2026-11-03). Decisions: [ADR-0001 scheduled jobs](ad
 |---|---|---|---|---|
 | 1 | Server-side budget spend & status | `in-progress` | | Implemented, gates green; awaiting owner check of Budgets page + commit |
 | 2 | Opt-in flags + UI | `in-progress` | | Implemented, gates green; awaiting owner theme check, V18 on prod copy, commit |
-| 3 | Email infrastructure (Resend client) | `todo` | | Independent of 2 |
+| 3 | Email infrastructure (Resend client) | `in-progress` | | Implemented, JVM tests green; native build left to Backend CI; needs `RESEND_API_KEY` in Doppler `prd` + commit |
 | 4 | Digest content + "Send test email" | `todo` | | Needs 1, 2, 3 |
 | 5 | Scheduled daily send | `todo` | | Needs 4 |
 
@@ -48,6 +48,14 @@ Status: **planned** (agreed 2026-11-03). Decisions: [ADR-0001 scheduled jobs](ad
   endpoint returns the expected figures. The V18 box stays open until it's run on a prod copy.
   Unrelated finding: `generation=validate` fails on `api_tokens.token_hash` (V17 `CHAR(64)` vs
   entity `varchar(64)`) — harmless with prod's `generation=none`, not fixed here.
+- 2026-11-03 — Change 3 → `in-progress`. `EmailService#send` returns `Optional<String>` (Resend id;
+  empty when only logged) and throws `EmailSendException` with `status()` (Resend HTTP status, `0`
+  for no response: missing key or connection failure) plus `isRetryable()` (0/429/5xx), for
+  change 5's per-user failure handling. "Mocked `ResendClient`" is a hand-written fake (no Mockito
+  in the pom). `EmailPalette` is exposed to Qute as `{palette:…}` and carries the two font stacks;
+  rgba `-dim` tokens are left out (Outlook drops rgba). Layout slots: `title`, `preheader`, main
+  body and `footer`. Native build is **not** run locally (dev VM is too weak). It's verified by Backend
+  CI on the `graalvm-25` runner.
 
 ## Feature
 
@@ -157,7 +165,7 @@ Five changes, in order. Each one leaves `main` deployable and is useful/testable
 - Verify the native build still passes (Qute + REST client in native).
 
 **Done when:**
-- [ ] Unit test with mocked `ResendClient` passes (send path + log-only path + error mapping)
+- [x] Unit test with mocked `ResendClient` passes (send path + log-only path + error mapping)
 - [ ] Native build is green
 - [ ] `RESEND_API_KEY` is present in the running backend pod
 

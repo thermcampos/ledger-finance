@@ -1,0 +1,54 @@
+{!
+  Base layout for every Ledger email — docs/adr/0002-transactional-email-via-resend.md.
+  Light (paper) palette only, colors from EmailPalette ({palette:...}), hairline borders, no shadows.
+  Table-based with inline styles so Outlook/Hotmail and Gmail render it the same.
+
+  Usage:
+    {#include email/layout}
+      {#title}Budgets for Tue, Nov 3{/title}
+      {#preheader}Inbox preview line{/preheader}
+      ...body rows...
+      {#footer}Why you got this + link{/footer}
+    {/include}
+!}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light only">
+<meta name="supported-color-schemes" content="light">
+<title>{#insert title}Ledger{/}</title>
+</head>
+<body style="margin:0;padding:0;background-color:{palette:BG};">
+<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">{#insert preheader}{/}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:{palette:BG};">
+  <tr>
+    <td align="center" style="padding:24px 12px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;background-color:{palette:SURFACE};border:1px solid {palette:BORDER};">
+        <tr>
+          <td style="padding:16px 24px;border-bottom:1px solid {palette:BORDER};font-family:{palette:FONT_SANS};font-size:13px;letter-spacing:0.08em;text-transform:uppercase;color:{palette:TEXT_MUTED};">
+            Ledger
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:20px 24px 4px 24px;font-family:{palette:FONT_SANS};font-size:18px;font-weight:600;color:{palette:TEXT};">
+            {#insert title}{/}
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:12px 24px 24px 24px;font-family:{palette:FONT_SANS};font-size:14px;line-height:1.5;color:{palette:TEXT};">
+            {#insert}{/}
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:16px 24px;border-top:1px solid {palette:BORDER};font-family:{palette:FONT_SANS};font-size:12px;line-height:1.5;color:{palette:TEXT_FAINT};">
+            {#insert footer}{/}
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>

@@ -44,6 +44,12 @@
       <artifactId>quarkus-hibernate-validator</artifactId>
     </dependency>
 
+    <!-- Email templates (daily digest) — see docs/adr/0002-transactional-email-via-resend.md -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-qute</artifactId>
+    </dependency>
+
     <!-- Transaction import (CSV/PDF) -->
     <dependency>
       <groupId>org.apache.commons</groupId>

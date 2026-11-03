@@ -48,6 +48,11 @@ variable "jwt_public_key" {
   sensitive = true
 }
 
+variable "resend_api_key" {
+  type      = string
+  sensitive = true
+}
+
 variable "r2_access_key" {
   type      = string
   sensitive = true
@@ -96,6 +101,7 @@ resource "kubernetes_secret_v1" "ledger_finance_secrets" {
     postgres_db       = var.db_name
     jwt_private_key   = var.jwt_private_key
     jwt_public_key    = var.jwt_public_key
+    resend_api_key    = var.resend_api_key
   }
 }
 
@@ -225,6 +231,15 @@ resource "kubernetes_deployment_v1" "ledger_finance_backend" {
               secret_key_ref {
                 name = kubernetes_secret_v1.ledger_finance_secrets.metadata[0].name
                 key  = "postgres_password"
+              }
+            }
+          }
+          env {
+            name = "RESEND_API_KEY"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret_v1.ledger_finance_secrets.metadata[0].name
+                key  = "resend_api_key"
               }
             }
           }

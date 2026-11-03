@@ -9,6 +9,11 @@
 // the light backgrounds, keeping the "muted, not neon" discipline: darkened,
 // desaturated jade / brick / gold. Gold stays reserved for "near limit" only.
 // Verify with `npm run check:contrast`.
+//
+// KEEP IN SYNC: the solid colors below are mirrored for email in
+// backend/src/main/java/com/ledger/email/EmailPalette.java (emails always use
+// the light palette — docs/adr/0002-transactional-email-via-resend.md).
+// Change both in the same PR.
 
 [data-theme='light'] {
   --bg: #f3efe6;
