@@ -34,7 +34,8 @@ public class UserResource {
   @Path("/me")
   public MeResponse me() {
     User user = currentUser.require();
-    return new MeResponse(user.email, user.displayName, user.createdAt);
+    return new MeResponse(
+        user.email, user.displayName, user.createdAt, user.emailSummariesEnabled);
   }
 
   @PUT
@@ -56,6 +57,9 @@ public class UserResource {
 
     user.email = request.email;
     user.displayName = request.displayName;
+    if (request.emailSummariesEnabled != null) {
+      user.emailSummariesEnabled = request.emailSummariesEnabled;
+    }
 
     // Re-issue the token: the JWT's principal is the email, so a changed
     // email would otherwise 401 the very next request under the old token.
@@ -98,6 +102,9 @@ public class UserResource {
   public static class UpdateProfileRequest {
     @Email @NotBlank public String email;
     @NotBlank public String displayName;
+
+    /** Daily digest master switch; null leaves it unchanged. */
+    public Boolean emailSummariesEnabled;
   }
 
   public static class ChangePasswordRequest {
@@ -112,11 +119,14 @@ public class UserResource {
     public String email;
     public String displayName;
     public Instant createdAt;
+    public boolean emailSummariesEnabled;
 
-    public MeResponse(String email, String displayName, Instant createdAt) {
+    public MeResponse(
+        String email, String displayName, Instant createdAt, boolean emailSummariesEnabled) {
       this.email = email;
       this.displayName = displayName;
       this.createdAt = createdAt;
+      this.emailSummariesEnabled = emailSummariesEnabled;
     }
   }
 }

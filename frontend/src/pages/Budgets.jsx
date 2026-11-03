@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { BudgetsApi, CategoriesApi, AccountsApi } from '../api/ledger';
+import { Link } from 'react-router-dom';
+import { BudgetsApi, CategoriesApi, AccountsApi, UsersApi } from '../api/ledger';
 import { localYearMonth } from '../utils/date';
 import { useStickyHeader } from '../hooks/useStickyHeader';
 import { iconClassName } from '../constants/categoryIcons';
@@ -39,6 +40,9 @@ export default function Budgets() {
     queryFn: () => BudgetsApi.summaryForMonth(yearMonth),
   });
   const categoriesQuery = useQuery({ queryKey: ['categories'], queryFn: CategoriesApi.list });
+  const meQuery = useQuery({ queryKey: ['me'], queryFn: UsersApi.me });
+  // Unknown (still loading) counts as on, so the hint never flashes for users who opted in.
+  const emailSummariesOff = meQuery.data ? !meQuery.data.emailSummariesEnabled : false;
   const categories = [...(categoriesQuery.data || [])].sort((a, b) => a.name.localeCompare(b.name));
   const accountsQuery = useQuery({ queryKey: ['accounts'], queryFn: AccountsApi.list });
   const projectableAccounts = (accountsQuery.data || [])
@@ -59,6 +63,15 @@ export default function Budgets() {
   const [categoryId, setCategoryId] = useState('');
   const [limitAmount, setLimitAmount] = useState('');
   const [accountId, setAccountId] = useState('');
+  const [dailyEmailSummary, setDailyEmailSummary] = useState(false);
+
+  const resetForm = () => {
+    setShowForm(false);
+    setCategoryId('');
+    setLimitAmount('');
+    setAccountId('');
+    setDailyEmailSummary(false);
+  };
 
   const upsertMutation = useMutation({
     mutationFn: BudgetsApi.upsert,
@@ -67,10 +80,7 @@ export default function Budgets() {
       queryClient.invalidateQueries({ queryKey: ['budgets-spend', yearMonth] });
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
-      setShowForm(false);
-      setCategoryId('');
-      setLimitAmount('');
-      setAccountId('');
+      resetForm();
     },
   });
 
@@ -80,6 +90,7 @@ export default function Budgets() {
       categoryId: Number(categoryId),
       limitAmount: Number(limitAmount),
       accountId: accountId ? Number(accountId) : null,
+      dailyEmailSummary,
     });
   };
 
@@ -88,6 +99,7 @@ export default function Budgets() {
     setCategoryId(String(b.category?.id ?? ''));
     setLimitAmount(String(b.limitAmount));
     setAccountId(b.account?.id ? String(b.account.id) : '');
+    setDailyEmailSummary(!!b.dailyEmailSummary);
     setShowForm(true);
   };
 
@@ -198,16 +210,26 @@ export default function Budgets() {
                 <button
                   type="button"
                   className="btn btn-ghost btn-sm w-100"
-                  onClick={() => {
-                    setShowForm(false);
-                    setCategoryId('');
-                    setLimitAmount('');
-                    setAccountId('');
-                  }}
+                  onClick={resetForm}
                 >
                   Cancel
                 </button>
               </div>
+            </div>
+            <div className="d-flex flex-wrap align-items-center gap-3 mt-3">
+              <label className="eyebrow d-flex align-items-center gap-2 mb-0">
+                <input
+                  type="checkbox"
+                  checked={dailyEmailSummary}
+                  onChange={(e) => setDailyEmailSummary(e.target.checked)}
+                />
+                Daily email summary
+              </label>
+              {emailSummariesOff && (
+                <span className="text-faint" style={{ fontSize: 11.5 }}>
+                  Emails are off — <Link to="/profile">turn them on in Profile</Link>
+                </span>
+              )}
             </div>
           </form>
         </div>
@@ -305,6 +327,14 @@ export default function Budgets() {
                           <i className={iconClassName(b.category?.icon)} />
                         </span>
                         {b.category?.name}
+                        {b.dailyEmailSummary && (
+                          <i
+                            className="bi bi-envelope text-faint"
+                            style={{ fontSize: 12, marginLeft: 6 }}
+                            title="Included in the daily email summary"
+                            aria-label="Included in the daily email summary"
+                          />
+                        )}
                       </div>
                       <div className="d-flex gap-1">
                         <button

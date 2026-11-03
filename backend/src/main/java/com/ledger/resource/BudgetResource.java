@@ -137,6 +137,7 @@ public class BudgetResource {
     }
     budget.limitAmount = request.limitAmount;
     budget.account = account;
+    budget.dailyEmailSummary = Boolean.TRUE.equals(request.dailyEmailSummary);
     budget.persist();
     budgetSync.sync(budget);
     return budget;
@@ -161,5 +162,8 @@ public class BudgetResource {
 
     /** Optional projection target — when null, no transaction is projected. */
     public Long accountId;
+
+    /** Include in the daily email digest; null → false. */
+    public Boolean dailyEmailSummary;
   }
 }

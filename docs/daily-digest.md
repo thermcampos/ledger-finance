@@ -20,7 +20,7 @@ Status: **planned** (agreed 2026-11-03). Decisions: [ADR-0001 scheduled jobs](ad
 | # | Change | Status | Branch / PR | Notes |
 |---|---|---|---|---|
 | 1 | Server-side budget spend & status | `in-progress` | | Implemented, gates green; awaiting owner check of Budgets page + commit |
-| 2 | Opt-in flags + UI | `todo` | | Independent of 3 |
+| 2 | Opt-in flags + UI | `in-progress` | | Implemented, gates green; awaiting owner theme check, V18 on prod copy, commit |
 | 3 | Email infrastructure (Resend client) | `todo` | | Independent of 2 |
 | 4 | Digest content + "Send test email" | `todo` | | Needs 1, 2, 3 |
 | 5 | Scheduled daily send | `todo` | | Needs 4 |
@@ -37,6 +37,17 @@ Status: **planned** (agreed 2026-11-03). Decisions: [ADR-0001 scheduled jobs](ad
   `BudgetProjectionSyncService` to `BudgetClock` (the digest job calls `syncAll`, ADR-0001 says
   no `LocalDate.now()`). Overview/Report keep using `/spend` (unchanged figures). A limit ≤ 0 stays
   "On track", matching the old `statusFor`.
+- 2026-11-03 — Change 2 → `in-progress`. Profile switch is saved through the existing
+  `PUT /users/me` (`emailSummariesEnabled`, null → unchanged) and rendered as an On/Off pair
+  matching the Theme picker; the budget checkbox reuses the plain checkbox style of Report's
+  "Include upcoming". No new color pairings (`check:contrast` passes). Both entity flags carry
+  `@ColumnDefault("false")` so the dev `drop-and-create` schema matches V18. Envelope icon is
+  `bi-envelope` in `--text-faint`.
+- 2026-11-03 — Change 2 validated against a clean Postgres 16 (`task db-up`) with the prod-profile
+  JVM jar: Flyway applied V1–V18; `/users/me` and `/budgets` round-trip both flags and the summary
+  endpoint returns the expected figures. The V18 box stays open until it's run on a prod copy.
+  Unrelated finding: `generation=validate` fails on `api_tokens.token_hash` (V17 `CHAR(64)` vs
+  entity `varchar(64)`) — harmless with prod's `generation=none`, not fixed here.
 
 ## Feature
 
@@ -116,7 +127,7 @@ Five changes, in order. Each one leaves `main` deployable and is useful/testable
 - Both themes; `npm run check:contrast` for any new color pairing.
 
 **Done when:**
-- [ ] Both flags round-trip through the API and survive a reload
+- [ ] Both flags round-trip through the API and survive a reload (API round-trip covered by `EmailSummaryFlagsTest`; reload is the owner's check)
 - [ ] Checkbox, hint and Profile toggle checked in dark and light themes
 - [ ] V18 applies cleanly on a copy of prod data
 

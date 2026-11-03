@@ -1,6 +1,7 @@
 package com.ledger.entity;
 
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
+import org.hibernate.annotations.ColumnDefault;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 
@@ -33,4 +34,12 @@ public class Budget extends PanacheEntityBase {
 
   @Column(name = "limit_amount", precision = 14, scale = 2, nullable = false)
   public BigDecimal limitAmount;
+
+  /**
+   * Include this budget in the daily email digest. Only takes effect when the owner's
+   * User.emailSummariesEnabled master switch is on.
+   */
+  @ColumnDefault("false") // matches V18, so dev drop-and-create and plain SQL inserts agree
+  @Column(name = "daily_email_summary", nullable = false)
+  public boolean dailyEmailSummary;
 }

@@ -43,6 +43,21 @@ export default function Profile() {
     profileMutation.mutate({ displayName, email });
   };
 
+  // Saved immediately on click; PUT /users/me needs the saved name/email alongside the flag.
+  const emailSummariesMutation = useMutation({
+    mutationFn: (enabled) =>
+      UsersApi.updateProfile({
+        displayName: meQuery.data?.displayName ?? user?.displayName,
+        email: meQuery.data?.email ?? user?.email,
+        emailSummariesEnabled: enabled,
+      }),
+    onSuccess: (response) => {
+      applySession(response);
+      queryClient.invalidateQueries({ queryKey: ['me'] });
+    },
+  });
+  const emailSummariesEnabled = !!meQuery.data?.emailSummariesEnabled;
+
   const [theme, setThemeState] = useState(getStoredTheme);
 
   const handleThemeChange = (next) => {
@@ -339,6 +354,32 @@ export default function Profile() {
             )}
           </div>
         ))}
+      </div>
+
+      <div className="panel p-4 mt-4">
+        <div className="eyebrow mb-3">Email summaries</div>
+        <div className="d-flex gap-2" role="group" aria-label="Email summaries">
+          {[true, false].map((on) => (
+            <button
+              key={String(on)}
+              type="button"
+              className={`btn btn-sm ${emailSummariesEnabled === on ? 'btn-jade' : 'btn-ghost'}`}
+              aria-pressed={emailSummariesEnabled === on}
+              disabled={!meQuery.data || emailSummariesMutation.isPending}
+              onClick={() => emailSummariesEnabled !== on && emailSummariesMutation.mutate(on)}
+            >
+              {on ? 'On' : 'Off'}
+            </button>
+          ))}
+        </div>
+        <div className="text-faint mt-2" style={{ fontSize: 11.5 }}>
+          Daily at 07:00 (São Paulo time), for the budgets marked &ldquo;Daily email summary&rdquo;.
+        </div>
+        {emailSummariesMutation.isError && (
+          <div className="mt-2" style={{ fontSize: 11.5, color: 'var(--red)' }}>
+            {emailSummariesMutation.error?.response?.data?.message || 'Could not save this setting.'}
+          </div>
+        )}
       </div>
 
       <div className="panel p-4 mt-4">
