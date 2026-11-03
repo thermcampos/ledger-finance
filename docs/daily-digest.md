@@ -21,7 +21,7 @@ Status: **planned** (agreed 2026-11-03). Decisions: [ADR-0001 scheduled jobs](ad
 |---|---|---|---|---|
 | 1 | Server-side budget spend & status | `in-progress` | | Implemented, gates green; awaiting owner check of Budgets page + commit |
 | 2 | Opt-in flags + UI | `in-progress` | | Implemented, gates green; awaiting owner theme check, V18 on prod copy, commit |
-| 3 | Email infrastructure (Resend client) | `in-progress` | | Implemented, JVM tests green; native build left to Backend CI; needs `RESEND_API_KEY` in Doppler `prd` + commit |
+| 3 | Email infrastructure (Resend client) | `done` | `main` @ 540e8fc | Native build green in CI; key in prod pod |
 | 4 | Digest content + "Send test email" | `todo` | | Needs 1, 2, 3 |
 | 5 | Scheduled daily send | `todo` | | Needs 4 |
 
@@ -56,6 +56,8 @@ Status: **planned** (agreed 2026-11-03). Decisions: [ADR-0001 scheduled jobs](ad
   rgba `-dim` tokens are left out (Outlook drops rgba). Layout slots: `title`, `preheader`, main
   body and `footer`. Native build is **not** run locally (dev VM is too weak). It's verified by Backend
   CI on the `graalvm-25` runner.
+- 2026-11-03 — Change 3 → `done` (540e8fc on `main`). Backend CI native build green, deployed;
+  owner confirmed `RESEND_API_KEY` is in Doppler `prd` and the running backend pod.
 
 ## Feature
 
@@ -166,8 +168,8 @@ Five changes, in order. Each one leaves `main` deployable and is useful/testable
 
 **Done when:**
 - [x] Unit test with mocked `ResendClient` passes (send path + log-only path + error mapping)
-- [ ] Native build is green
-- [ ] `RESEND_API_KEY` is present in the running backend pod
+- [x] Native build is green
+- [x] `RESEND_API_KEY` is present in the running backend pod
 
 ### Change 4 — Digest content + "Send test email"
 
