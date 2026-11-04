@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react';
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
-import { BudgetsApi, CategoriesApi } from '../api/ledger';
+import { AccountsApi, BudgetsApi, CategoriesApi, TransactionsApi } from '../api/ledger';
 import { iconClassName } from '../constants/categoryIcons';
 import { isoDate, localYearMonth, parseLocalDate } from '../utils/date';
 import { useStickyHeader } from '../hooks/useStickyHeader';
 import { downloadFile } from '../utils/export';
 import { buildReportMarkdown } from '../utils/reportExport';
-import { installmentRows, installmentsTotal } from '../utils/reportInstallments';
+import { cardInstallmentRows, installmentsTotal } from '../utils/reportInstallments';
 
 function money(amount, { signed = false } = {}) {
   const value = Math.abs(amount).toLocaleString('en-US', {
@@ -172,19 +172,31 @@ export default function Report() {
     [reportQuery.data, includeUpcoming, today]
   );
 
-  // Installments follow-up: every non-internal category's transactions,
-  // through the drill-down's query key (shared cache with it and the export),
-  // narrowed to installment rows. Read-only — never added to the totals.
-  const installmentLists = useQueries({
-    queries: [...ranked, ...refunds].map((s) => ({
-      queryKey: ['report-transactions', yearMonth, String(s.categoryId)],
-      queryFn: () => BudgetsApi.transactionsForBudget(yearMonth, String(s.categoryId)),
+  // Card installments follow-up: installment rows on each credit card's bill
+  // due this month. Same query keys as Overview/Transactions, so the
+  // invalidations they fire on writes refresh this too. Read-only — never
+  // added to the totals.
+  const accountsQuery = useQuery({ queryKey: ['accounts'], queryFn: AccountsApi.list });
+  const cards = useMemo(
+    () => (accountsQuery.data || []).filter((a) => a.kind === 'CREDIT_CARD'),
+    [accountsQuery.data]
+  );
+  const cardTransactions = useQueries({
+    queries: cards.map((c) => ({
+      queryKey: ['transactions', c.id],
+      queryFn: () => TransactionsApi.listByAccount(c.id),
     })),
     combine: (results) => results.map((r) => r.data),
   });
   const installments = useMemo(
-    () => installmentRows(installmentLists.map((list) => visibleRows(list, includeUpcoming, today))),
-    [installmentLists, includeUpcoming, today]
+    () =>
+      cardInstallmentRows(
+        cards,
+        new Map(cards.map((c, i) => [c.id, cardTransactions[i]])),
+        yearMonth,
+        { includeUpcoming, today }
+      ),
+    [cards, cardTransactions, yearMonth, includeUpcoming, today]
   );
   const installmentsSum = installmentsTotal(installments);
 
@@ -218,6 +230,7 @@ export default function Report() {
         refunds,
         internal: internalRows,
         transactionsByCategory,
+        installments,
       });
       downloadFile(markdown, `ledger-report-${yearMonth}.md`, 'text/markdown;charset=utf-8;');
       setExportState('idle');
@@ -493,9 +506,9 @@ export default function Report() {
 
       {installments.length > 0 && (
         <div className="panel p-4 mb-4">
-          <div className="eyebrow mb-1">Installments · {monthLabel}</div>
+          <div className="eyebrow mb-1">Card installments · bills due {monthLabel}</div>
           <div className="text-muted-c mb-3" style={{ fontSize: 12.5 }}>
-            For follow-up only — already counted in the spending above.
+            For follow-up only — already counted in the spending above, by purchase date.
           </div>
           {installments.map((t) => (
             <div className="installment-row" key={t.id}>

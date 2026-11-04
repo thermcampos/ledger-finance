@@ -2,7 +2,7 @@
 // shares, internal categories and every transaction behind those figures.
 // Meant to be pasted into an LLM, so it states its own conventions up front.
 
-import { installmentRows, installmentsTotal } from './reportInstallments';
+import { installmentsTotal } from './reportInstallments';
 
 function amount(value, { signed = false } = {}) {
   const abs = Math.abs(value).toFixed(2);
@@ -62,6 +62,7 @@ function transactionNotes(t, today) {
  * @param {Array}  report.refunds          non-internal categories netting to income/zero
  * @param {Array}  report.internal         internal categories
  * @param {Map}    report.transactionsByCategory  categoryId → transactions (already filtered)
+ * @param {Array}  [report.installments]  card installments on bills due this month (see reportInstallments)
  */
 export function buildReportMarkdown(report) {
   const {
@@ -77,6 +78,7 @@ export function buildReportMarkdown(report) {
     refunds,
     internal,
     transactionsByCategory,
+    installments = [],
   } = report;
   const share = (value) => (totalSpent > 0 ? (value / totalSpent) * 100 : 0);
   const out = [];
@@ -169,16 +171,13 @@ export function buildReportMarkdown(report) {
     out.push('');
   }
 
-  // Non-internal categories only; installments are already inside the
-  // category totals above, so this section never adds to them.
-  const installments = installmentRows(
-    [...ranked, ...refunds].map((s) => transactionsByCategory.get(s.categoryId))
-  );
+  // Read-only follow-up: these rows are already inside the category totals
+  // above (by transaction date), so this section never adds to them.
   if (installments.length > 0) {
-    out.push('## Installments (already counted in spending above)');
+    out.push('## Credit card installments on bills due this month (already counted in spending above)');
     out.push('');
     out.push(
-      'Purchases split into installments with a part dated this month (internal categories excluded). For follow-up only — NOT an additional amount on top of Total spent.'
+      'Installment rows on each credit card\'s bill due in this month (a row dated late last month can sit on this month\'s bill). Recurring series and internal categories excluded. For follow-up only — NOT an additional amount on top of Total spent.'
     );
     out.push('');
     out.push(
