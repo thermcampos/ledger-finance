@@ -79,6 +79,41 @@ describe('buildReportMarkdown', () => {
     expect(notesFor({ seriesInfo: '2/3', seriesRepeat: null })).toContain('| -50.00 | series 2/3 |');
   });
 
+  it('lists installments apart with a total, skipping recurring rows and internal categories', () => {
+    const withSeries = buildReportMarkdown(
+      report({
+        transactionsByCategory: new Map([
+          [1, [txn(13, '2026-11-03', 'TV', -200, { seriesInfo: '3/10', seriesRepeat: 'INSTALLMENTS' })]],
+          [
+            2,
+            [
+              txn(21, '2026-11-02', 'Lunch', -50, { seriesInfo: '2/3', seriesRepeat: 'INSTALLMENTS' }),
+              txn(22, '2026-11-01', 'Streaming', -20, { seriesInfo: '4/12', seriesRepeat: 'MONTHLY' }),
+            ],
+          ],
+          [9, [txn(92, '2026-11-01', 'Card fee', -9, { seriesInfo: '1/2', seriesRepeat: 'INSTALLMENTS' })]],
+        ]),
+      })
+    );
+    const section = withSeries.slice(
+      withSeries.indexOf('## Installments'),
+      withSeries.indexOf('## Transactions')
+    );
+    expect(section).toContain('| Date | Description | Account | Installment | Amount |');
+    expect(section.indexOf('Lunch')).toBeLessThan(section.indexOf('TV'));
+    expect(section).toContain('| 2026-11-03 | TV | Checking | 3/10 | -200.00 |');
+    expect(section).not.toContain('Streaming');
+    expect(section).not.toContain('Card fee');
+    expect(section).toContain('2 installments · total -250.00');
+    // Read-only: the summary total is untouched.
+    expect(withSeries).toContain('| Total spent | 200.00 |');
+  });
+
+  it('omits the installments section when there are none', () => {
+    const none = buildReportMarkdown(report({ transactionsByCategory: new Map() }));
+    expect(none).not.toContain('## Installments');
+  });
+
   it('marks the change vs previous month n/a when there was no prior spend', () => {
     const empty = buildReportMarkdown(report({ prevSpent: 0 }));
     expect(empty).toContain('| Change vs Oct | n/a |');

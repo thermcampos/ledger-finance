@@ -2,6 +2,8 @@
 // shares, internal categories and every transaction behind those figures.
 // Meant to be pasted into an LLM, so it states its own conventions up front.
 
+import { installmentRows, installmentsTotal } from './reportInstallments';
+
 function amount(value, { signed = false } = {}) {
   const abs = Math.abs(value).toFixed(2);
   const sign = value < 0 ? '-' : signed && value > 0 ? '+' : '';
@@ -163,6 +165,38 @@ export function buildReportMarkdown(report) {
         internal.map((s) => [s.categoryName, amount(-s.spent, { signed: true })]),
         ['l', 'r']
       )
+    );
+    out.push('');
+  }
+
+  // Non-internal categories only; installments are already inside the
+  // category totals above, so this section never adds to them.
+  const installments = installmentRows(
+    [...ranked, ...refunds].map((s) => transactionsByCategory.get(s.categoryId))
+  );
+  if (installments.length > 0) {
+    out.push('## Installments (already counted in spending above)');
+    out.push('');
+    out.push(
+      'Purchases split into installments with a part dated this month (internal categories excluded). For follow-up only — NOT an additional amount on top of Total spent.'
+    );
+    out.push('');
+    out.push(
+      table(
+        ['Date', 'Description', 'Account', 'Installment', 'Amount'],
+        installments.map((t) => [
+          t.occurredOn,
+          t.description,
+          t.account?.name || '',
+          t.seriesInfo,
+          amount(Number(t.amount), { signed: true }),
+        ]),
+        ['l', 'l', 'l', 'r', 'r']
+      )
+    );
+    out.push('');
+    out.push(
+      `${installments.length} installment${installments.length === 1 ? '' : 's'} · total ${amount(installmentsTotal(installments), { signed: true })}`
     );
     out.push('');
   }

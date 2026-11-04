@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BudgetsApi, CategoriesApi } from '../api/ledger';
 import { iconClassName } from '../constants/categoryIcons';
 import { isoDate, localYearMonth, parseLocalDate } from '../utils/date';
 import { useStickyHeader } from '../hooks/useStickyHeader';
 import { downloadFile } from '../utils/export';
 import { buildReportMarkdown } from '../utils/reportExport';
+import { installmentRows, installmentsTotal } from '../utils/reportInstallments';
 
 function money(amount, { signed = false } = {}) {
   const value = Math.abs(amount).toLocaleString('en-US', {
@@ -139,6 +140,7 @@ export default function Report() {
     () => internalSpend(spendQuery.data || [], categories),
     [spendQuery.data, categories]
   );
+  const refunds = useMemo(() => refundSpend(spendQuery.data || []), [spendQuery.data]);
   const totalSpent = ranked.reduce((sum, s) => sum + s.spent, 0);
   const income = (spendQuery.data || [])
     .filter((s) => !s.internal)
@@ -170,12 +172,27 @@ export default function Report() {
     [reportQuery.data, includeUpcoming, today]
   );
 
+  // Installments follow-up: every non-internal category's transactions,
+  // through the drill-down's query key (shared cache with it and the export),
+  // narrowed to installment rows. Read-only — never added to the totals.
+  const installmentLists = useQueries({
+    queries: [...ranked, ...refunds].map((s) => ({
+      queryKey: ['report-transactions', yearMonth, String(s.categoryId)],
+      queryFn: () => BudgetsApi.transactionsForBudget(yearMonth, String(s.categoryId)),
+    })),
+    combine: (results) => results.map((r) => r.data),
+  });
+  const installments = useMemo(
+    () => installmentRows(installmentLists.map((list) => visibleRows(list, includeUpcoming, today))),
+    [installmentLists, includeUpcoming, today]
+  );
+  const installmentsSum = installmentsTotal(installments);
+
   // Markdown export of the whole month — every category's transactions,
   // fetched through the drill-down's query key so they're cached for it too.
   const exportReport = async () => {
     setExportState('busy');
     try {
-      const refunds = refundSpend(spendQuery.data || []);
       const all = [...ranked, ...refunds, ...internalRows];
       const lists = await Promise.all(
         all.map((s) =>
@@ -471,6 +488,43 @@ export default function Report() {
               </button>
             );
           })}
+        </div>
+      )}
+
+      {installments.length > 0 && (
+        <div className="panel p-4 mb-4">
+          <div className="eyebrow mb-1">Installments · {monthLabel}</div>
+          <div className="text-muted-c mb-3" style={{ fontSize: 12.5 }}>
+            For follow-up only — already counted in the spending above.
+          </div>
+          {installments.map((t) => (
+            <div className="installment-row" key={t.id}>
+              <div className="installment-main">
+                <div className="txn-desc">
+                  <span className="txn-desc-text">{t.description}</span>
+                  <span className="tag mono">{t.seriesInfo}</span>
+                </div>
+                <div className="txn-meta">
+                  <span className="txn-meta-value">
+                    {parseLocalDate(t.occurredOn).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </span>
+                  <span className="dot-sep" />
+                  <span className="txn-meta-value">{t.account?.name || 'Account'}</span>
+                </div>
+              </div>
+              <div className={`cell-amount ${Number(t.amount) < 0 ? 'neg' : 'pos'}`}>
+                {money(Number(t.amount), { signed: true })}
+              </div>
+            </div>
+          ))}
+          <div className="installment-total">
+            <span className="eyebrow">
+              Total · {installments.length} installment{installments.length === 1 ? '' : 's'}
+            </span>
+            <span className={`cell-amount ${installmentsSum < 0 ? 'neg' : 'pos'}`}>
+              {money(installmentsSum, { signed: true })}
+            </span>
+          </div>
         </div>
       )}
 

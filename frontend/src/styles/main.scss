@@ -492,6 +492,35 @@ body {
   text-align: right;
 }
 
+/* --- Report: installments follow-up (read-only) --- */
+.installment-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.installment-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.installment-row .txn-desc-text {
+  flex: 0 1 auto;
+}
+.installment-row .cell-amount,
+.installment-total .cell-amount {
+  font-variant-numeric: tabular-nums;
+}
+.installment-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 12px;
+}
+
 /* --- Transactions feed --- */
 .day-heading {
   display: flex;
