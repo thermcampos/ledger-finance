@@ -28,7 +28,7 @@ function report(overrides = {}) {
     internal: [{ categoryId: 9, categoryName: 'Card payment', spent: 900 }],
     transactionsByCategory: new Map([
       [1, [txn(12, '2026-11-02', 'Market', -100), txn(11, '2026-11-01', 'Bakery | café', -50)]],
-      [2, [txn(21, '2026-11-02', 'Lunch', -50, { seriesInfo: '2/3' })]],
+      [2, [txn(21, '2026-11-02', 'Lunch', -50, { seriesInfo: '2/3', seriesRepeat: 'INSTALLMENTS' })]],
       [3, [txn(31, '2026-11-01', 'Return', 30)]],
       [9, [txn(91, '2026-11-01', 'Credit card payment — Visa', -900)]],
     ]),
@@ -64,6 +64,19 @@ describe('buildReportMarkdown', () => {
     expect(groceries).toContain('2 transactions · expenses 150.00 · income 0.00 · net -150.00');
     expect(md).toContain('| Lunch | Checking | -50.00 | installment 2/3 |');
     expect(md).toContain('| Return | Checking | +30.00 |  |');
+  });
+
+  it('labels series rows by their repeat kind, not always as installments', () => {
+    const notesFor = (extra) =>
+      buildReportMarkdown(
+        report({
+          transactionsByCategory: new Map([[2, [txn(21, '2026-11-02', 'Lunch', -50, extra)]]]),
+        }),
+      );
+    expect(notesFor({ seriesInfo: '2/3', seriesRepeat: 'MONTHLY' })).toContain('| -50.00 | monthly 2/3 |');
+    expect(notesFor({ seriesInfo: '2/3', seriesRepeat: 'WEEKLY' })).toContain('| -50.00 | weekly 2/3 |');
+    expect(notesFor({ seriesInfo: '2/3', seriesRepeat: 'YEARLY' })).toContain('| -50.00 | yearly 2/3 |');
+    expect(notesFor({ seriesInfo: '2/3', seriesRepeat: null })).toContain('| -50.00 | series 2/3 |');
   });
 
   it('marks the change vs previous month n/a when there was no prior spend', () => {

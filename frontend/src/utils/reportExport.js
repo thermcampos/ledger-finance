@@ -28,10 +28,19 @@ function table(header, rows, align) {
   return lines.join('\n');
 }
 
+// seriesRepeat is null on rows predating series tracking, or on the last
+// survivor of a series (the backend clears it) — fall back to a neutral label.
+const SERIES_LABELS = {
+  INSTALLMENTS: 'installment',
+  WEEKLY: 'weekly',
+  MONTHLY: 'monthly',
+  YEARLY: 'yearly',
+};
+
 function transactionNotes(t, today) {
   const notes = [];
   if (t.occurredOn > today) notes.push('upcoming');
-  if (t.seriesInfo) notes.push(`installment ${t.seriesInfo}`);
+  if (t.seriesInfo) notes.push(`${SERIES_LABELS[t.seriesRepeat] ?? 'series'} ${t.seriesInfo}`);
   if (t.completed) notes.push('completed');
   if (t.debitAuthorized) notes.push('debit authorized');
   return notes.join(', ');
