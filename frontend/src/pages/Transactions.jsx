@@ -284,7 +284,7 @@ export default function Transactions() {
   const [occurredOn, setOccurredOn] = useState(todayIso());
   const [repeat, setRepeat] = useState('NONE');
   const [occurrences, setOccurrences] = useState('');
-  const [completed, setCompleted] = useState(false);
+  const [completed, setCompleted] = useState(true);
   const [debitAuthorized, setDebitAuthorized] = useState(false);
 
   const resetForm = () => {
