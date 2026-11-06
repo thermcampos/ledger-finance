@@ -39,6 +39,30 @@ public final class TextLayout {
     return "[" + "█".repeat(filled) + "░".repeat(BAR - filled) + "]";
   }
 
+  /** Word-wraps a paragraph to the row width. */
+  public static String wrap(String text) {
+    return wrap(text, ROW);
+  }
+
+  /** Word-wraps a paragraph to {@code width} columns, joining lines with {@code \n}. */
+  public static String wrap(String text, int width) {
+    StringBuilder out = new StringBuilder();
+    int col = 0;
+    for (String word : text.trim().split("\\s+")) {
+      if (col > 0 && col + 1 + word.length() > width) {
+        out.append('\n');
+        col = 0;
+      }
+      if (col > 0) {
+        out.append(' ');
+        col++;
+      }
+      out.append(word);
+      col += word.length();
+    }
+    return out.toString();
+  }
+
   private static String justify(String left, String right, int width) {
     int gap = Math.max(1, width - left.length() - right.length());
     return left + " ".repeat(gap) + right;

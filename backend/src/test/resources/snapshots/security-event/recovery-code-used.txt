@@ -1,0 +1,13 @@
+Ledger · A recovery code was used
+
+A recovery code was just used to sign in to your
+account, and it can't be used again. If you're running
+low, regenerate them on your Profile page.
+
+If this wasn't you, change your password immediately and
+review your security settings on your Profile page.
+
+--
+You're receiving this because the security settings of your
+Ledger account changed.
+Profile: https://ledger.example/profile

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import QRCode from 'qrcode';
 import { UsersApi } from '../api/ledger';
 import { useAuth } from '../context/useAuth';
 import { THEMES, getStoredTheme, setTheme } from '../utils/theme';
@@ -60,6 +61,68 @@ export default function Profile() {
 
   // Sends today's digest now, even with summaries off — so it can be previewed before opting in.
   const testDigestMutation = useMutation({ mutationFn: UsersApi.sendTestDigest });
+
+  // --- Two-factor authentication ---
+  const totpEnabled = !!meQuery.data?.totpEnabled;
+  const [twoFaSetup, setTwoFaSetup] = useState(null); // { otpauthUri, manualKey, qrDataUrl }
+  const [twoFaCode, setTwoFaCode] = useState('');
+  const [twoFaCodes, setTwoFaCodes] = useState(null); // recovery codes, shown once
+  const [twoFaCopied, setTwoFaCopied] = useState(false);
+  const [twoFaDisabling, setTwoFaDisabling] = useState(false);
+  const [twoFaDisableCode, setTwoFaDisableCode] = useState('');
+  const [twoFaDisableType, setTwoFaDisableType] = useState('TOTP');
+  const [twoFaRegenerating, setTwoFaRegenerating] = useState(false);
+  const [twoFaRegenCode, setTwoFaRegenCode] = useState('');
+
+  const twoFaSetupMutation = useMutation({
+    mutationFn: UsersApi.setupTwoFactor,
+    onSuccess: async (data) => {
+      const qrDataUrl = await QRCode.toDataURL(data.otpauthUri, { margin: 1, width: 180 });
+      setTwoFaSetup({ ...data, qrDataUrl });
+      setTwoFaCode('');
+      setTwoFaCodes(null);
+    },
+  });
+
+  const twoFaEnableMutation = useMutation({
+    mutationFn: (code) => UsersApi.enableTwoFactor(code),
+    onSuccess: (codes) => {
+      setTwoFaSetup(null);
+      setTwoFaCode('');
+      setTwoFaCodes(codes);
+      setTwoFaCopied(false);
+      queryClient.invalidateQueries({ queryKey: ['me'] });
+    },
+  });
+
+  const twoFaDisableMutation = useMutation({
+    mutationFn: ({ code, codeType }) => UsersApi.disableTwoFactor({ code, codeType }),
+    onSuccess: () => {
+      setTwoFaDisabling(false);
+      setTwoFaDisableCode('');
+      queryClient.invalidateQueries({ queryKey: ['me'] });
+    },
+  });
+
+  const twoFaRegenMutation = useMutation({
+    mutationFn: (code) => UsersApi.regenerateRecoveryCodes(code),
+    onSuccess: (codes) => {
+      setTwoFaRegenerating(false);
+      setTwoFaRegenCode('');
+      setTwoFaCodes(codes);
+      setTwoFaCopied(false);
+    },
+  });
+
+  const copyTwoFaCodes = async () => {
+    if (!twoFaCodes) return;
+    try {
+      await navigator.clipboard.writeText(twoFaCodes.join('\n'));
+      setTwoFaCopied(true);
+    } catch {
+      setTwoFaCopied(false);
+    }
+  };
 
   const [theme, setThemeState] = useState(getStoredTheme);
 
@@ -242,6 +305,248 @@ export default function Profile() {
             </div>
           )}
         </form>
+      </div>
+
+      <div className="panel p-4 mt-4">
+        <div className="eyebrow mb-3">Two-factor authentication</div>
+        <div className="text-faint mb-3" style={{ fontSize: 12.5 }}>
+          After your password, sign-in asks for a code from an authenticator app (Aegis, 1Password,
+          Google Authenticator…).
+        </div>
+
+        {twoFaCodes && (
+          <div className="mb-3 p-3" style={{ border: '1px solid var(--border)' }}>
+            <div className="eyebrow mb-2">Recovery codes — shown once, save them now</div>
+            <div className="text-faint mb-2" style={{ fontSize: 11.5 }}>
+              Each works once, in place of the authenticator code. Store them somewhere safe.
+            </div>
+            <div className="row g-1 mb-2">
+              {twoFaCodes.map((c) => (
+                <div key={c} className="col-6 col-md-3 mono" style={{ fontSize: 13 }}>
+                  {c}
+                </div>
+              ))}
+            </div>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={copyTwoFaCodes}>
+              {twoFaCopied ? 'Copied' : 'Copy all'}
+            </button>
+          </div>
+        )}
+
+        {!totpEnabled && !twoFaSetup && (
+          <div>
+            <button
+              type="button"
+              className="btn btn-jade btn-sm"
+              disabled={twoFaSetupMutation.isPending || !meQuery.data}
+              onClick={() => twoFaSetupMutation.mutate()}
+            >
+              {twoFaSetupMutation.isPending ? 'Preparing…' : 'Set up two-factor authentication'}
+            </button>
+            {twoFaSetupMutation.isError && (
+              <div className="mt-2" style={{ fontSize: 11.5, color: 'var(--red)' }}>
+                {twoFaSetupMutation.error?.response?.data?.message || 'Could not start setup.'}
+              </div>
+            )}
+          </div>
+        )}
+
+        {!totpEnabled && twoFaSetup && (
+          <div>
+            <div className="d-flex flex-wrap gap-4 align-items-start mb-3">
+              <img
+                src={twoFaSetup.qrDataUrl}
+                alt="QR code for your authenticator app"
+                width={180}
+                height={180}
+                style={{ border: '1px solid var(--border)' }}
+              />
+              <div style={{ fontSize: 12.5 }}>
+                <div className="text-muted-c mb-1">Scan with your authenticator app, or type:</div>
+                <code className="mono" style={{ fontSize: 13, wordBreak: 'break-all' }}>
+                  {twoFaSetup.manualKey}
+                </code>
+              </div>
+            </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                twoFaEnableMutation.mutate(twoFaCode);
+              }}
+            >
+              <div className="row g-3 align-items-end">
+                <div className="col-md-3">
+                  <label className="eyebrow d-block mb-2">First code</label>
+                  <input
+                    className="form-control form-control-sm mono"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    placeholder="123456"
+                    value={twoFaCode}
+                    onChange={(e) => setTwoFaCode(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="col-md-3">
+                  <button
+                    type="submit"
+                    className="btn btn-jade btn-sm w-100"
+                    disabled={twoFaEnableMutation.isPending}
+                  >
+                    {twoFaEnableMutation.isPending ? 'Verifying…' : 'Enable'}
+                  </button>
+                </div>
+                <div className="col-md-3">
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm w-100"
+                    onClick={() => setTwoFaSetup(null)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+              {twoFaEnableMutation.isError && (
+                <div className="mt-2" style={{ fontSize: 11.5, color: 'var(--red)' }}>
+                  {twoFaEnableMutation.error?.response?.data?.message || 'Could not enable.'}
+                </div>
+              )}
+            </form>
+          </div>
+        )}
+
+        {totpEnabled && (
+          <div>
+            <div className="d-flex flex-wrap align-items-center gap-2 mb-2">
+              <span style={{ fontSize: 13, color: 'var(--jade)' }}>On</span>
+              <span className="d-flex gap-2 ms-sm-auto">
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => {
+                    setTwoFaRegenerating((v) => !v);
+                    setTwoFaDisabling(false);
+                    setTwoFaRegenCode('');
+                  }}
+                >
+                  Regenerate recovery codes
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-red btn-sm"
+                  onClick={() => {
+                    setTwoFaDisabling((v) => !v);
+                    setTwoFaRegenerating(false);
+                    setTwoFaDisableCode('');
+                  }}
+                >
+                  Disable
+                </button>
+              </span>
+            </div>
+
+            {twoFaRegenerating && (
+              <form
+                className="mt-3 p-3"
+                style={{ border: '1px solid var(--border)' }}
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  twoFaRegenMutation.mutate(twoFaRegenCode);
+                }}
+              >
+                <div className="mb-2" style={{ fontSize: 13 }}>
+                  Enter a current authenticator code. Your existing recovery codes stop working.
+                </div>
+                <div className="d-flex gap-2 align-items-end flex-wrap">
+                  <input
+                    className="form-control form-control-sm mono"
+                    style={{ maxWidth: 180 }}
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    placeholder="123456"
+                    value={twoFaRegenCode}
+                    onChange={(e) => setTwoFaRegenCode(e.target.value)}
+                    required
+                  />
+                  <button
+                    type="submit"
+                    className="btn btn-jade btn-sm"
+                    disabled={twoFaRegenMutation.isPending}
+                  >
+                    {twoFaRegenMutation.isPending ? 'Verifying…' : 'Regenerate'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => setTwoFaRegenerating(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+                {twoFaRegenMutation.isError && (
+                  <div className="mt-2" style={{ fontSize: 11.5, color: 'var(--red)' }}>
+                    {twoFaRegenMutation.error?.response?.data?.message || 'Could not regenerate.'}
+                  </div>
+                )}
+              </form>
+            )}
+
+            {twoFaDisabling && (
+              <form
+                className="mt-3 p-3"
+                style={{ border: '1px solid var(--border)' }}
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  twoFaDisableMutation.mutate({ code: twoFaDisableCode, codeType: twoFaDisableType });
+                }}
+              >
+                <div className="mb-2" style={{ fontSize: 13 }}>
+                  Disable two-factor authentication? Sign-in goes back to password only. Confirm
+                  with a current code.
+                </div>
+                <div className="d-flex gap-2 align-items-end flex-wrap">
+                  <select
+                    className="form-select form-select-sm"
+                    style={{ maxWidth: 200 }}
+                    value={twoFaDisableType}
+                    onChange={(e) => setTwoFaDisableType(e.target.value)}
+                  >
+                    <option value="TOTP">Authenticator code</option>
+                    <option value="RECOVERY">Recovery code</option>
+                  </select>
+                  <input
+                    className="form-control form-control-sm mono"
+                    style={{ maxWidth: 180 }}
+                    autoComplete="one-time-code"
+                    placeholder={twoFaDisableType === 'TOTP' ? '123456' : 'XXXX-XXXX-XXXX'}
+                    value={twoFaDisableCode}
+                    onChange={(e) => setTwoFaDisableCode(e.target.value)}
+                    required
+                  />
+                  <button
+                    type="submit"
+                    className="btn btn-red btn-sm"
+                    disabled={twoFaDisableMutation.isPending}
+                  >
+                    {twoFaDisableMutation.isPending ? 'Disabling…' : 'Disable 2FA'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => setTwoFaDisabling(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+                {twoFaDisableMutation.isError && (
+                  <div className="mt-2" style={{ fontSize: 11.5, color: 'var(--red)' }}>
+                    {twoFaDisableMutation.error?.response?.data?.message || 'Could not disable.'}
+                  </div>
+                )}
+              </form>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="panel p-4 mt-4">

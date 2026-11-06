@@ -3,6 +3,8 @@ import client from './client';
 export const AuthApi = {
   signup: (payload) => client.post('/auth/signup', payload).then((r) => r.data),
   login: (payload) => client.post('/auth/login', payload).then((r) => r.data),
+  // Second half of a 2FA login: exchanges the pending token + code for the real JWT.
+  verifyTwoFactor: (payload) => client.post('/auth/login/2fa', payload).then((r) => r.data),
 };
 
 export const UsersApi = {
@@ -14,6 +16,13 @@ export const UsersApi = {
   listTokens: () => client.get('/users/me/tokens').then((r) => r.data),
   createToken: (payload) => client.post('/users/me/tokens', payload).then((r) => r.data),
   removeToken: (id) => client.delete(`/users/me/tokens/${id}`),
+  setupTwoFactor: () => client.post('/users/me/2fa/setup').then((r) => r.data),
+  enableTwoFactor: (code) =>
+    client.post('/users/me/2fa/enable', { code }).then((r) => r.data),
+  disableTwoFactor: (payload) =>
+    client.delete('/users/me/2fa', { data: payload }).then((r) => r.data),
+  regenerateRecoveryCodes: (code) =>
+    client.post('/users/me/2fa/recovery-codes', { code }).then((r) => r.data),
 };
 
 export const AccountsApi = {

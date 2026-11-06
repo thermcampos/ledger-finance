@@ -1,0 +1,12 @@
+Ledger · Two-factor authentication disabled
+
+Two-factor authentication was disabled for your account.
+Signing in now only needs your password.
+
+If this wasn't you, change your password immediately and
+review your security settings on your Profile page.
+
+--
+You're receiving this because the security settings of your
+Ledger account changed.
+Profile: https://ledger.example/profile

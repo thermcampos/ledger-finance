@@ -47,6 +47,19 @@ public class User extends PanacheEntityBase {
   @Column(name = "last_digest_sent_on")
   public LocalDate lastDigestSentOn;
 
+  /**
+   * AES-GCM ciphertext of the TOTP secret (ADR-0003), never the plaintext. May be set while
+   * {@link #totpEnabled} is false — an enrollment started but not confirmed with a first code;
+   * login ignores it until then.
+   */
+  @JsonIgnore
+  @Column(name = "totp_secret")
+  public String totpSecret;
+
+  @ColumnDefault("false") // matches V21, so dev drop-and-create and plain SQL inserts agree
+  @Column(name = "totp_enabled", nullable = false)
+  public boolean totpEnabled;
+
   public static User findByEmail(String email) {
     return find("email", email).firstResult();
   }
