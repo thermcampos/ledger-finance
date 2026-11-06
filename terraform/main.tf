@@ -58,6 +58,11 @@ variable "digest_trigger_secret" {
   sensitive = true
 }
 
+variable "totp_encryption_key" {
+  type      = string
+  sensitive = true
+}
+
 variable "r2_access_key" {
   type      = string
   sensitive = true
@@ -108,6 +113,7 @@ resource "kubernetes_secret_v1" "ledger_finance_secrets" {
     jwt_public_key        = var.jwt_public_key
     resend_api_key        = var.resend_api_key
     digest_trigger_secret = var.digest_trigger_secret
+    totp_encryption_key   = var.totp_encryption_key
   }
 }
 
@@ -255,6 +261,15 @@ resource "kubernetes_deployment_v1" "ledger_finance_backend" {
               secret_key_ref {
                 name = kubernetes_secret_v1.ledger_finance_secrets.metadata[0].name
                 key  = "digest_trigger_secret"
+              }
+            }
+          }
+          env {
+            name = "TOTP_ENCRYPTION_KEY"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret_v1.ledger_finance_secrets.metadata[0].name
+                key  = "totp_encryption_key"
               }
             }
           }

@@ -1,0 +1,12 @@
+{@com.ledger.email.SecurityEventEmail event}
+Ledger · {event.title}
+
+{txt:wrap(event.detail)}
+
+If this wasn't you, change your password immediately and
+review your security settings on your Profile page.
+
+--
+You're receiving this because the security settings of your
+Ledger account changed.
+Profile: {event.profileUrl}

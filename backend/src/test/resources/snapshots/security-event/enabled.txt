@@ -1,0 +1,13 @@
+Ledger · Two-factor authentication enabled
+
+Two-factor authentication was enabled for your account.
+From now on, signing in asks for a code from your
+authenticator app after your password.
+
+If this wasn't you, change your password immediately and
+review your security settings on your Profile page.
+
+--
+You're receiving this because the security settings of your
+Ledger account changed.
+Profile: https://ledger.example/profile

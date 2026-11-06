@@ -1,0 +1,8 @@
+{@com.ledger.email.SecurityEventEmail event}
+{#include email/layout}
+{#title}{event.title}{/title}
+{#preheader}{event.preheader}{/preheader}
+<p style="margin:0 0 16px 0;">{event.detail}</p>
+<p style="margin:0;font-size:13px;color:{palette:TEXT_MUTED};">If this wasn't you, change your password immediately and review your security settings on your Profile page.</p>
+{#footer}You're receiving this because the security settings of your Ledger account changed.{/footer}
+{/include}

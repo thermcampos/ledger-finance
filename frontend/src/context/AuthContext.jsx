@@ -17,8 +17,20 @@ export function AuthProvider({ children }) {
     setUser({ email: response.email, displayName: response.displayName });
   };
 
+  // Returns the raw LoginResponse: when status is TWO_FACTOR_REQUIRED nothing is
+  // persisted — the caller shows the code step and completes it via verifyTwoFactor.
   const login = useCallback(async (email, password) => {
     const response = await AuthApi.login({ email, password });
+    if (response.status === 'TWO_FACTOR_REQUIRED') {
+      return response;
+    }
+    persist(response);
+    return response;
+  }, []);
+
+  // Exchanges the pending-login token plus the second-factor code for the real session.
+  const verifyTwoFactor = useCallback(async (pendingToken, code, codeType) => {
+    const response = await AuthApi.verifyTwoFactor({ pendingToken, code, codeType });
     persist(response);
   }, []);
 
@@ -41,7 +53,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, login, signup, logout, applySession, isAuthenticated: !!user }}
+      value={{ user, login, verifyTwoFactor, signup, logout, applySession, isAuthenticated: !!user }}
     >
       {children}
     </AuthContext.Provider>

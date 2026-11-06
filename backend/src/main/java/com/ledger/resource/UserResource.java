@@ -9,6 +9,7 @@ import com.ledger.enums.AccountHistoryField;
 import com.ledger.security.CurrentUserService;
 import com.ledger.security.TokenService;
 import com.ledger.service.DailyDigestService;
+import com.ledger.service.TwoFactorService;
 import io.quarkus.elytron.security.common.BcryptUtil;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
@@ -16,6 +17,7 @@ import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -37,6 +39,8 @@ public class UserResource {
 
   @Inject DailyDigestService digestService;
 
+  @Inject TwoFactorService twoFactorService;
+
   @Inject EmailService emailService;
 
   @GET
@@ -44,7 +48,44 @@ public class UserResource {
   public MeResponse me() {
     User user = currentUser.require();
     return new MeResponse(
-        user.email, user.displayName, user.createdAt, user.emailSummariesEnabled);
+        user.email, user.displayName, user.createdAt, user.emailSummariesEnabled, user.totpEnabled);
+  }
+
+  /**
+   * Starts (or restarts) 2FA enrollment: a fresh TOTP secret, returned as an otpauth URI for the
+   * QR code plus a manual key. Inert until {@link #enableTwoFactor} verifies a first code
+   * (ADR-0003). The secret is never returned again.
+   */
+  @POST
+  @Path("/me/2fa/setup")
+  @Consumes(MediaType.WILDCARD) // no body; don't 415 a bare POST
+  @Transactional // start the tx before currentUser.require() loads the User, so mutations flush
+  public TwoFactorService.SetupResult setupTwoFactor() {
+    return twoFactorService.setup(currentUser.require());
+  }
+
+  /** Confirms enrollment with a first authenticator code; returns the recovery codes, shown once. */
+  @POST
+  @Path("/me/2fa/enable")
+  @Transactional
+  public List<String> enableTwoFactor(@Valid TwoFactorCodeRequest request) {
+    return twoFactorService.enable(currentUser.require(), request.code());
+  }
+
+  /** Turns 2FA off — requires a current second factor so a stolen session can't. */
+  @DELETE
+  @Path("/me/2fa")
+  @Transactional
+  public void disableTwoFactor(@Valid TwoFactorManagementRequest request) {
+    twoFactorService.disable(currentUser.require(), request.code(), request.codeType());
+  }
+
+  /** Replaces the recovery-code set, invalidating the old one; returns the new codes, shown once. */
+  @POST
+  @Path("/me/2fa/recovery-codes")
+  @Transactional
+  public List<String> regenerateRecoveryCodes(@Valid TwoFactorCodeRequest request) {
+    return twoFactorService.regenerateRecoveryCodes(currentUser.require(), request.code());
   }
 
   @PUT
@@ -160,18 +201,29 @@ public class UserResource {
    */
   public record DigestTestResponse(String to, boolean delivered) {}
 
+  public record TwoFactorCodeRequest(@NotBlank String code) {}
+
+  public record TwoFactorManagementRequest(
+      @NotBlank String code, @NotNull TwoFactorService.CodeType codeType) {}
+
   public static class MeResponse {
     public String email;
     public String displayName;
     public Instant createdAt;
     public boolean emailSummariesEnabled;
+    public boolean totpEnabled;
 
     public MeResponse(
-        String email, String displayName, Instant createdAt, boolean emailSummariesEnabled) {
+        String email,
+        String displayName,
+        Instant createdAt,
+        boolean emailSummariesEnabled,
+        boolean totpEnabled) {
       this.email = email;
       this.displayName = displayName;
       this.createdAt = createdAt;
       this.emailSummariesEnabled = emailSummariesEnabled;
+      this.totpEnabled = totpEnabled;
     }
   }
 }
