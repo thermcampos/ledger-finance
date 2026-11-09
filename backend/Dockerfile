@@ -3,7 +3,7 @@
 ####
 
 # Build stage
-FROM quay.io/quarkus/ubi-quarkus-mandrel-builder-image:jdk-21 AS build
+FROM quay.io/quarkus/ubi-quarkus-mandrel-builder-image:jdk-25 AS build
 
 # Set working directory
 WORKDIR /code
