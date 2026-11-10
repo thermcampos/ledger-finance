@@ -87,6 +87,8 @@ psql -h localhost -U ledger -d ledger -f backend/seed-data.sql
 
 ## Agent skills
 
+Matt Pocock's engineering skills are vendored under `.agents/skills/` and versioned with this repo; `skills-lock.json` pins each skill to its upstream `mattpocock/skills` hash. `.claude/skills/` and `.crush/skills/` are symlink farms into `.agents/skills/`, so edit the real files, not the links. Re-run `/setup-matt-pocock-skills` after updating the skills to re-sync `docs/agents/*.md`.
+
 ### Issue tracker
 
 Issues are tracked as GitHub issues on `thermcampos/ledger-finance`, managed via the `gh` CLI. See `docs/agents/issue-tracker.md`.
@@ -97,4 +99,4 @@ The five canonical labels are used as-is: `needs-triage`, `needs-info`, `ready-f
 
 ### Domain docs
 
-Single-context layout: `CONTEXT.md` and `docs/adr/` at the repo root, created lazily by the domain-modeling skill. See `docs/agents/domain.md`.
+Single-context layout: `GLOSSARY.md` and `docs/adr/` at the repo root, created lazily by the domain-modeling skill. See `docs/agents/domain.md`.
