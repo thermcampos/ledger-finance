@@ -1,59 +1,39 @@
 version: 2
 updates:
   - package-ecosystem: maven
-    directory: /backend
-    schedule:
-      interval: weekly
+    directory: "/backend"
+    schedule: { interval: "weekly", day: "monday" }
+    cooldown: { default-days: 7, semver-major-days: 14 }
     groups:
-      quarkus:
-        patterns:
-          - "io.quarkus*"
-          - "io.smallrye*"
-      test-dependencies:
-        patterns:
-          - "*test*"
-          - "org.mockito*"
-          - "io.rest-assured*"
+      java-minor-patch:
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: npm
-    directory: /frontend
-    schedule:
-      interval: weekly
+    directory: "/frontend"
+    schedule: { interval: "weekly", day: "monday" }
+    cooldown: { default-days: 7, semver-major-days: 14 }
     groups:
-      react:
-        patterns:
-          - "react*"
-          - "@types/react*"
-      vite:
-        patterns:
-          - "vite*"
-          - "@vitejs/*"
-      bootstrap:
-        patterns:
-          - "bootstrap*"
-          - "react-bootstrap*"
-      dev-dependencies:
-        dependency-type: development
+      js-minor-patch:
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: docker
-    directory: /backend
+    directory: "/backend"
     schedule:
       interval: weekly
 
   - package-ecosystem: docker
-    directory: /frontend
+    directory: "/frontend"
     schedule:
       interval: weekly
 
   - package-ecosystem: github-actions
-    directory: /
-    schedule:
-      interval: weekly
+    directory: "/"
+    schedule: { interval: "weekly", day: "monday" }
+    cooldown: { default-days: 7 }
     groups:
       actions:
-        patterns:
-          - "*"
-
+        patterns: ["*"]
+   
   - package-ecosystem: terraform
     directory: /terraform
     schedule:
