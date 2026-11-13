@@ -23,7 +23,7 @@ RUN ./mvnw package -Pnative -DskipTests
 ####
 # Runtime stage - Minimal container
 ####
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.3
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.9
 
 WORKDIR /work/
 
