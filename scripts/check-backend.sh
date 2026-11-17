@@ -2,13 +2,20 @@
 # Backend quality gate: compile, then the full test suite.
 # Tests run on in-memory H2 (%test profile), so no Docker is needed.
 # Requires JDK 21 — JDK 25 breaks Byte Buddy in every @QuarkusTest.
-# Locally: `sdk use java 21.0.2-graalce` first (or `task quality:backend`, which does it).
+# Locally: `sdk use java 21.0.2-graalce` first (or `task quality-check-backend`, which does it).
 
-CURRENT_DIR=$(pwd)
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-if [ ! -f "$CURRENT_DIR/pom.xml" ]; then
-  cd "$CURRENT_DIR/backend" || exit 1
+# The JWT key pair is gitignored but @QuarkusTest loads it from the classpath
+# (backend/src/main/resources/*.pem). Generate it when missing (fresh clone / CI);
+# existing local keys are left untouched.
+(cd "$REPO_ROOT" && bash scripts/generate-jwt-keys.sh)
+if [ $? -ne 0 ]; then
+  echo "Issues when generating JWT keys. Please review.."
+  exit 1
 fi
+
+cd "$REPO_ROOT/backend" || exit 1
 
 JAVA_MAJOR=$(java -XshowSettings:properties -version 2>&1 | sed -n 's/^ *java.specification.version = //p')
 if [ "$JAVA_MAJOR" != "21" ]; then
