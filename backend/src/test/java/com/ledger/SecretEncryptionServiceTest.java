@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.ledger.security.SecretEncryptionService;
+import io.quarkus.runtime.LaunchMode;
 import java.util.Base64;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -46,7 +47,15 @@ class SecretEncryptionServiceTest {
 
   @Test
   void blankKeyWorksOutsideProd() {
-    SecretEncryptionService service = new SecretEncryptionService(Optional.empty());
+    SecretEncryptionService service =
+        new SecretEncryptionService(Optional.empty(), LaunchMode.TEST);
     assertEquals("x", service.decrypt(service.encrypt("x")));
+  }
+
+  @Test
+  void blankKeyFailsInProd() {
+    assertThrows(
+        IllegalStateException.class,
+        () -> new SecretEncryptionService(Optional.empty(), LaunchMode.NORMAL));
   }
 }

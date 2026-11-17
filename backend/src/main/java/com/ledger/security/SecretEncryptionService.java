@@ -2,6 +2,7 @@ package com.ledger.security;
 
 import io.quarkus.runtime.LaunchMode;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
 import java.util.Base64;
@@ -31,11 +32,20 @@ public class SecretEncryptionService {
 
   private final SecretKeySpec key;
 
+  @Inject
   public SecretEncryptionService(
       @ConfigProperty(name = "ledger.totp.encryption-key") java.util.Optional<String> keyBase64) {
+    this(keyBase64, LaunchMode.current());
+  }
+
+  /**
+   * Explicit launch mode for plain unit tests: outside a running Quarkus app {@link
+   * LaunchMode#current()} is {@code NORMAL}, i.e. prod.
+   */
+  public SecretEncryptionService(java.util.Optional<String> keyBase64, LaunchMode launchMode) {
     String configured = keyBase64.orElse("").trim();
     if (configured.isEmpty()) {
-      if (LaunchMode.current() == LaunchMode.NORMAL) {
+      if (launchMode == LaunchMode.NORMAL) {
         throw new IllegalStateException(
             "TOTP_ENCRYPTION_KEY is not set — prod cannot encrypt 2FA secrets without it");
       }
