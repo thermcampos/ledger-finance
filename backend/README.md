@@ -1,6 +1,6 @@
 # Ledger — Backend (Quarkus)
 
-Java 21, Maven, Quarkus 3.17 (bump `quarkus.platform.version` in `pom.xml` to whatever is current before you build).
+Java 25, Maven, Quarkus 3.40 (bump `quarkus.platform.version` in `pom.xml` to whatever is current before you build).
 
 ## First-time setup
 

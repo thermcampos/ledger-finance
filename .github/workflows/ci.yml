@@ -16,13 +16,14 @@ jobs:
         with:
           fetch-depth: 0
 
-      # JDK 21, not 25: Byte Buddy (used by every @QuarkusTest) rejects Java 25 class files.
+      # JDK 25: matches maven.compiler.release and the mandrel jdk-25 native builder.
+      # Quarkus 3.40's Byte Buddy understands Java 25 class files (3.17's did not).
       # Tests run on in-memory H2, so no Docker/dev container is needed here.
       - name: Set up Java
         uses: actions/setup-java@v6.2.0
         with:
           distribution: 'temurin'
-          java-version: '21'
+          java-version: '25'
           cache: 'maven'
           cache-dependency-path: 'backend/pom.xml'
 

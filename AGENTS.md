@@ -14,7 +14,7 @@ Personal finance app. Read this before making changes — it captures decisions 
 
 ## Architecture decisions
 
-- **Backend: Quarkus (Java 21, Maven).** Explicit choice for native-image builds via GraalVM. Don't suggest swapping to Spring Boot or Express.
+- **Backend: Quarkus (Java 25, Maven).** Explicit choice for native-image builds via GraalVM. Don't suggest swapping to Spring Boot or Express.
 - **IDENTITY, not Hibernate SEQUENCE, for entity IDs.** So plain SQL (seed scripts, manual fixes) never has to guess Hibernate's sequence names. Keep this pattern for any new entity.
 - **Monorepo:** `/frontend` and `/backend` in one repo, deployed as two separate artifacts.
 - **Auth:** JWT via SmallRye JWT, 7-day bearer tokens, no refresh flow. BCrypt via `quarkus-elytron-security-common`'s `BcryptUtil` (not jBCrypt, always `$2a$` prefix).
@@ -79,11 +79,12 @@ cd backend && ./mvnw quarkus:dev          # dev server, localhost:8080
 # Frontend only (local Node)
 cd frontend && npm install && npm run dev  # localhost:5173
 
-# Backend tests: JDK 21 ONLY (pinned — matches maven.compiler.release, the mandrel jdk-21
-# native builder and PR CI). On JDK 25 every @QuarkusTest fails with "Java 25 (69) is not
-# supported" (Byte Buddy); don't work around it with -Dnet.bytebuddy.experimental — switch JDKs.
-sdk use java 21.0.2-graalce
-bash scripts/check-backend.sh              # = PR CI backend gate (compile + tests); refuses to run on non-21
+# Backend tests: JDK 25 (pinned — matches maven.compiler.release, the mandrel jdk-25 native
+# builder and PR CI). Quarkus 3.40 brings a Byte Buddy that understands Java 25 class files; on
+# Quarkus 3.17 every @QuarkusTest failed with "Java 25 (69) is not supported" — if that returns,
+# don't work around it with -Dnet.bytebuddy.experimental, check the Quarkus version instead.
+sdk use java 25.0.5.1-graal
+bash scripts/check-backend.sh              # = PR CI backend gate (compile + tests); refuses to run on non-25
 task quality-check-backend                 # same, switches JDK via SDKMAN for you
 
 # Frontend gate (= PR CI): npm ci, lint, build, test, check:contrast
