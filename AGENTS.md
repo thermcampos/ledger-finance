@@ -42,10 +42,12 @@ Personal finance app. Read this before making changes — it captures decisions 
 
 ## Deployment
 
-- CI: GitHub Actions on self-hosted runners (`graalvm-25` for backend, `easynode-debian` for frontend/deploy)
+- CI: GitHub Actions on GitHub-hosted `ubuntu-latest` runners
 - Secrets: Doppler (`prd` config) — `DOPPLER_AT_SECRETS` GitHub secret is the only secret in GH Actions
-- Docker Hub: `thermcampos/ledger-backend` (versioned `vYYYY.MM.DD.<run_number>` + `latest`), `thermcampos/ledger-frontend` (`latest` only)
-- Deploy workflow: triggered after Backend CI or Frontend CI completes → Terraform plan+apply to Kubernetes
+- Images: GHCR `ghcr.io/thermcampos/ledger-finance/backend` and `.../frontend` — release tags `vYYYY.MM.DD.<run_number>` + `latest` from `main`, `pr-<N>` from PRs
+- **PR CI** (`.github/workflows/ci.yml`, every PR): `bash scripts/check-backend.sh` (compile + tests on **JDK 21**, H2 — no Docker) and `bash scripts/check-frontend.sh` (`npm ci`, lint, build, test, `check:contrast`). Run the same scripts locally before pushing (`task quality-check-backend` / `task quality-check-frontend`).
+- **PR images** (`.github/workflows/build-pr-images.yml`, PR opened/synchronize/reopened; skipped for Dependabot, whose token can't push): a `changes` job path-filters `frontend/**` / `backend/**`; each changed side builds the same Dockerfile as prod (backend = native) and pushes only `:pr-<N>`, then a smoke job runs inside the dev container (`.devcontainer/devcontainer.json`: JDK 21 + Docker-in-Docker) via `devcontainers/ci`. `scripts/smoke-test-backend.sh` (`BACKEND_IMAGE`) boots the image as prod does (`prod` profile, Flyway, throwaway JWT keys at `/run/secrets/jwt`, `TOTP_ENCRYPTION_KEY`) against Postgres 16 and runs health → signup → login → account → transaction → balance re-derived → budgets. `scripts/smoke-test-frontend.sh` (`FRONTEND_IMAGE`) checks index, JS bundle, SPA fallback and nginx headers. Both run locally against any tag: `task smoke-test-backend TAG=pr-123`. If a change needs a new prod env var/secret or a new boot-time requirement, add it to the smoke script too.
+- **Release + deploy:** `cd-backend.yml` ("Backend CD") / `cd-frontend.yml` ("Frontend CD") run on push to `main` and push `v*` + `latest`; `deploy.yml` runs after either completes → Terraform plan+apply to Kubernetes. PRs never deploy. `.github/scripts/get-latest-tag.sh` only considers `v[0-9]*` tags, so `pr-<N>` images can never reach prod — keep it that way.
 - Terraform state: Cloudflare R2, bucket `ledger-finance`
 - DB backups: Kubernetes CronJob → R2 bucket `ledger-finance-backups`, twice daily
 - Daily digest: Kubernetes CronJob `ledger-finance-daily-digest`, 07:00 America/Sao_Paulo (`curlimages/curl` → backend Service). Manual run: `kubectl create job --from=cronjob/ledger-finance-daily-digest digest-manual -n ledger-finance`
@@ -77,9 +79,19 @@ cd backend && ./mvnw quarkus:dev          # dev server, localhost:8080
 # Frontend only (local Node)
 cd frontend && npm install && npm run dev  # localhost:5173
 
-# Backend tests on Java 25 (GraalVM CE 25): Byte Buddy needs the experimental flag,
-# otherwise every @QuarkusTest fails at build time with "Java 25 (69) is not supported"
-cd backend && ./mvnw test -DargLine="-Dnet.bytebuddy.experimental=true"
+# Backend tests: JDK 21 ONLY (pinned — matches maven.compiler.release, the mandrel jdk-21
+# native builder and PR CI). On JDK 25 every @QuarkusTest fails with "Java 25 (69) is not
+# supported" (Byte Buddy); don't work around it with -Dnet.bytebuddy.experimental — switch JDKs.
+sdk use java 21.0.2-graalce
+bash scripts/check-backend.sh              # = PR CI backend gate (compile + tests); refuses to run on non-21
+task quality-check-backend                 # same, switches JDK via SDKMAN for you
+
+# Frontend gate (= PR CI): npm ci, lint, build, test, check:contrast
+bash scripts/check-frontend.sh             # or: task quality-check-frontend
+
+# Smoke-test a built image as prod runs it (Docker required; default TAG=latest)
+task smoke-test-backend TAG=pr-123
+task smoke-test-frontend TAG=pr-123
 
 # Seed data (after backend has created the schema)
 psql -h localhost -U ledger -d ledger -f backend/seed-data.sql

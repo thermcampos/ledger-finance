@@ -64,12 +64,14 @@ All pages are fully wired end-to-end:
 
 ## Deployment
 
-GitHub Actions → Docker Hub → Terraform apply to Kubernetes (self-hosted VPS).
+GitHub Actions → GHCR → Terraform apply to Kubernetes (self-hosted VPS).
 
-- CI runners: `graalvm-25` (backend), `easynode-debian` (frontend + deploy)
+- CI runners: GitHub-hosted `ubuntu-latest`
+- PR quality gates: `ci.yml` (backend compile + tests on JDK 21; frontend lint, build, test, contrast) and `build-pr-images.yml` (builds `:pr-<N>` images and smoke-tests them inside the dev container in `.devcontainer/`). Run them locally with `bash scripts/check-backend.sh`, `bash scripts/check-frontend.sh`, `task smoke-test-backend TAG=pr-<N>`.
+- Release: `cd-backend.yml` / `cd-frontend.yml` on push to `main`, then `deploy.yml`. PRs never deploy.
 - Secrets managed via **Doppler** (`prd` config)
-- Docker images: `thermcampos/ledger-backend`, `thermcampos/ledger-frontend`
-- Versioning: `vYYYY.MM.DD.<run_number>` for backend; `latest` for frontend
+- Docker images: `ghcr.io/thermcampos/ledger-finance/backend`, `ghcr.io/thermcampos/ledger-finance/frontend`
+- Versioning: `vYYYY.MM.DD.<run_number>` + `latest` from `main`; `pr-<N>` from PRs (never deployed)
 - Prod URLs:
   - Frontend: `https://ledger-finance.darkroasted.vps-kinghost.net`
   - Backend API: `https://ledgerapi.darkroasted.vps-kinghost.net`

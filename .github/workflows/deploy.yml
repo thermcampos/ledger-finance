@@ -7,7 +7,7 @@ concurrency:
 on:
   workflow_dispatch:
   workflow_run:
-    workflows: [ "Backend CI", "Frontend CI" ]
+    workflows: [ "Backend CD", "Frontend CD" ]
     types: [ completed ]
 
 jobs:

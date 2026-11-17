@@ -1,4 +1,4 @@
-name: Backend CI
+name: Backend CD
 
 on:
   workflow_dispatch:
@@ -9,7 +9,7 @@ on:
       - 'backend/**/*.xml'
       - 'backend/**/*.properties'
       - 'backend/Dockerfile'
-      - '.github/workflows/backend.yml'
+      - '.github/workflows/cd-backend.yml'
 
 env:
   REGISTRY: ghcr.io
