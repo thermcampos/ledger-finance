@@ -24,11 +24,11 @@ tasks:
     cmd: export NGROK_AUTHTOKEN=1 && docker compose -f compose.yaml down -v --remove-orphans 
 
   quality-check-backend:
-    desc: Backend quality gate, same as PR CI (scripts/check-backend.sh). Switches to java 21.0.2-graalce via SDKMAN
+    desc: Backend quality gate, same as PR CI (scripts/check-backend.sh). Switches to java 25.0.5.1-graal via SDKMAN
     cmd: |
       bash -c '
         source $HOME/.sdkman/bin/sdkman-init.sh && \
-        sdk use java 21.0.2-graalce && \
+        sdk use java 25.0.5.1-graal && \
         bash scripts/check-backend.sh
       '
 

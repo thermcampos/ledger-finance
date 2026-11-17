@@ -4,7 +4,7 @@ Personal finance app. Dark-mode-only, ledger-style UI backed by a Quarkus API on
 
 ```
 ledger-finance/
-├── backend/     Quarkus (Java 21, Maven) — REST API, Postgres, JWT auth, Flyway
+├── backend/     Quarkus (Java 25, Maven) — REST API, Postgres, JWT auth, Flyway
 ├── frontend/    React (Vite) — SPA, served via Nginx in prod
 └── terraform/   Kubernetes manifests (Terraform) — deployed to VPS via GitHub Actions
 ```
