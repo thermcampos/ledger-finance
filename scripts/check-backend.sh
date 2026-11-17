@@ -1,8 +1,8 @@
 #!/bin/bash
 # Backend quality gate: compile, then the full test suite.
 # Tests run on in-memory H2 (%test profile), so no Docker is needed.
-# Requires JDK 21 — JDK 25 breaks Byte Buddy in every @QuarkusTest.
-# Locally: `sdk use java 21.0.2-graalce` first (or `task quality-check-backend`, which does it).
+# Requires JDK 25 — Quarkus 3.40 ships a Byte Buddy that understands Java 25 class files.
+# Locally: `sdk use java 25.0.5.1-graal` first (or `task quality-check-backend`, which does it).
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
@@ -18,8 +18,8 @@ fi
 cd "$REPO_ROOT/backend" || exit 1
 
 JAVA_MAJOR=$(java -XshowSettings:properties -version 2>&1 | sed -n 's/^ *java.specification.version = //p')
-if [ "$JAVA_MAJOR" != "21" ]; then
-  echo "Backend tests need JDK 21, found '${JAVA_MAJOR:-none}'. Run: sdk use java 21.0.2-graalce"
+if [ "$JAVA_MAJOR" != "25" ]; then
+  echo "Backend tests need JDK 25, found '${JAVA_MAJOR:-none}'. Run: sdk use java 25.0.5.1-graal"
   exit 1
 fi
 

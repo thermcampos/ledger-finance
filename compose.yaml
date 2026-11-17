@@ -33,7 +33,7 @@ services:
     ports:
       - "8080:8080"
       - "5005:5005"
-    image: maven:3.9.12-eclipse-temurin-21
+    image: maven:3.9.12-eclipse-temurin-25
     entrypoint: './mvnw -ntp quarkus:dev -Dquarkus.http.host=0.0.0.0'
     working_dir: /app
     volumes:
