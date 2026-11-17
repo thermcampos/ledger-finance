@@ -3,6 +3,8 @@
 #   e.g. get-latest-tag.sh ledger-finance/backend
 # Requires GITHUB_TOKEN (with read:packages) in env.
 # Optional: GITHUB_OWNER (defaults to "thermcampos").
+# Only release tags (v<date>.<run>, from cd-*.yml) are candidates — never `latest`,
+# `buildcache`, or the `pr-<N>` images pushed by build-pr-images.yml.
 set -euo pipefail
 
 PACKAGE="$1"
@@ -19,7 +21,7 @@ TAG=$(curl -sf \
   | jq -r '
       [ .[]
         | { updated_at,
-            tags: (.metadata.container.tags | map(select(. != "latest" and . != "buildcache"))) }
+            tags: (.metadata.container.tags | map(select(test("^v[0-9]")))) }
         | select(.tags | length > 0) ]
       | sort_by(.updated_at) | last | .tags[0]
     ')

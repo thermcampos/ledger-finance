@@ -1,0 +1,212 @@
+name: Build PR Images
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+env:
+  REGISTRY: ghcr.io
+  FRONTEND_IMAGE: "ghcr.io/thermcampos/ledger-finance/frontend"
+  BACKEND_IMAGE: "ghcr.io/thermcampos/ledger-finance/backend"
+
+jobs:
+  changes:
+    name: Detect changed files
+    # Dependabot-triggered runs get a read-only GITHUB_TOKEN, so the GHCR push would fail.
+    # Skipping this job also skips the build and smoke jobs that depend on it.
+    if: github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      backend: ${{ steps.filter.outputs.backend }}
+
+    steps:
+      - name: Check changed paths
+        id: filter
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
+            frontend:
+              - 'frontend/**'
+              - 'scripts/smoke-test-frontend.sh'
+              - '.github/workflows/build-pr-images.yml'
+            backend:
+              - 'backend/**'
+              - 'scripts/smoke-test-backend.sh'
+              - '.github/workflows/build-pr-images.yml'
+
+  # PR images are tagged only `pr-<N>`. Never `latest`, and never `v*`, which is the only
+  # tag pattern .github/scripts/get-latest-tag.sh will hand to the prod deploy.
+  build-and-push-frontend:
+    name: Build & Push Frontend
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Generate version tag
+        id: version
+        run: |
+          TAG="pr-${{ github.event.pull_request.number }}"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "Generated tag: ${TAG}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4.3.0
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.FRONTEND_IMAGE }}
+          tags: |
+            type=raw,value=${{ steps.version.outputs.tag }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.FRONTEND_IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ env.FRONTEND_IMAGE }}:buildcache,mode=max
+          build-args: |
+            VITE_BACKEND_SERVER=${{ vars.BACKEND_SERVER_URL }}
+            VITE_BUILD_NUMBER=${{ steps.version.outputs.tag }}
+
+      - name: Log pushed images
+        run: |
+          echo "Pushed image:"
+          echo "  ${{ env.FRONTEND_IMAGE }}:${{ steps.version.outputs.tag }}"
+
+  build-and-push-backend:
+    name: Build & Push Backend
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Generate version tag
+        id: version
+        run: |
+          TAG="pr-${{ github.event.pull_request.number }}"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "Generated tag: ${TAG}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4.3.0
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.BACKEND_IMAGE }}
+          tags: |
+            type=raw,value=${{ steps.version.outputs.tag }}
+
+      # Same native Dockerfile build as cd-backend.yml, so the smoke test exercises
+      # exactly what prod would run.
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.BACKEND_IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ env.BACKEND_IMAGE }}:buildcache,mode=max
+          build-args: |
+            BUILD=${{ steps.version.outputs.tag }}
+
+      - name: Log pushed images
+        run: |
+          echo "Pushed image:"
+          echo "  ${{ env.BACKEND_IMAGE }}:${{ steps.version.outputs.tag }}"
+
+  smoke-test-frontend:
+    name: Smoke Test Frontend
+    needs: build-and-push-frontend
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7.0.1
+
+      - name: Run frontend smoke test in dev container
+        uses: devcontainers/ci@v0.3
+        env:
+          FRONTEND_IMAGE: ${{ env.FRONTEND_IMAGE }}:pr-${{ github.event.pull_request.number }}
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          imageName: ghcr.io/thermcampos/ledger-finance/devcontainer
+          push: never
+          env: |
+            FRONTEND_IMAGE
+            GHCR_USER
+            GHCR_TOKEN
+          runCmd: bash scripts/smoke-test-frontend.sh
+
+  smoke-test-backend:
+    name: Smoke Test Backend
+    needs: build-and-push-backend
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7.0.1
+
+      - name: Run backend smoke test in dev container
+        uses: devcontainers/ci@v0.3
+        env:
+          BACKEND_IMAGE: ${{ env.BACKEND_IMAGE }}:pr-${{ github.event.pull_request.number }}
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          imageName: ghcr.io/thermcampos/ledger-finance/devcontainer
+          push: never
+          env: |
+            BACKEND_IMAGE
+            GHCR_USER
+            GHCR_TOKEN
+          runCmd: bash scripts/smoke-test-backend.sh

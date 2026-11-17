@@ -24,22 +24,23 @@ tasks:
     cmd: export NGROK_AUTHTOKEN=1 && docker compose -f compose.yaml down -v --remove-orphans 
 
   quality-check-backend:
-    desc: Run tests for the backend (needs java 21.0.2-graalce)
-    dir: backend
+    desc: Backend quality gate, same as PR CI (scripts/check-backend.sh). Switches to java 21.0.2-graalce via SDKMAN
     cmd: |
       bash -c '
         source $HOME/.sdkman/bin/sdkman-init.sh && \
         sdk use java 21.0.2-graalce && \
-        ./mvnw clean package -DskipTests && \
-        ./mvnw test
+        bash scripts/check-backend.sh
       '
 
   quality-check-frontend:
-    desc: Run tests for the frontend
-    dir: frontend
-    cmds:
-      - npm ci
-      - npm run lint
-      - npm run build
-      - npm run test
+    desc: Frontend quality gate, same as PR CI (scripts/check-frontend.sh) - lint, build, test, contrast
+    cmd: bash scripts/check-frontend.sh
+
+  smoke-test-backend:
+    desc: "Smoke test a backend image as prod runs it (Docker required). Usage: task smoke-test-backend [TAG=pr-123]"
+    cmd: BACKEND_IMAGE=ghcr.io/thermcampos/ledger-finance/backend:{{.TAG | default "latest"}} bash scripts/smoke-test-backend.sh
+
+  smoke-test-frontend:
+    desc: "Smoke test a frontend image (Docker required). Usage: task smoke-test-frontend [TAG=pr-123]"
+    cmd: FRONTEND_IMAGE=ghcr.io/thermcampos/ledger-finance/frontend:{{.TAG | default "latest"}} bash scripts/smoke-test-frontend.sh
 

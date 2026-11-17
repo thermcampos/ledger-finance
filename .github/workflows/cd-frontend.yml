@@ -1,4 +1,4 @@
-name: Frontend CI
+name: Frontend CD
 
 on:
   workflow_dispatch:
@@ -10,7 +10,7 @@ on:
       - 'frontend/*.json'
       - 'frontend/index.html'
       - 'frontend/Dockerfile'
-      - '.github/workflows/frontend.yml'
+      - '.github/workflows/cd-frontend.yml'
 
 env:
   REGISTRY: ghcr.io
