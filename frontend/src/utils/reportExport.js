@@ -223,15 +223,13 @@ export function buildReportMarkdown(report) {
     out.push(
       table(
         ['Date', 'Description', 'Account', 'Amount', 'Notes'],
-        [
-          ...sorted.map((t) => [
-            t.occurredOn,
-            t.description,
-            t.account?.name || '',
-            amount(Number(t.amount), { signed: true }),
-            transactionNotes(t, today),
-          ]),
-        ],
+        sorted.map((t) => [
+          t.occurredOn,
+          t.description,
+          t.account?.name || '',
+          amount(Number(t.amount), { signed: true }),
+          transactionNotes(t, today),
+        ]),
         ['l', 'l', 'l', 'r', 'l']
       )
     );
